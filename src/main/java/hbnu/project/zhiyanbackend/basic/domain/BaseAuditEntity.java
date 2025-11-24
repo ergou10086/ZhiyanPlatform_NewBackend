@@ -39,7 +39,7 @@ public abstract class BaseAuditEntity {
     @JsonIgnore
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false,
-            columnDefinition = "DATETIME COMMENT '创建时间'")
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     /**
@@ -48,7 +48,7 @@ public abstract class BaseAuditEntity {
     @JsonIgnore
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false,
-            columnDefinition = "DATETIME COMMENT '更新时间'")
+            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
     /**
@@ -56,7 +56,7 @@ public abstract class BaseAuditEntity {
      */
     @CreatedBy
     @LongToString
-    @Column(name = "created_by", columnDefinition = "BIGINT COMMENT '创建人ID'")
+    @Column(name = "created_by", columnDefinition = "BIGINT")
     private Long createdBy;
 
     /**
@@ -64,7 +64,7 @@ public abstract class BaseAuditEntity {
      */
     @LastModifiedBy
     @LongToString
-    @Column(name = "updated_by", columnDefinition = "BIGINT COMMENT '最后修改人ID'")
+    @Column(name = "updated_by", columnDefinition = "BIGINT")
     private Long updatedBy;
 
 
@@ -73,6 +73,6 @@ public abstract class BaseAuditEntity {
      */
     @Version
     @Column(name = "version", nullable = false,
-            columnDefinition = "INT DEFAULT 0 COMMENT '版本号（乐观锁）'")
+            columnDefinition = "INTEGER NOT NULL DEFAULT 0")
     private Integer version = 0;
 }

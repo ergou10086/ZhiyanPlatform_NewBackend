@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.auth.model.entity;
 
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
+import hbnu.project.zhiyanbackend.auth.model.enums.UserStatus;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
  * @author ErgouTree
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", schema = "zhiyanauth")
 @Getter
 @Setter
 @SuperBuilder
@@ -35,65 +36,72 @@ public class User extends BaseAuditEntity {
      */
     @Id
     @LongToString
-    @Column(name = "id", nullable = false, columnDefinition = "BIGINT COMMENT '用户唯一标识（雪花ID）'")
+    @Column(name = "id", nullable = false)
     private Long id;
 
     /**
-     *  用户邮箱（登录账号）
+     * 用户邮箱（登录账号）
      */
-    @Column(name = "email", nullable = false, unique = true,
-            columnDefinition = "VARCHAR(255) COMMENT '用户邮箱（登录账号）'")
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
     /**
      * 用户密码哈希值
      */
-    @Column(name = "password_hash", nullable = false,
-            columnDefinition = "VARCHAR(255) COMMENT '密码哈希值（加密存储）'")
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
     /**
      * 用户名
      */
-    @Column(name = "name", nullable = false, length = 100,
-            columnDefinition = "VARCHAR(100) COMMENT '用户姓名'")
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     /**
-     * 头像URL
+     * 头像二进制数据（PostgreSQL BYTEA类型）
+     * 直接存储在数据库中，不使用对象存储
      */
-    @Column(name = "avatar_url", length = 500,
-            columnDefinition = "VARCHAR(500) COMMENT '用户头像URL'")
-    private String avatarUrl;
+    @Lob
+    @Column(name = "avatar_data", columnDefinition = "BYTEA")
+    @JsonIgnore
+    private byte[] avatarData;
+
+    /**
+     * 头像MIME类型（如：image/jpeg, image/png）
+     */
+    @Column(name = "avatar_content_type", length = 50)
+    private String avatarContentType;
+
+    /**
+     * 头像文件大小（字节）
+     */
+    @Column(name = "avatar_size")
+    private Long avatarSize;
 
     /**
      * 用户职称/职位
      */
-    @Column(name = "title", length = 100,
-            columnDefinition = "VARCHAR(100) COMMENT '用户职称/职位'")
+    @Column(name = "title", length = 100)
     private String title;
 
     /**
      * 所属机构
      */
-    @Column(name = "institution", length = 200,
-            columnDefinition = "VARCHAR(200) COMMENT '用户所属机构'")
+    @Column(name = "institution", length = 200)
     private String institution;
 
     /**
      * 账号是否锁定
      */
     @Builder.Default
-    @Column(name = "is_locked", nullable = false,
-            columnDefinition = "BOOLEAN DEFAULT FALSE COMMENT '是否锁定（禁止登录）'")
+    @Column(name = "is_locked", nullable = false)
     private Boolean isLocked = false;
 
     /**
      * 软删除标记
      */
     @Builder.Default
-    @Column(name = "is_deleted", nullable = false,
-            columnDefinition = "BOOLEAN DEFAULT FALSE COMMENT '软删除标记'")
+    @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
     /**
@@ -101,7 +109,7 @@ public class User extends BaseAuditEntity {
      * 存储格式：["机器学习", "自然语言处理", "大模型"]
      * 最多5个标签
      */
-    @Column(name = "research_tags", columnDefinition = "JSON COMMENT '研究方向标签（JSON数组，最多5个）'")
+    @Column(name = "research_tags", columnDefinition = "JSONB")
     private String researchTags;
 
     /**
@@ -109,9 +117,9 @@ public class User extends BaseAuditEntity {
      */
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20,
-            columnDefinition = "VARCHAR(20) COMMENT '用户状态（枚举：ACTIVE/LOCKED/DISABLED/DELETED）'")
+    @Column(name = "status", nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
+
     /**
      * 用户角色关联（一对多）
      * 注意：
