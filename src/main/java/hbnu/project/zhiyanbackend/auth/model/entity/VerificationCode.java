@@ -2,7 +2,7 @@ package hbnu.project.zhiyanbackend.auth.model.entity;
 
 import hbnu.project.zhiyanbackend.auth.model.enums.VerificationCodeType;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -82,7 +82,7 @@ public class VerificationCode {
     @PrePersist
     public void generateId() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
     }
 }

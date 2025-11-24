@@ -2,7 +2,7 @@ package hbnu.project.zhiyanbackend.auth.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -65,7 +65,7 @@ public class RememberMeToken {
     @PrePersist
     public void generateId() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
         if (this.createdTime == null) {
             this.createdTime = LocalDateTime.now();

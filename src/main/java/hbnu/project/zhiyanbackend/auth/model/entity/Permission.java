@@ -3,7 +3,7 @@ package hbnu.project.zhiyanbackend.auth.model.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -59,7 +59,7 @@ public class Permission extends BaseAuditEntity {
     @PrePersist
     public void generateId() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
     }
 }

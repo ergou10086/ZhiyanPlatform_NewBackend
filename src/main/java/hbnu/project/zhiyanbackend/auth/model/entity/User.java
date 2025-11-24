@@ -7,7 +7,7 @@ import hbnu.project.zhiyanbackend.auth.model.enums.UserStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -138,7 +138,7 @@ public class User extends BaseAuditEntity {
     @PrePersist
     public void generateId() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
     }
 

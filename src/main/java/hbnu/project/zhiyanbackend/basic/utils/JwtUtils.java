@@ -1,0 +1,252 @@
+package hbnu.project.zhiyanbackend.basic.utils;
+
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 认证服务专用JWT工具类
+ * 扩展通用JWT工具类，提供更多功能
+ *
+ * @author ErgouTree
+ */
+@Slf4j
+@Component
+public class JwtUtils {
+
+    @Value("${jwt.secret:zhiyan-platform-secret-key-2025}")
+    private String secret;
+
+    @Value("${jwt.issuer:zhiyan-platform}")
+    private String issuer;
+
+    /**
+     * 获取签名密钥
+     */
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 创建JWT令牌
+     *
+     * @param subject       主体（用户ID）
+     * @param expireMinutes 过期时间（分钟）
+     * @return JWT令牌
+     */
+    public String createToken(String subject, int expireMinutes) {
+        return createToken(subject, expireMinutes, new HashMap<>());
+    }
+
+    /**
+     * 创建JWT令牌
+     *
+     * @param subject       主体（用户ID）
+     * @param expireMinutes 过期时间（分钟）
+     * @param claims        自定义声明
+     * @return JWT令牌
+     */
+    public String createToken(String subject, int expireMinutes, Map<String, Object> claims) {
+        Date now = new Date();
+        Date expireDate = new Date(now.getTime() + expireMinutes * 60 * 1000L);
+
+        // ✅ 重要：必须先设置claims，再设置subject
+        // 因为.claims()会覆盖之前设置的所有标准声明（包括subject）
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .issuer(issuer)
+                .issuedAt(now)
+                .expiration(expireDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS512)
+                .compact();
+    }
+
+    /**
+     * 解析JWT令牌
+     *
+     * @param token JWT令牌
+     * @return 用户ID
+     */
+    public String parseToken(String token) {
+        try {
+            if (StringUtils.isBlank(token)) {
+                return null;
+            }
+
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            return claims.getSubject();
+
+        } catch (ExpiredJwtException e) {
+            log.debug("JWT令牌已过期: {}", e.getMessage());
+            return null;
+        } catch (UnsupportedJwtException e) {
+            log.debug("不支持的JWT令牌: {}", e.getMessage());
+            return null;
+        } catch (MalformedJwtException e) {
+            log.debug("JWT令牌格式错误: {}", e.getMessage());
+            return null;
+        } catch (SignatureException e) {
+            log.debug("JWT令牌签名验证失败: {}", e.getMessage());
+            return null;
+        } catch (IllegalArgumentException e) {
+            log.debug("JWT令牌参数错误: {}", e.getMessage());
+            return null;
+        } catch (JwtException e) {
+            log.debug("JWT令牌解析失败: {}", e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("JWT令牌解析异常: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+
+    /**
+     * 获取JWT令牌的Claims
+     *
+     * @param token JWT令牌
+     * @return Claims
+     */
+    public Claims getClaims(String token) {
+        try {
+            if (StringUtils.isBlank(token)) {
+                return null;
+            }
+
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+        } catch (Exception e) {
+            log.debug("获取JWT Claims失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+
+    /**
+     * 获取JWT令牌剩余有效时间（秒）
+     *
+     * @param token JWT令牌
+     * @return 剩余时间（秒），如果已过期或无效则返回null
+     */
+    public Long getRemainingTime(String token) {
+        try {
+            Claims claims = getClaims(token);
+            if (claims == null) {
+                return null;
+            }
+
+            Date expiration = claims.getExpiration();
+            Date now = new Date();
+
+            if (expiration.before(now)) {
+                return null;
+            }
+
+            return (expiration.getTime() - now.getTime()) / 1000;
+
+        } catch (Exception e) {
+            log.debug("获取JWT剩余时间失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+
+    /**
+     * 验证JWT令牌是否有效
+     *
+     * @param token JWT令牌
+     * @return 是否有效
+     */
+    public boolean validateToken(String token) {
+        try {
+            if (StringUtils.isBlank(token)) {
+                return false;
+            }
+
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+
+        } catch (ExpiredJwtException e) {
+            // 过期并不代表签名无效
+            return true;
+        } catch (JwtException e) {
+            return false;
+        } catch (Exception e) {
+            log.debug("JWT令牌验证失败: {}", e.getMessage());
+            return false;
+        }
+    }
+
+
+    /**
+     * 从JWT令牌中获取过期时间
+     *
+     * @param token JWT令牌
+     * @return 过期时间
+     */
+    public Date getExpirationDate(String token) {
+        Claims claims = getClaims(token);
+        return claims != null ? claims.getExpiration() : null;
+    }
+
+
+    /**
+     * 从JWT令牌中获取签发时间
+     *
+     * @param token JWT令牌
+     * @return 签发时间
+     */
+    public Date getIssuedAt(String token) {
+        Claims claims = getClaims(token);
+        return claims != null ? claims.getIssuedAt() : null;
+    }
+
+
+    /**
+     * 检查JWT令牌是否即将过期
+     *
+     * @param token   JWT令牌
+     * @param minutes 提前多少分钟算作即将过期
+     * @return 是否即将过期
+     */
+    public boolean isTokenExpiringSoon(String token, int minutes) {
+        try {
+            Claims claims = getClaims(token);
+            if (claims == null) {
+                return true;
+            }
+
+            Date expiration = claims.getExpiration();
+            Date threshold = new Date(System.currentTimeMillis() + minutes * 60 * 1000L);
+
+            return expiration.before(threshold);
+
+        } catch (Exception e) {
+            log.debug("检查JWT过期状态失败: {}", e.getMessage());
+            return true;
+        }
+    }
+}

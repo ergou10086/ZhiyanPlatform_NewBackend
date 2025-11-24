@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.model.entity;
 
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 
 import jakarta.persistence.*;
@@ -65,7 +65,7 @@ public class UserRole {
     @PrePersist
     public void generateId() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
     }
 }
