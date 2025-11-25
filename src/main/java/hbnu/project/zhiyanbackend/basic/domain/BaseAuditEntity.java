@@ -40,7 +40,7 @@ public abstract class BaseAuditEntity {
     @JsonIgnore
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false,
-            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
 
@@ -50,7 +50,7 @@ public abstract class BaseAuditEntity {
     @JsonIgnore
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false,
-            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
 
@@ -77,6 +77,6 @@ public abstract class BaseAuditEntity {
      */
     @Version
     @Column(name = "version", nullable = false,
-            columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+            columnDefinition = "INTEGER DEFAULT 0")
     private Integer version = 0;
 }

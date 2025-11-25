@@ -4,10 +4,13 @@ package hbnu.project.zhiyanbackend.basic.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hbnu.project.zhiyanbackend.basic.constants.GeneralConstants;
+import hbnu.project.zhiyanbackend.basic.domain.R;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -229,12 +232,12 @@ public class ServletUtils {
         }
         // 3. 检查请求URI后缀（如 .json/.xml）
         String uri = request.getRequestURI();
-        if (uri != null && StringUtils.inStringIgnoreCase(uri, ".json", ".xml")) {
+        if (uri != null && inStringIgnoreCase(uri, ".json", ".xml")) {
             return true;
         }
         // 4. 检查自定义 __ajax 参数
         String ajax = request.getParameter("__ajax");
-        return StringUtils.inStringIgnoreCase(ajax, "json", "xml");
+        return inStringIgnoreCase(ajax, "json", "xml");
     }
 
     /**
@@ -320,4 +323,18 @@ public class ServletUtils {
             return response.writeWith(Mono.just(errorBuffer));
         }
     }
+
+    /**
+     * 本地实现的忽略大小写字符串匹配，兼容旧项目 StringUtils.inStringIgnoreCase 用法。
+     */
+     private static boolean inStringIgnoreCase(String str, String... strs) {
+     if (str != null && strs != null) {
+     for (String s : strs) {
+     if (str.equalsIgnoreCase(StringUtils.trim(s))) {
+     return true;
+     }
+     }
+     }
+     return false;
+     }
 }

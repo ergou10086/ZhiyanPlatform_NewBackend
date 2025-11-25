@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform
+    username: postgres
+    # 建议使用环境变量或本地修改来提供真实密码，不要提交到仓库
+    password: zjm10086
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none  # 你已经手工建表，建议使用 none 或 validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    open-in-view: false
+  
+    # 邮件配置 - 网易163邮箱
+  mail:
+    host: smtp.163.com
+    port: 465
+    username: zhiyan163verif@163.com
+    password: UJrssfvfNrMJKvD4
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+            required: true
+          # 163邮箱需要SSL连接
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+            port: 465
+    default-encoding: UTF-8
+

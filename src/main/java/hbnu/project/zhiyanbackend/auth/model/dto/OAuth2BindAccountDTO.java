@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.model.dto;
 
-import hbnu.project.zhiyancommonoauth.model.dto.OAuth2UserInfo;
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +40,7 @@ public class OAuth2BindAccountDTO {
      * OAuth2用户信息（可选，用于更新头像、昵称等）
      */
     @Schema(description = "OAuth2用户信息（可选）")
-    private OAuth2UserInfo oauth2UserInfo;
+    private OAuth2UserInfoDTO oauth2UserInfo;
 
     /**
      * 要绑定的邮箱（已有账号的邮箱）

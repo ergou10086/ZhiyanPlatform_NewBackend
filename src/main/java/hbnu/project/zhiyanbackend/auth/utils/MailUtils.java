@@ -13,7 +13,6 @@ import jakarta.mail.Authenticator;
 import jakarta.mail.Session;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.InputStream;
@@ -44,9 +43,9 @@ public class MailUtils {
      * @param pass 授权码
      */
     public static MailAccount getMailAccount(String from, String user, String pass) {
-        ACCOUNT.setFrom(StringUtils.blankToDefault(from, ACCOUNT.getFrom()));
-        ACCOUNT.setUser(StringUtils.blankToDefault(user, ACCOUNT.getUser()));
-        ACCOUNT.setPass(StringUtils.blankToDefault(pass, ACCOUNT.getPass()));
+        ACCOUNT.setFrom(StrUtil.blankToDefault(from, ACCOUNT.getFrom()));
+        ACCOUNT.setUser(StrUtil.blankToDefault(user, ACCOUNT.getUser()));
+        ACCOUNT.setPass(StrUtil.blankToDefault(pass, ACCOUNT.getPass()));
         return ACCOUNT;
     }
 

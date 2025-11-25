@@ -1,1 +1,5 @@
-
+spring:
+  application:
+    name: zhiyan-backend
+  profiles:
+    active: cloud
