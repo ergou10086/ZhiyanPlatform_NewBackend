@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.security.config;
 
+import hbnu.project.zhiyanbackend.security.interceptor.HeaderInterceptor;
 
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
