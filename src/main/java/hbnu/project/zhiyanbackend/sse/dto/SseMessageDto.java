@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.sse.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+
 import lombok.Data;
 
 import java.io.Serial;
@@ -14,7 +14,7 @@ import java.util.List;
  * @author yui
  */
 @Data
-@JsonInclude(JsonInclude.Include.NON_NULL)
+
 public class SseMessageDto implements Serializable {
 
     @Serial

@@ -6,6 +6,7 @@ import hbnu.project.zhiyanbackend.message.model.converter.MessageConverter;
 import hbnu.project.zhiyanbackend.message.model.dto.MessageListDTO;
 import hbnu.project.zhiyanbackend.message.model.entity.MessageRecipient;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
