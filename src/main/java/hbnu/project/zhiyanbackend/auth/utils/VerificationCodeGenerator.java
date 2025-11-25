@@ -1,8 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.utils;
 
-import hbnu.project.zhiyancommonbasic.utils.id.UUID;
-
-import java.security.SecureRandom;
+import cn.hutool.core.util.RandomUtil;
 
 /**
  * 验证码生成工具类
@@ -10,8 +8,6 @@ import java.security.SecureRandom;
  * @author ErgouTree
  */
 public class VerificationCodeGenerator {
-
-    private static final SecureRandom SECURE_RANDOM = UUID.getSecureRandom();
 
     // 数字验证码字符集
     private static final String NUMERIC_CHARS = "0123456789";
@@ -53,7 +49,7 @@ public class VerificationCodeGenerator {
 
         StringBuilder code = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
-            int index = SECURE_RANDOM.nextInt(charset.length());
+            int index = RandomUtil.randomInt(charset.length());
             code.append(charset.charAt(index));
         }
 
