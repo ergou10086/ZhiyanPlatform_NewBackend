@@ -13,19 +13,27 @@ import java.util.regex.Pattern;
 public class PasswordUtils {
 
     /**
-     * 密码强度：弱（只包含数字或字母）
+     * 密码强度：弱（只包含一种字符类型）
      */
-    private static final Pattern WEAK_PASSWORD = Pattern.compile("^[0-9]+$|^[a-zA-Z]+$");
+    private static final Pattern WEAK_PASSWORD = Pattern.compile(
+            "^[0-9]+$|^[a-zA-Z]+$|^[^a-zA-Z0-9]+$"
+    );
 
     /**
-     * 密码强度：中等（包含数字和字母）
+     * 密码强度：中等（包含两种字符类型）
      */
-    private static final Pattern MEDIUM_PASSWORD = Pattern.compile("^(?=.*[0-9])(?=.*[a-zA-Z])[a-zA-Z0-9]+$");
+    private static final Pattern MEDIUM_PASSWORD = Pattern.compile(
+            "^(?=.*[0-9])(?=.*[a-zA-Z])[^!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$|" +
+                    "^(?=.*[0-9])(?=.*[^a-zA-Z0-9])[a-zA-Z!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$|" +
+                    "^(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9])[0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$"
+    );
 
     /**
-     * 密码强度：强（包含数字、字母和特殊字符）
+     * 密码强度：强（包含三种字符类型）
      */
-    private static final Pattern STRONG_PASSWORD = Pattern.compile("^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?])[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]+$");
+    private static final Pattern STRONG_PASSWORD = Pattern.compile(
+            "^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9]).+$"
+    );
 
     /**
      * 验证密码强度
@@ -59,14 +67,14 @@ public class PasswordUtils {
         if (StringUtils.isBlank(password)) {
             return false;
         }
-        
+
         // 长度检查：6-16位
         if (password.length() < 6 || password.length() > 16) {
             return false;
         }
-        
-        // 字符检查：只允许字母和数字
-        return password.matches("^[a-zA-Z0-9]+$");
+
+        // 允许任何可见字符，排除控制字符
+        return password.matches("^[\\x20-\\x7E]+$");
     }
 
     /**
@@ -107,5 +115,46 @@ public class PasswordUtils {
             case 3 -> "密码强度：强";
             default -> "未知";
         };
+    }
+
+    /**
+     * 检查密码是否包含空格
+     *
+     * @param password 密码
+     * @return 是否包含空格
+     */
+    public static boolean containsWhitespace(String password) {
+        return password != null && password.contains(" ");
+    }
+
+    /**
+     * 获取密码包含的字符类型数量
+     *
+     * @param password 密码
+     * @return 字符类型数量（数字、字母、特殊字符）
+     */
+    public static int getCharacterTypeCount(String password) {
+        if (password == null) {
+            return 0;
+        }
+
+        int typeCount = 0;
+
+        // 检查是否包含数字
+        if (password.matches(".*[0-9].*")) {
+            typeCount++;
+        }
+
+        // 检查是否包含字母
+        if (password.matches(".*[a-zA-Z].*")) {
+            typeCount++;
+        }
+
+        // 检查是否包含特殊字符
+        if (password.matches(".*[^a-zA-Z0-9].*")) {
+            typeCount++;
+        }
+
+        return typeCount;
     }
 }

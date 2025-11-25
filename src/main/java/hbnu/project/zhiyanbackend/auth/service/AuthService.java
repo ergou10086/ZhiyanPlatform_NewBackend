@@ -114,10 +114,10 @@ public interface AuthService {
     /**
      * 忘记密码
      *
-     * @param email 验证邮箱
+     * @param request 忘记密码请求
      * @return 操作结果
      */
-    R<Void> forgotPassword(String email);
+    R<Void> forgotPassword(ForgetPasswordDTO request);
 
     /**
      * 修改用户邮箱（改绑邮箱）
@@ -160,4 +160,16 @@ public interface AuthService {
      * @param userId 用户ID
      */
     void refreshRememberMeToken(Long userId);
+
+    /**
+     * 删除指定的RememberMe token
+     *
+     * @param token RememberToken
+     */
+    void deleteRememberMeToken(String token);
+
+    /**
+     * 清理过期的RememberMe token
+     */
+    void cleanExpiredTokens();
 }

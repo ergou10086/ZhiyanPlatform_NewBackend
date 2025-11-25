@@ -43,6 +43,7 @@ public abstract class BaseAuditEntity {
             columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
+
     /**
      * 数据最后修改时间（由审计自动更新）
      */
@@ -52,6 +53,7 @@ public abstract class BaseAuditEntity {
             columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
+
     /**
      * 数据创建人ID（由审计自动填充）
      */
@@ -59,6 +61,7 @@ public abstract class BaseAuditEntity {
     @LongToString
     @Column(name = "created_by", columnDefinition = "BIGINT")
     private Long createdBy;
+
 
     /**
      * 数据最后修改人ID（由审计自动更新）
