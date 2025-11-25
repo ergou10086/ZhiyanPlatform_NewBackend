@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.model.enums;
 
-import org.apache.catalina.Role;
+import hbnu.project.zhiyanbackend.auth.utils.RoleTemplate;
 
 import java.util.Arrays;
 import java.util.List;
@@ -12,12 +12,11 @@ import java.util.List;
  * 每个登录在平台上的用户，在不同项目中权限是不一样的
  * 所以一开始，用户注册了，只分配普通用户，开发者我们再改表
  * 创建了项目就分配 项目创建者，加入了项目就分配 项目负责人
- *                                              ———— ErgouTree
+ * ———— ErgouTree
  *
  * @author ErgouTree
  */
 public enum SysRole implements RoleTemplate {
-
 
 
     /**
@@ -64,7 +63,7 @@ public enum SysRole implements RoleTemplate {
     /**
      * 访客用户 - 受限的只读权限
      */
-    GUEST("访客用户", "受限的访问权限，无法创建项目", Arrays.asList(
+    GUEST("访客用户", "受限的访问权限，无法创建项目", List.of(
             SystemPermission.PROFILE_MANAGE
     ));
 
@@ -82,6 +81,7 @@ public enum SysRole implements RoleTemplate {
     public String getRoleName() {
         return roleName;
     }
+
     @Override
     public String getDescription() {
         return description;
@@ -101,6 +101,7 @@ public enum SysRole implements RoleTemplate {
     /**
      * 获取角色代码（用于权限判断）
      */
+    @Override
     public String getCode() {
         return this.name();
     }
@@ -109,10 +110,4 @@ public enum SysRole implements RoleTemplate {
     public List<PermissionModule> getPermissionMoules() {
         return List.of();
     }
-
-
-    /**
-     * 获取角色类型
-     */
-
 }

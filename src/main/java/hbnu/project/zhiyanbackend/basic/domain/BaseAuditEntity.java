@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.basic.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
@@ -42,6 +43,7 @@ public abstract class BaseAuditEntity {
             columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
+
     /**
      * 数据最后修改时间（由审计自动更新）
      */
@@ -51,6 +53,7 @@ public abstract class BaseAuditEntity {
             columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
+
     /**
      * 数据创建人ID（由审计自动填充）
      */
@@ -58,6 +61,7 @@ public abstract class BaseAuditEntity {
     @LongToString
     @Column(name = "created_by", columnDefinition = "BIGINT")
     private Long createdBy;
+
 
     /**
      * 数据最后修改人ID（由审计自动更新）

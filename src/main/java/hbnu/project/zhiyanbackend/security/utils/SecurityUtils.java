@@ -6,6 +6,7 @@ import hbnu.project.zhiyanbackend.security.context.LoginUserBody;
 import hbnu.project.zhiyanbackend.security.context.SecurityContextHolder;
 
 import io.jsonwebtoken.Claims;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -31,7 +32,7 @@ public class SecurityUtils {
 
     private static JwtUtils jwtUtils;
 
-    @Autowired
+    @Resource
     public void setJwtUtils(JwtUtils jwtUtils) {
         SecurityUtils.jwtUtils = jwtUtils;
     }

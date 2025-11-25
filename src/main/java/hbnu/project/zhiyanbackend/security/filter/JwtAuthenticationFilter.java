@@ -38,7 +38,8 @@ import java.util.Optional;
 public class JwtAuthenticationFilter extends OncePerRequestFilter{
 
     private final JwtUtils jwtUtils;
-    private final RememberMeService rememberMeService;
+
+
 
     /**
      * 从Authorization头提取token

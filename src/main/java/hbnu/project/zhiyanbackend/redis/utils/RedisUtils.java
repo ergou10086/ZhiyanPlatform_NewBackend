@@ -3,15 +3,23 @@ package hbnu.project.zhiyanbackend.redis.utils;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Redis 工具类 - 基于 Spring Data Redis
@@ -19,10 +27,16 @@ import java.util.concurrent.TimeUnit;
  * @author yui
  * @rewrite ErgouTree
  */
+@Slf4j
 @Component
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings(value = {"unchecked"})
 public class RedisUtils {
+
+    /**
+     * 用于存储消息监听器容器和订阅关系
+     */
+    private static final Map<String, RedisMessageListenerContainer> LISTENER_CONTAINERS = new ConcurrentHashMap<>();
 
     /**
      * -- GETTER --
@@ -100,9 +114,81 @@ public class RedisUtils {
      *
      * @param channelKey 通道key
      * @param msg        发送数据
+     * @param consumer   自定义处理
+     */
+    public static <T> void publish(String channelKey, T msg, Consumer<T> consumer) {
+        redisTemplate.convertAndSend(channelKey, msg);
+        consumer.accept(msg);
+    }
+
+    /**
+     * 发布消息到指定的频道
+     *
+     * @param channelKey 通道key
+     * @param msg        发送数据
      */
     public static <T> void publish(String channelKey, T msg) {
         redisTemplate.convertAndSend(channelKey, msg);
+    }
+
+    /**
+     * 订阅通道接收消息
+     *
+     * @param channelKey 通道key
+     * @param clazz      消息类型
+     * @param consumer   自定义处理
+     */
+    public static <T> void subscribe(String channelKey, Class<T> clazz, Consumer<T> consumer) {
+// 创建消息监听器适配器
+        MessageListenerAdapter listenerAdapter = new MessageListenerAdapter((MessageListener) (message, pattern) -> {
+            try {
+                // 消息体反序列化
+                T mesg = (T) redisTemplate.getValueSerializer().deserialize(message.getBody());
+                if (mesg != null) {
+                    consumer.accept(mesg);
+                }
+            }catch (Exception e) {
+                log.error("消息处理异常 - channel: {}", channelKey, e);
+            }
+        });
+
+        // 消息监听容器
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(redisTemplate.getConnectionFactory());
+        container.addMessageListener(listenerAdapter, new ChannelTopic(channelKey));
+        container.afterPropertiesSet();
+        container.start();
+
+        // 保存容器引用，以便后续可以取消订阅
+        LISTENER_CONTAINERS.put(channelKey + ":" + consumer.hashCode(), container);
+    }
+
+    /**
+     * 取消订阅
+     *
+     * @param channelKey 通道key
+     * @param consumer   自定义处理
+     */
+    @SneakyThrows
+    public static void unsubscribe(String channelKey, Consumer<?> consumer) {
+        String key = channelKey + ":" + consumer.hashCode();
+        RedisMessageListenerContainer container = LISTENER_CONTAINERS.remove(key);
+        if (container != null) {
+            container.stop();
+            container.destroy();
+        }
+    }
+
+    /**
+     * 取消所有订阅
+     */
+    @SneakyThrows
+    public static void unsubscribeAll() {
+        for (RedisMessageListenerContainer container : LISTENER_CONTAINERS.values()) {
+            container.stop();
+            container.destroy();
+        }
+        LISTENER_CONTAINERS.clear();
     }
 
     /**

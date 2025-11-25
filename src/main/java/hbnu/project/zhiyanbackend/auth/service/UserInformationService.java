@@ -1,9 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.service;
 
-import hbnu.project.zhiyanbackend.auth.model.dto.AvatarDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.UserAchievementDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.UserUpdateDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,7 +42,7 @@ public interface UserInformationService {
      * @param linkBody 关联请求
      * @return 关联结果
      */
-    R<UserAchievementDTO> linkAchievement(Long userId, AchievementLinkBody linkBody);
+    R<UserAchievementDTO> linkAchievement(Long userId, AchievementLinkDTO linkBody);
 
     /**
      * 取消关联学术成果
@@ -65,7 +62,7 @@ public interface UserInformationService {
      * @param updateBody 更新内容
      * @return 更新结果
      */
-    R<UserAchievementDTO> updateAchievementLink(Long userId, Long achievementId, UpdateAchievementLinkBody updateBody);
+    R<UserAchievementDTO> updateAchievementLink(Long userId, Long achievementId, UpdateAchievementLinkDTO updateBody);
 
     /**
      * 查询用户关联的所有成果

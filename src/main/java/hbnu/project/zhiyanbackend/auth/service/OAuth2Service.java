@@ -1,6 +1,10 @@
 package hbnu.project.zhiyanbackend.auth.service;
 
-
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2BindAccountDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2LoginResponseDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2SupplementInfoDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
+import hbnu.project.zhiyanbackend.basic.domain.R;
 
 /**
  * OAuth2第三方登录服务接口
@@ -21,7 +25,7 @@ public interface OAuth2Service {
      * @param oauth2UserInfo OAuth2用户信息
      * @return 登录响应（可能包含登录成功、需要绑定、需要补充信息等状态）
      */
-    R<OAuth2LoginResponse> handleOAuth2Login(OAuth2UserInfo oauth2UserInfo);
+    R<OAuth2LoginResponseDTO> handleOAuth2Login(OAuth2UserInfoDTO oauth2UserInfo);
 
     /**
      * 绑定已有账号
@@ -30,7 +34,7 @@ public interface OAuth2Service {
      * @param bindBody 绑定请求体
      * @return 登录结果
      */
-    R<OAuth2LoginResponse> bindAccount(OAuth2BindAccountBody bindBody);
+    R<OAuth2LoginResponseDTO> bindAccount(OAuth2BindAccountDTO bindBody);
 
     /**
      * 补充信息创建账号
@@ -39,6 +43,6 @@ public interface OAuth2Service {
      * @param supplementBody 补充信息请求体
      * @return 登录结果
      */
-    R<OAuth2LoginResponse> supplementInfoAndCreateAccount(OAuth2SupplementInfoBody supplementBody);
+    R<OAuth2LoginResponseDTO> supplementInfoAndCreateAccount(OAuth2SupplementInfoDTO supplementBody);
 }
 
