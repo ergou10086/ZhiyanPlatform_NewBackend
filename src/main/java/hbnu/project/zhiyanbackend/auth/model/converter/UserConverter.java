@@ -57,7 +57,7 @@ public interface UserConverter {
     @Mapping(target = "status", source = "status")
     @Mapping(target = "createdAt", ignore = true) // 这些字段在 UserDTO 中不存在
     @Mapping(target = "updatedAt", ignore = true)
-    UserInfoResponseDTO toUserInfoResponseDTO(UserDTO userDTO);
+    UserInfoResponseDTO toUserInfoResponseDTOwithRoles(UserDTO userDTO);
 
     /**
      * 将 UserDTO 转换为 UserInfoResponseDTO（不包含角色权限）

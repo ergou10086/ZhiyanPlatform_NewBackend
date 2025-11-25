@@ -1,8 +1,11 @@
 package hbnu.project.zhiyanbackend.auth.controller;
 
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 用户个人信息控制器
@@ -35,6 +39,8 @@ import java.util.List;
 public class UserInformationController {
 
     private final UserInformationService userInformationService;
+
+    private final UserRepository userRepository;
 
     // ==================== 头像管理接口 ====================
 
@@ -234,5 +240,59 @@ public class UserInformationController {
             log.error("更新用户资料失败", e);
             return R.fail("更新资料失败");
         }
+    }
+
+
+    /**
+     * 更新用户研究方向标签
+     */
+    @PutMapping("/profile/research-tags")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "更新研究方向标签", description = "用户更新自己的研究方向标签（1-5个）")
+    public R<List<String>> updateResearchTags(
+            @Valid @RequestBody UpdateResearchTagsDTO body) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或令牌无效");
+        }
+
+        // 验证标签数量
+        if (body.getResearchTags() == null || body.getResearchTags().isEmpty()) {
+            return R.fail("研究方向标签不能为空");
+        }
+
+        if (body.getResearchTags().size() > 5) {
+            return R.fail("研究方向标签最多5个");
+        }
+
+        // 验证标签和长度的接口
+        for(String tag: body.getResearchTags()) {
+            if (tag == null || tag.trim().isEmpty()) {
+                return R.fail("标签内容不能为空");
+            }
+            if (tag.length() > 50) {
+                return R.fail("单个标签长度不能超过50个字符");
+            }
+            // 防止XSS攻击
+            if (tag.matches(".*[<>\"'].*")) {
+                return R.fail("标签不能包含特殊字符");
+            }
+        }
+
+        // 去重并限制数量
+        List<String> uniqueTags = body.getResearchTags().stream()
+                .distinct()
+                .limit(5)
+                .collect(Collectors.toList());
+
+        // 更新用户标签
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ControllerException("用户不存在"));
+
+        user.setResearchTagList(uniqueTags);
+        userRepository.save(user);
+
+        log.info("用户[{}]更新研究方向标签: {}", userId, uniqueTags);
+        return R.ok(uniqueTags, "更新成功");
     }
 }
