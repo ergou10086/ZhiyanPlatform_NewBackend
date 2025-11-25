@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.utils;
 
-import hbnu.project.zhiyancommonbasic.utils.id.UUID;
+
 
 import java.security.SecureRandom;
 
