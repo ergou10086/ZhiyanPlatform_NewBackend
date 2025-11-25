@@ -18,11 +18,7 @@ import java.time.LocalDateTime;
  * @author ErgouTree
  */
 @Entity
-@Table(name = "message_send_record", indexes = {
-        @Index(name = "idx_message_body", columnList = "message_body_id"),
-        @Index(name = "idx_send_time", columnList = "send_time"),
-        @Index(name = "idx_status", columnList = "status")
-})
+@Table(name = "message_send_record", schema = "zhiyanmessage")
 @Getter
 @Setter
 @SuperBuilder
@@ -36,58 +32,55 @@ public class MessageSendRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @LongToString
-    @Column(nullable = false, columnDefinition = "BIGINT")
+    @Column(name = "id", nullable = false)
     private Long id;
 
     /**
      * 消息体ID
      */
     @LongToString
-    @Column(name = "message_body_id", nullable = false,
-            columnDefinition = "BIGINT")
+    @Column(name = "message_body_id", nullable = false)
     private Long messageBodyId;
 
     /**
      * 发送时间
      */
-    @Column(name = "send_time", nullable = false,
-            columnDefinition = "TIMESTAMP NOT NULL")
+    @Column(name = "send_time", nullable = false)
     private LocalDateTime sendTime;
 
     /**
      * 目标收件人总数
      */
-    @Column(name = "total_recipients", nullable = false,
-            columnDefinition = "INTEGER NOT NULL")
+    @Column(name = "total_recipients", nullable = false)
     private Integer totalRecipients;
 
     /**
      * 成功发送数量
      */
-    @Column(name = "success_count", nullable = false,
-            columnDefinition = "INTEGER NOT NULL DEFAULT 0")
-    private Integer successCount;
+    @Builder.Default
+    @Column(name = "success_count", nullable = false)
+    private Integer successCount = 0;
 
     /**
      * 失败数量
      */
-    @Column(name = "failed_count", nullable = false,
-            columnDefinition = "INTEGER NOT NULL DEFAULT 0")
-    private Integer failedCount;
+    @Builder.Default
+    @Column(name = "failed_count", nullable = false)
+    private Integer failedCount = 0;
 
     /**
      * 发送状态
      */
-    @Column(name = "status", nullable = false, length = 20,
-            columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'SENDING'")
-    private String status;
+    @Builder.Default
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "SENDING";
 
     /**
      * 数据创建时间
      */
     @JsonIgnore
     @Column(name = "created_at", nullable = false, updatable = false,
-            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     /**
@@ -95,21 +88,21 @@ public class MessageSendRecord {
      */
     @JsonIgnore
     @Column(name = "updated_at", nullable = false,
-            columnDefinition = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
+            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
     /**
      * 数据创建人ID
      */
     @LongToString
-    @Column(name = "created_by", columnDefinition = "BIGINT")
+    @Column(name = "created_by")
     private Long createdBy;
 
     /**
      * 数据最后修改人ID
      */
     @LongToString
-    @Column(name = "updated_by", columnDefinition = "BIGINT")
+    @Column(name = "updated_by")
     private Long updatedBy;
 
     /**
@@ -117,8 +110,7 @@ public class MessageSendRecord {
      */
     @Version
     @Builder.Default
-    @Column(name = "version", nullable = false,
-            columnDefinition = "INTEGER NOT NULL DEFAULT 0")
+    @Column(name = "version", nullable = false)
     private Integer version = 0;
 
     /**

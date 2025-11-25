@@ -23,14 +23,7 @@ import java.util.List;
  * @author ErgouTree
  */
 @Entity
-@Table(name = "message_body", indexes = {
-        @Index(name = "idx_scene_time", columnList = "scene, trigger_time"),
-        @Index(name = "idx_biz_type", columnList = "business_type, business_id"),
-        @Index(name = "idx_sender", columnList = "sender_id"),
-        @Index(name = "idx_trigger_time", columnList = "trigger_time"),
-        @Index(name = "idx_message_type", columnList = "message_type"),
-        @Index(name = "idx_priority", columnList = "priority")
-})
+@Table(name = "message_body",schema= "zhiyanmessage")
 @Getter
 @Setter
 @SuperBuilder
@@ -43,7 +36,7 @@ public class MessageBody extends BaseAuditEntity {
      */
     @Id
     @LongToString
-    @Column(nullable = false, columnDefinition = "BIGINT")
+    @Column(name = "id", nullable = false)
     private Long id;
 
     /**
@@ -51,38 +44,35 @@ public class MessageBody extends BaseAuditEntity {
      * 为null表示系统消息
      */
     @LongToString
-    @Column(name = "sender_id", columnDefinition = "BIGINT")
+    @Column(name = "sender_id")
     private Long senderId;
 
     /**
      * 消息类型
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "message_type", nullable = false, length = 20,
-            columnDefinition = "VARCHAR(20) DEFAULT 'PERSONAL'")
-    private MessageType messageType;
+    @Builder.Default
+    @Column(name = "message_type", nullable = false, length = 20)
+    private MessageType messageType = MessageType.PERSONAL;
 
     /**
      * 消息场景
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "scene", nullable = false, length = 50,
-            columnDefinition = "VARCHAR(50)")
+    @Column(name = "scene", nullable = false, length = 50)
     private MessageScene scene;
 
     /**
      * 优先级
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "priority", nullable = false, length = 20,
-            columnDefinition = "VARCHAR(20)")
+    @Column(name = "priority", nullable = false, length = 20)
     private MessagePriority priority;
 
     /**
      * 消息标题
      */
-    @Column(name = "title", nullable = false, length = 200,
-            columnDefinition = "VARCHAR(200)")
+    @Column(name = "title", nullable = false, length = 200)
     private String title;
 
     /**
@@ -95,21 +85,19 @@ public class MessageBody extends BaseAuditEntity {
      * 业务关联ID（如任务ID、项目ID、成果ID等）
      */
     @LongToString
-    @Column(name = "business_id", columnDefinition = "BIGINT")
+    @Column(name = "business_id")
     private Long businessId;
 
     /**
      * 业务类型
      */
-    @Column(name = "business_type", length = 50,
-            columnDefinition = "VARCHAR(50)")
+    @Column(name = "business_type", length = 50)
     private String businessType;
 
     /**
      * 消息触发时间（业务发生时间）
      */
-    @Column(name = "trigger_time", nullable = false,
-            columnDefinition = "TIMESTAMP NOT NULL")
+    @Column(name = "trigger_time", nullable = false)
     private LocalDateTime triggerTime;
 
     /**
