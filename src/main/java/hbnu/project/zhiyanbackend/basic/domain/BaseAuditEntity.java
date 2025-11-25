@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.basic.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;

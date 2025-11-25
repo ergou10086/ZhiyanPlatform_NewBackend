@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,7 +48,11 @@ public class ProjectMemberController {
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @PathVariable("userId") @Parameter(description = "用户ID") Long userId
     ) {
-        return projectMemberService.removeMember(projectId, userId);
+        Long operatorId = SecurityUtils.getUserId();
+        if (operatorId == null) {
+            return R.fail("未登录或Token无效，无法移除成员");
+        }
+        return projectMemberService.removeMember(projectId, userId, operatorId);
     }
 
     /**
@@ -60,7 +65,11 @@ public class ProjectMemberController {
             @PathVariable("userId") @Parameter(description = "用户ID") Long userId,
             @RequestParam("newRole") @Parameter(description = "新角色", example = "ADMIN") ProjectMemberRole newRole
     ) {
-        return projectMemberService.updateMemberRole(projectId, userId, newRole);
+        Long operatorId = SecurityUtils.getUserId();
+        if (operatorId == null) {
+            return R.fail("未登录或Token无效，无法更新成员角色");
+        }
+        return projectMemberService.updateMemberRole(projectId, userId, newRole, operatorId);
     }
 
     /**

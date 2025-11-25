@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://152.136.245.180:5432/zhiyanauth
+    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform
     username: postgres
     # 建议使用环境变量或本地修改来提供真实密码，不要提交到仓库
     password: zjm10086

@@ -111,8 +111,49 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     @Override
     @Transactional
+    public R<Void> removeMember(Long projectId, Long userId, Long operatorId) {
+        try {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
+
+            if (!isAdmin(projectId, operatorId)) {
+                return R.fail("只有项目管理员可以移除成员");
+            }
+
+            if (userId.equals(operatorId)) {
+                return R.fail("不能移除自己，如需退出项目请使用退出功能");
+            }
+
+            ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                    .orElse(null);
+            if (member == null) {
+                return R.fail("该用户不是项目成员");
+            }
+
+            if (member.getProjectRole() == ProjectMemberRole.OWNER) {
+                return R.fail("不能移除项目负责人");
+            }
+
+            ProjectMemberRole operatorRole = getUserRole(projectId, operatorId);
+            if (operatorRole == ProjectMemberRole.ADMIN && member.getProjectRole() == ProjectMemberRole.ADMIN) {
+                return R.fail("管理员不能移除其他管理员，只有项目负责人可以");
+            }
+
+            projectMemberRepository.delete(member);
+
+            log.info("移除项目成员成功: projectId={}, operatorId={}, userId={}", projectId, operatorId, userId);
+            return R.ok();
+        } catch (Exception e) {
+            log.error("移除项目成员失败: projectId={}, operatorId={}, userId={}", projectId, operatorId, userId, e);
+            return R.fail("移除成员失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole) {
         try {
+            // 1. 查询成员
             ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                     .orElse(null);
             if (member == null) {
@@ -133,7 +174,48 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             log.info("更新项目成员角色成功: projectId={}, userId={}, newRole={}", projectId, userId, newRole);
             return R.ok();
         } catch (Exception e) {
-            log.error("更新项目成员角色失败: projectId={}, userId={}, newRole={}", projectId, userId, newRole, e);
+            log.error("更新成员角色失败: projectId={}, userId={}, newRole={}", projectId, userId, newRole, e);
+            return R.fail("更新角色失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole, Long operatorId) {
+        try {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
+
+            if (!isAdmin(projectId, operatorId)) {
+                return R.fail("只有项目管理员可以修改成员角色");
+            }
+
+            ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                    .orElse(null);
+            if (member == null) {
+                return R.fail("该用户不是项目成员");
+            }
+
+            if (member.getProjectRole() == ProjectMemberRole.OWNER) {
+                return R.fail("不能修改项目负责人的角色");
+            }
+
+            ProjectMemberRole operatorRole = getUserRole(projectId, operatorId);
+            if (operatorRole == ProjectMemberRole.ADMIN && member.getProjectRole() == ProjectMemberRole.ADMIN) {
+                return R.fail("管理员不能修改其他管理员的角色，只有项目负责人可以");
+            }
+
+            if (operatorRole == ProjectMemberRole.ADMIN && newRole == ProjectMemberRole.OWNER) {
+                return R.fail("管理员不能将成员设置为项目负责人");
+            }
+
+            member.setProjectRole(newRole);
+            projectMemberRepository.save(member);
+
+            log.info("更新项目成员角色成功: projectId={}, operatorId={}, userId={}, newRole={}", projectId, operatorId, userId, newRole);
+            return R.ok();
+        } catch (Exception e) {
+            log.error("更新项目成员角色失败: projectId={}, operatorId={}, userId={}, newRole={}", projectId, operatorId, userId, newRole, e);
             return R.fail("更新成员角色失败: " + e.getMessage());
         }
     }

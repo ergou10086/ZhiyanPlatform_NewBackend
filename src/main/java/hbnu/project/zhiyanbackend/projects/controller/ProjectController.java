@@ -9,6 +9,7 @@ import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectStatusRequest;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/zhiyan/projects")
 @Tag(name = "项目管理", description = "项目增删改查接口（精简版）")
 @RequiredArgsConstructor
 public class ProjectController {
@@ -35,8 +36,12 @@ public class ProjectController {
 
     @PostMapping
     @Operation(summary = "创建项目")
-    public R<Project> createProject(@RequestBody CreateProjectRequest request,
-                                    @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+    public R<Project> createProject(@RequestBody CreateProjectRequest request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法创建项目");
+        }
+
         ProjectVisibility visibility = request.getVisibility();
         LocalDate startDate = request.getStartDate();
         LocalDate endDate = request.getEndDate();
@@ -70,8 +75,11 @@ public class ProjectController {
 
     @DeleteMapping("/{projectId}")
     @Operation(summary = "删除项目（软删除）")
-    public R<Void> deleteProject(@PathVariable("projectId") Long projectId,
-                                 @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+    public R<Void> deleteProject(@PathVariable("projectId") Long projectId) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法删除项目");
+        }
         return projectService.deleteProject(projectId, userId);
     }
 
@@ -107,11 +115,15 @@ public class ProjectController {
         return projectService.getProjectsByStatus(status, pageable);
     }
 
-    @GetMapping("/me")
+    @GetMapping("/my-projects")
     @Operation(summary = "分页获取当前用户参与的项目")
-    public R<Page<Project>> getMyProjects(@RequestHeader(value = "X-User-Id", required = false) Long userId,
-                                          @RequestParam(defaultValue = "0") int page,
+    public R<Page<Project>> getMyProjects(@RequestParam(defaultValue = "0") int page,
                                           @RequestParam(defaultValue = "10") int size) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取我的项目");
+        }
+
         Pageable pageable = PageRequest.of(page, size);
         return projectService.getUserProjects(userId, pageable);
     }
@@ -168,5 +180,25 @@ public class ProjectController {
         // 目前未在数据库中保存具体类型，这里暂时使用通用二进制类型
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         return new ResponseEntity<>(result.getData(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/count/my-created")
+    @Operation(summary = "统计我创建的项目数量")
+    public R<Long> countMyCreatedProjects() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法统计我创建的项目数量");
+        }
+        return projectService.countUserCreatedProjects(userId);
+    }
+
+    @GetMapping("/count/my-participated")
+    @Operation(summary = "统计我参与的项目数量")
+    public R<Long> countMyParticipatedProjects() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法统计我参与的项目数量");
+        }
+        return projectService.countUserParticipatedProjects(userId);
     }
 }

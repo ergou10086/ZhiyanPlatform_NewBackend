@@ -1,0 +1,53 @@
+package hbnu.project.zhiyanbackend.tasks.model.form;
+
+import hbnu.project.zhiyanbackend.tasks.model.enums.TaskPriority;
+import hbnu.project.zhiyanbackend.tasks.model.enums.TaskStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * 更新任务请求
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "更新任务请求")
+public class UpdateTaskRequest {
+
+    @Schema(description = "任务标题")
+    private String title;
+
+    @Schema(description = "任务描述")
+    private String description;
+
+    @Schema(description = "任务状态")
+    private TaskStatus status;
+
+    @Schema(description = "优先级")
+    private TaskPriority priority;
+
+    @Schema(description = "任务需要人数")
+    @Min(value = 1, message = "任务需要人数至少为1")
+    private Integer requiredPeople;
+
+    @Schema(description = "执行者ID列表")
+    private List<Long> assigneeIds;
+
+    @Schema(description = "截止日期")
+    private LocalDate dueDate;
+
+    @Schema(description = "预估工时（单位：小时，支持小数）")
+    private BigDecimal worktime;
+
+    @Schema(description = "是否为里程碑任务")
+    private Boolean isMilestone;
+}

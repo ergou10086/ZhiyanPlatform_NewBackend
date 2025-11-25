@@ -33,6 +33,10 @@ public interface ProjectMemberService {
      */
     R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole);
 
+    R<Void> removeMember(Long projectId, Long userId, Long operatorId);
+
+    R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole, Long operatorId);
+
     /**
      * 获取我参与的项目成员记录分页
      */

@@ -1,7 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.model.entity;
 
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -76,7 +76,7 @@ public class ProjectMember {
     @PrePersist
     protected void onCreate() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
         if (joinedAt == null) {
             joinedAt = LocalDateTime.now();
