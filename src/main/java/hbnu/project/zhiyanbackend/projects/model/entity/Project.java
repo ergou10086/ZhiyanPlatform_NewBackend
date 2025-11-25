@@ -20,7 +20,7 @@ import java.time.LocalDate;
  * 对应表：projects
  */
 @Entity
-@Table(name = "projects")
+@Table(name = "projects", schema = "zhiyanproject")
 @Getter
 @Setter
 @SuperBuilder

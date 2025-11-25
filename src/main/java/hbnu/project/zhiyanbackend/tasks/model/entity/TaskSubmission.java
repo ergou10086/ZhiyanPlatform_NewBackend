@@ -18,7 +18,7 @@ import java.time.Instant;
  * 用于记录任务的提交、审核、退回历史
  */
 @Entity
-@Table(name = "task_submission")
+@Table(name = "task_submission", schema = "zhiyantasks")
 @Getter
 @Setter
 @Builder

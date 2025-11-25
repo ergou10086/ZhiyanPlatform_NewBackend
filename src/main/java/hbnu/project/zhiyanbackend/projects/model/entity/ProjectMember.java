@@ -19,7 +19,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "project_members",
-        uniqueConstraints = {
+        schema = "zhiyanproject"
+        ,uniqueConstraints = {
                 @UniqueConstraint(name = "uk_project_user", columnNames = {"project_id", "user_id"})
         },
         indexes = {
