@@ -1,6 +1,5 @@
 package hbnu.project.zhiyanbackend.sse.config;
 
-
 import hbnu.project.zhiyanbackend.sse.controller.SseController;
 import hbnu.project.zhiyanbackend.sse.core.SseEmitterManager;
 import hbnu.project.zhiyanbackend.sse.listener.SseTopicListener;

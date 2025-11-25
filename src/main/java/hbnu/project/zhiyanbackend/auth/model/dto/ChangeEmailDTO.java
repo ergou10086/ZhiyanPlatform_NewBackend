@@ -20,10 +20,23 @@ import lombok.NoArgsConstructor;
 public class ChangeEmailDTO {
 
     /**
+     * 用户id
+     */
+    @NotBlank
+    private Long userId;
+
+    /**
      * 当前密码
      */
     @NotBlank(message = "当前密码不能为空")
     private String currentPassword;
+
+    /**
+     * 旧邮箱
+     */
+    @NotBlank(message = "旧邮箱不能为空")
+    @Email(message = "邮箱格式不正确")
+    private String oldEmail;
 
     /**
      * 新邮箱

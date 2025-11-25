@@ -8,6 +8,7 @@ import hbnu.project.zhiyanbackend.auth.model.enums.SystemPermission;
 import hbnu.project.zhiyanbackend.auth.repository.PermissionRepository;
 import hbnu.project.zhiyanbackend.auth.repository.RolePermissionRepository;
 import hbnu.project.zhiyanbackend.auth.service.PermissionService;
+import hbnu.project.zhiyanbackend.basic.constants.CacheConstants;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.redis.service.RedisService;
 import lombok.RequiredArgsConstructor;
@@ -49,10 +50,8 @@ public class PermissionServiceImpl implements PermissionService {
 
     private final RedisService redisService;
 
-    // 缓存相关常量
-    private static final String USER_PERMISSIONS_CACHE_PREFIX = "user:permissions:";
-    private static final String PERMISSION_CACHE_PREFIX = "permission:";
-    private static final long CACHE_EXPIRE_TIME = 1800L; // 30分钟
+    // 30分钟
+    private static final long CACHE_EXPIRE_TIME = 1800L;
 
     /**
      * 检查用户是否拥有指定权限
@@ -229,7 +228,7 @@ public class PermissionServiceImpl implements PermissionService {
             }
 
             // 先从缓存获取
-            String cacheKey = PERMISSION_CACHE_PREFIX + permissionId;
+            String cacheKey = CacheConstants.PERMISSION_CACHE_PREFIX + permissionId;
             Permission cachedPermission = redisService.getCacheObject(cacheKey);
 
             if (cachedPermission != null) {
@@ -298,7 +297,7 @@ public class PermissionServiceImpl implements PermissionService {
 
         try {
             // 先从缓存查找
-            String cacheKey = PERMISSION_CACHE_PREFIX + permissionId;
+            String cacheKey = CacheConstants.PERMISSION_CACHE_PREFIX + permissionId;
             Permission cachedPermission = redisService.getCacheObject(cacheKey);
 
             if (cachedPermission != null) {
@@ -640,7 +639,7 @@ public class PermissionServiceImpl implements PermissionService {
      */
     private Set<String> getUserPermissionsFromCache(Long userId) {
         try {
-            String cacheKey = USER_PERMISSIONS_CACHE_PREFIX + userId;
+            String cacheKey = CacheConstants.USER_PERMISSIONS_CACHE_PREFIX + userId;
             return redisService.getCacheObject(cacheKey);
         } catch (Exception e) {
             log.warn("从缓存获取用户权限失败 - userId: {}", userId, e);
@@ -656,7 +655,7 @@ public class PermissionServiceImpl implements PermissionService {
      */
     private void cacheUserPermissions(Long userId, Set<String> permissions) {
         try {
-            String cacheKey = USER_PERMISSIONS_CACHE_PREFIX + userId;
+            String cacheKey = CacheConstants.USER_PERMISSIONS_CACHE_PREFIX + userId;
             redisService.setCacheObject(cacheKey, permissions, CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("缓存用户权限失败 - userId: {}", userId, e);
@@ -670,7 +669,7 @@ public class PermissionServiceImpl implements PermissionService {
      */
     private void clearPermissionCache(Long permissionId) {
         try {
-            String cacheKey = PERMISSION_CACHE_PREFIX + permissionId;
+            String cacheKey = CacheConstants.PERMISSION_CACHE_PREFIX + permissionId;
             redisService.deleteObject(cacheKey);
         } catch (Exception e) {
             log.warn("清理权限缓存失败 - permissionId: {}", permissionId, e);
@@ -683,7 +682,7 @@ public class PermissionServiceImpl implements PermissionService {
      */
     private void clearAllUserPermissionsCache() {
         try {
-            Collection<String> keys = redisService.keys(USER_PERMISSIONS_CACHE_PREFIX + "*");
+            Collection<String> keys = redisService.keys(CacheConstants.USER_PERMISSIONS_CACHE_PREFIX + "*");
             if (keys != null && !keys.isEmpty()) {
                 redisService.deleteObject(keys);
             }

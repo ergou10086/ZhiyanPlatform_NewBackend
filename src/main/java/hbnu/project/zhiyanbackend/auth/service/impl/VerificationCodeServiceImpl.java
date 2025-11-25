@@ -6,6 +6,7 @@ import hbnu.project.zhiyanbackend.auth.repository.VerificationCodeRepository;
 import hbnu.project.zhiyanbackend.auth.service.MailService;
 import hbnu.project.zhiyanbackend.auth.service.VerificationCodeService;
 import hbnu.project.zhiyanbackend.auth.utils.VerificationCodeGenerator;
+import hbnu.project.zhiyanbackend.basic.constants.CacheConstants;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 
 
@@ -36,11 +37,6 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private final MailService mailService;
 
     private final RedisService redisService;
-
-    // Redis键前缀
-    private static final String VERIFICATION_CODE_PREFIX = "verification_code:";
-    private static final String RATE_LIMIT_PREFIX = "rate_limit:verification_code:";
-    private static final String USED_CODE_PREFIX = "used_verification_code:";
 
     // 验证码配置,从配置文件读取
     @Value("${app.verification-code.length:6}")
@@ -282,7 +278,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      * @return 组合后的Redis键
      */
     private String buildVerificationCodeKey(String email, VerificationCodeType type) {
-        return VERIFICATION_CODE_PREFIX + type.name().toLowerCase() + ":" + email;
+        return CacheConstants.VERIFICATION_CODE_PREFIX + type.name().toLowerCase() + ":" + email;
     }
 
     /**
@@ -293,7 +289,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      * @return 组合后的Redis键
      */
     private String buildRateLimitKey(String email, VerificationCodeType type) {
-        return RATE_LIMIT_PREFIX + type.name().toLowerCase() + ":" + email;
+        return CacheConstants.RATE_LIMIT_PREFIX + type.name().toLowerCase() + ":" + email;
     }
 
     /**
@@ -305,6 +301,6 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      * @return 组合后的Redis键
      */
     private String buildUsedCodeKey(String email, String code, VerificationCodeType type) {
-        return USED_CODE_PREFIX + type.name().toLowerCase() + ":" + email + ":" + code;
+        return CacheConstants.USED_CODE_PREFIX + type.name().toLowerCase() + ":" + email + ":" + code;
     }
 }

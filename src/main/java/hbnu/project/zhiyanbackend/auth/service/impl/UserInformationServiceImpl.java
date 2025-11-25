@@ -42,7 +42,7 @@ public class UserInformationServiceImpl implements UserInformationService {
     private final UserConverter userConverter;
 
     // 头像相关常量，限制5MB
-    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024; 
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif");
 
     /**

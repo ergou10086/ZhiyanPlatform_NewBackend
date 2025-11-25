@@ -23,6 +23,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import hbnu.project.zhiyanbackend.basic.constants.CacheConstants;
+
 /**
  * 角色服务实现类
  * 提供角色管理、角色分配等核心功能
@@ -47,14 +49,6 @@ public class RoleServiceImpl implements RoleService {
     private final RoleConverter roleConverter;
 
     private final RedisService redisService;
-
-    // 缓存相关常量
-    private static final String USER_ROLES_CACHE_PREFIX = "user:roles:";
-    private static final String ROLE_CACHE_PREFIX = "role:";
-    private static final String ROLE_PERMISSIONS_CACHE_PREFIX = "role:permissions:";
-    private static final String USER_PERMISSIONS_CACHE_PREFIX = "user:permissions:";
-    private static final String USER_PERMISSIONS_CACHE_PATTERN = "user:permissions:*";
-    private static final long CACHE_EXPIRE_TIME = 1800L;
 
     /**
      * 获取所有系统角色列表（分页）
@@ -100,7 +94,7 @@ public class RoleServiceImpl implements RoleService {
             }
 
             // 先从缓存获取
-            String cacheKey = ROLE_CACHE_PREFIX + roleId;
+            String cacheKey = CacheConstants.ROLE_CACHE_PREFIX + roleId;
             Role cachedRole = redisService.getCacheObject(cacheKey);
 
             if (cachedRole != null) {
@@ -117,7 +111,7 @@ public class RoleServiceImpl implements RoleService {
 
             Role role = optionalRole.get();
             // 缓存角色信息
-            redisService.setCacheObject(cacheKey, role, CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
+            redisService.setCacheObject(cacheKey, role, CacheConstants.CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
 
             // 转换返回
             RoleDTO roleDTO = roleConverter.toDTO(role);
@@ -360,7 +354,7 @@ public class RoleServiceImpl implements RoleService {
             }
 
             // 先从缓存获取
-            String cacheKey = USER_ROLES_CACHE_PREFIX + userId;
+            String cacheKey = CacheConstants.USER_ROLES_CACHE_PREFIX + userId;
             Set<String> cachedRoles = redisService.getCacheObject(cacheKey);
 
             if (cachedRoles != null) {
@@ -374,7 +368,7 @@ public class RoleServiceImpl implements RoleService {
                     .collect(Collectors.toSet());
 
             // 缓存用户角色
-            redisService.setCacheObject(cacheKey, roleNames, CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
+            redisService.setCacheObject(cacheKey, roleNames, CacheConstants.CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
 
             log.debug("获取用户角色成功 - userId: {}, 角色数: {}", userId, roleNames.size());
             return R.ok(roleNames);
@@ -678,7 +672,7 @@ public class RoleServiceImpl implements RoleService {
             }
 
             // 先从缓存获取
-            String cacheKey = ROLE_PERMISSIONS_CACHE_PREFIX + roleId;
+            String cacheKey = CacheConstants.ROLE_PERMISSIONS_CACHE_PREFIX + roleId;
             Set<String> cachedPermissions = redisService.getCacheObject(cacheKey);
 
             if (cachedPermissions != null) {
@@ -692,7 +686,7 @@ public class RoleServiceImpl implements RoleService {
                     .collect(Collectors.toSet());
 
             // 缓存角色权限
-            redisService.setCacheObject(cacheKey, permissionNames, CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
+            redisService.setCacheObject(cacheKey, permissionNames, CacheConstants.CACHE_EXPIRE_TIME, TimeUnit.SECONDS);
 
             log.debug("获取角色权限成功 - roleId: {}, 权限数: {}", roleId, permissionNames.size());
             return R.ok(permissionNames);
@@ -898,7 +892,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearRoleCache(Long roleId) {
         try{
-            String cacheKey = ROLE_CACHE_PREFIX + roleId;
+            String cacheKey = CacheConstants.ROLE_CACHE_PREFIX + roleId;
             redisService.deleteObject(cacheKey);
         }catch (Exception e){
             log.warn("清理角色缓存失败 - roleId: {}", roleId, e);
@@ -910,7 +904,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearUserRolesCache(Long userId) {
         try {
-            String cacheKey = USER_ROLES_CACHE_PREFIX + userId;
+            String cacheKey = CacheConstants.USER_ROLES_CACHE_PREFIX + userId;
             redisService.deleteObject(cacheKey);
         } catch (Exception e) {
             log.warn("清理用户角色缓存失败 - userId: {}", userId, e);
@@ -922,7 +916,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearAllUserRolesCache() {
         try {
-            Collection<String> keys = redisService.keys(USER_ROLES_CACHE_PREFIX + "*");
+            Collection<String> keys = redisService.keys(CacheConstants.USER_ROLES_CACHE_PREFIX + "*");
             if (keys != null && !keys.isEmpty()) {
                 redisService.deleteObject(keys);
             }
@@ -936,7 +930,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearRolePermissionsCache(Long roleId) {
         try {
-            String cacheKey = ROLE_PERMISSIONS_CACHE_PREFIX + roleId;
+            String cacheKey = CacheConstants.ROLE_PERMISSIONS_CACHE_PREFIX + roleId;
             redisService.deleteObject(cacheKey);
         } catch (Exception e) {
             log.warn("清理角色权限缓存失败 - roleId: {}", roleId, e);
@@ -948,7 +942,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearUserPermissionsCache(Long userId) {
         try {
-            String cacheKey = USER_PERMISSIONS_CACHE_PREFIX + userId;
+            String cacheKey = CacheConstants.USER_PERMISSIONS_CACHE_PREFIX + userId;
             redisService.deleteObject(cacheKey);
         } catch (Exception e) {
             log.warn("清理用户权限缓存失败 - userId: {}", userId, e);
@@ -960,7 +954,7 @@ public class RoleServiceImpl implements RoleService {
      */
     private void clearAllUserPermissionsCache() {
         try {
-            Collection<String> keys = redisService.keys(USER_PERMISSIONS_CACHE_PATTERN);
+            Collection<String> keys = redisService.keys(CacheConstants.USER_PERMISSIONS_CACHE_PATTERN);
             if (keys != null && !keys.isEmpty()) {
                 redisService.deleteObject(keys);
             }

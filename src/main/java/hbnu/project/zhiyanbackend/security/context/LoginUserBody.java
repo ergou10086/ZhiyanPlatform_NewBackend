@@ -48,9 +48,19 @@ public class LoginUserBody implements UserDetails, Serializable {
     private String name;
 
     /**
-     * 用户头像URL
+     * 用户头像URL（Base64 Data URL格式）
      */
     private String avatarUrl;
+
+    /**
+     * 用户头像二进制数据（PostgreSQL BYTES格式）
+     */
+    private byte[] avatarData;
+
+    /**
+     * 头像MIME类型（如：image/jpeg, image/png）
+     */
+    private String avatarContentType;
 
     /**
      * 用户职称/职位
@@ -169,13 +179,13 @@ public class LoginUserBody implements UserDetails, Serializable {
     }
 
     /**
-     * 判断用户是否为管理员
+     * 判断用户是否为管理员(开发者)
      * 可以根据角色或其他业务逻辑判断
      *
      * @return 是否为管理员
      */
-    public boolean isAdmin() {
-        return hasRole("系统管理员") || hasRole("超级管理员") || hasRole("ADMIN");
+    public boolean isDEVELOPER() {
+        return hasRole("DEVELOPER");
     }
 
     /**
@@ -188,6 +198,28 @@ public class LoginUserBody implements UserDetails, Serializable {
         return isLocked == null || !isLocked;
     }
 
+    /**
+     * 获取头像Base64 Data URL
+     * 如果avatarUrl不存在但avatarData存在，则动态生成
+     *
+     * @return 头像URL
+     */
+    public String getAvatarUrl() {
+        if (avatarUrl != null) {
+            return avatarUrl;
+        }
+        if (avatarData != null && avatarData.length > 0) {
+            try {
+                String base64 = java.util.Base64.getEncoder().encodeToString(avatarData);
+                String contentType = avatarContentType != null ? avatarContentType : "image/jpeg";
+                return "data:" + contentType + ";base64," + base64;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     // ==================== UserDetails接口实现 ====================
 
     @Override
@@ -195,24 +227,24 @@ public class LoginUserBody implements UserDetails, Serializable {
         if (authorities != null) {
             return authorities;
         }
-        
+
         // 从角色和权限构建权限集合
         Set<GrantedAuthority> grantedAuthorities = new HashSet<>();
-        
+
         // 添加角色权限（以ROLE_开头）
         if (roles != null) {
             grantedAuthorities.addAll(roles.stream()
                     .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                     .collect(Collectors.toSet()));
         }
-        
+
         // 添加具体权限
         if (permissions != null) {
             grantedAuthorities.addAll(permissions.stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toSet()));
         }
-        
+
         return grantedAuthorities;
     }
 
@@ -221,13 +253,11 @@ public class LoginUserBody implements UserDetails, Serializable {
         return passwordHash;
     }
 
-
     @Override
     public String getUsername() {
         // 使用邮箱作为用户名
         return email;
     }
-
 
     @Override
     public boolean isAccountNonExpired() {
@@ -235,13 +265,11 @@ public class LoginUserBody implements UserDetails, Serializable {
         return true;
     }
 
-
     @Override
     public boolean isCredentialsNonExpired() {
         // 凭证永不过期，可根据业务需求调整
         return true;
     }
-
 
     @Override
     public boolean isEnabled() {
@@ -249,4 +277,3 @@ public class LoginUserBody implements UserDetails, Serializable {
         return !Boolean.TRUE.equals(isLocked);
     }
 }
-
