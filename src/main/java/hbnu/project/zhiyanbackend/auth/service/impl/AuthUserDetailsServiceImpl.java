@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
  * @author ErgouTree
  */
 @Slf4j
-@Service
+@Service("authUserDetailsServiceImpl")
 @RequiredArgsConstructor
 public class AuthUserDetailsServiceImpl extends UserDetailsService {
 

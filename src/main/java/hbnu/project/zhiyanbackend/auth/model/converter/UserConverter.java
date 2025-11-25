@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.auth.model.converter;
 
 import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.UserInfoResponseDTO;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -50,6 +51,26 @@ public interface UserConverter {
     User toEntity(UserDTO dto);
 
     /**
+     * 将 UserDTO 转换为 UserInfoResponseDTO（包含角色和权限）
+     */
+    @Mapping(target = "avatarUrl", ignore = true) // 需要单独处理头像URL
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "createdAt", ignore = true) // 这些字段在 UserDTO 中不存在
+    @Mapping(target = "updatedAt", ignore = true)
+    UserInfoResponseDTO toUserInfoResponseDTO(UserDTO userDTO);
+
+    /**
+     * 将 UserDTO 转换为 UserInfoResponseDTO（不包含角色权限）
+     */
+    @Mapping(target = "avatarUrl", source = "avatarData", qualifiedByName = "extractAvatarUrl")
+    @Mapping(target = "status", source = ".", qualifiedByName = "determineStatus")
+    @Mapping(target = "roles", ignore = true)
+    @Mapping(target = "permissions", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    UserInfoResponseDTO toUserInfoResponse(UserDTO userDTO);
+
+    /**
      * 实体列表转DTO列表
      */
     List<UserDTO> toDTOList(List<User> users);
@@ -66,6 +87,13 @@ public interface UserConverter {
             return "data:" + user.getAvatarContentType() + ";base64," + base64;
         }
         return base64;
+    }
+
+    /**
+     * 将 UserStatus 枚举转换为字符串
+     */
+    default String mapStatus(hbnu.project.zhiyanbackend.auth.model.enums.UserStatus status) {
+        return status != null ? status.name() : null;
     }
 }
 

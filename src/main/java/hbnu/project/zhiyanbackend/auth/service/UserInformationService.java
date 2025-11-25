@@ -36,6 +36,15 @@ public interface UserInformationService {
     R<AvatarDTO> uploadAvatar(Long userId, MultipartFile file);
 
     /**
+     * 获取用户头像信息
+     * 根据用户ID获取头像的Base64编码数据
+     *
+     * @param userId 用户ID
+     * @return 头像信息
+     */
+    R<AvatarDTO> getAvatarInfo(Long userId);
+
+    /**
      * 关联学术成果
      *
      * @param userId 用户ID

@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.message.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,8 +22,8 @@ import java.util.Collections;
  * @author yxy
  */
 @Slf4j
-@Service
-@ConditionalOnMissingBean(name = "projectUserDetailsService")
+@Service("messageUserDetailsService")
+@Primary
 public class MessageUserDetailsService implements UserDetailsService {
 
     @Override

@@ -784,14 +784,14 @@ public class AuthServiceImpl implements AuthService {
      * 修改用户邮箱（改绑邮箱）
      * 验证新邮箱的验证码和当前密码后，更新用户邮箱地址
      *
-     * @param userId 用户ID（邮箱所属用户）
-     * @param changeEmailBody 修改邮箱表单数据（包含当前密码、新邮箱、验证码）
+     * @param changeEmailDTO 修改邮箱表单数据（包含当前密码、新邮箱、验证码）
      * @return 成功返回更新后的用户信息；失败返回错误信息（如验证码无效、邮箱已被使用等）
      */
     @Override
     @Transactional
-    public R<UserDTO> changeEmail(Long userId, ChangeEmailDTO changeEmailBody) {
-        log.info("处理修改用户邮箱请求 - 用户ID: {}, 新邮箱: {}", userId, changeEmailBody.getNewEmail());
+    public R<UserDTO> changeEmail(ChangeEmailDTO changeEmailDTO) {
+        Long userId = changeEmailDTO.getUserId();
+        log.info("处理修改用户邮箱请求 - 用户ID: {}, 新邮箱: {}", userId, changeEmailDTO.getNewEmail());
 
         try {
             // 1. 验证用户是否存在
@@ -802,21 +802,21 @@ public class AuthServiceImpl implements AuthService {
             User user = userOpt.get();
 
             // 2. 验证当前密码
-            if (changeEmailBody.getCurrentPassword() != null && 
-                !passwordEncoder.matches(changeEmailBody.getCurrentPassword(), user.getPasswordHash())) {
+            if (changeEmailDTO.getCurrentPassword() != null &&
+                !passwordEncoder.matches(changeEmailDTO.getCurrentPassword(), user.getPasswordHash())) {
                 return R.fail("当前密码错误");
             }
 
             // 3. 检查新邮箱是否已被使用
-            Optional<User> existingUser = userRepository.findByEmail(changeEmailBody.getNewEmail());
+            Optional<User> existingUser = userRepository.findByEmail(changeEmailDTO.getNewEmail());
             if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
                 return R.fail("该邮箱已被使用");
             }
 
             // 4. 校验新邮箱的验证码
             R<Boolean> validResult = verificationCodeService.validateCode(
-                    changeEmailBody.getNewEmail(), 
-                    changeEmailBody.getVerificationCode(), 
+                    changeEmailDTO.getNewEmail(),
+                    changeEmailDTO.getVerificationCode(),
                     VerificationCodeType.CHANGE_EMAIL
             );
             if (!R.isSuccess(validResult) || Boolean.FALSE.equals(validResult.getData())) {
@@ -825,7 +825,7 @@ public class AuthServiceImpl implements AuthService {
 
             // 5. 更新用户邮箱
             String oldEmail = user.getEmail();
-            user.setEmail(changeEmailBody.getNewEmail());
+            user.setEmail(changeEmailDTO.getNewEmail());
             userRepository.save(user);
 
             // 6. 将旧 token 加入黑名单并清理（强制重新登录）
@@ -845,13 +845,13 @@ public class AuthServiceImpl implements AuthService {
             // 8. 构建返回DTO
             UserDTO userDTO = userConverter.toDTO(user);
 
-            log.info("用户邮箱修改成功 - 用户ID: {}, 旧邮箱: {}, 新邮箱: {}", 
-                    userId, oldEmail, changeEmailBody.getNewEmail());
+            log.info("用户邮箱修改成功 - 用户ID: {}, 旧邮箱: {}, 新邮箱: {}",
+                    userId, oldEmail, changeEmailDTO.getNewEmail());
             return R.ok(userDTO, "邮箱修改成功，请重新登录");
 
         } catch (Exception e) {
-            log.error("修改用户邮箱失败 - 用户ID: {}, 新邮箱: {}, 错误: {}", 
-                    userId, changeEmailBody.getNewEmail(), e.getMessage(), e);
+            log.error("修改用户邮箱失败 - 用户ID: {}, 新邮箱: {}, 错误: {}",
+                    userId, changeEmailDTO.getNewEmail(), e.getMessage(), e);
             return R.fail("修改邮箱失败，请稍后重试");
         }
     }

@@ -302,6 +302,49 @@ public class UserInformationServiceImpl implements UserInformationService {
     }
 
     /**
+     * 获取用户头像信息
+     * 根据用户ID获取头像的Base64编码数据
+     *
+     * @param userId 用户ID
+     * @return 头像信息
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public R<AvatarDTO> getAvatarInfo(Long userId) {
+        try {
+            log.info("获取用户头像信息: userId={}", userId);
+
+            // 1. 验证用户是否存在
+            Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (optionalUser.isEmpty()) {
+                log.warn("用户不存在 - userId: {}", userId);
+                return R.fail("用户不存在");
+            }
+
+            User user = optionalUser.get();
+
+            // 2. 检查是否有头像
+            if (user.getAvatarData() == null || user.getAvatarData().length == 0) {
+                log.info("用户[{}]没有头像", userId);
+                return R.ok(AvatarDTO.builder().build(), "用户暂无头像");
+            }
+
+            // 3. 构建返回DTO
+            AvatarDTO avatarDTO = AvatarDTO.builder()
+                    .avatarData(Base64.getEncoder().encodeToString(user.getAvatarData()))
+                    .contentType(user.getAvatarContentType())
+                    .size(user.getAvatarSize())
+                    .build();
+
+            log.info("获取用户头像信息成功: userId={}, size={} bytes", userId, user.getAvatarSize());
+            return R.ok(avatarDTO);
+        } catch (Exception e) {
+            log.error("获取用户头像信息失败 - userId: {}", userId, e);
+            return R.fail("获取头像信息失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 查询用户关联的所有成果
      * 按展示顺序排序返回
      *

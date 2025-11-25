@@ -123,11 +123,10 @@ public interface AuthService {
      * 修改用户邮箱（改绑邮箱）
      * 验证新邮箱的验证码后，更新用户邮箱地址
      *
-     * @param userId           用户ID（邮箱所属用户）
-     * @param changeEmailBody  修改邮箱表单数据（包含新邮箱、验证码）
+     * @param changeEmailDTO 修改邮箱表单数据（包含新邮箱、验证码）
      * @return R<UserDTO> - 成功返回更新后的用户信息；失败返回错误信息（如验证码无效、邮箱已被使用等）
      */
-    R<UserDTO> changeEmail(Long userId, ChangeEmailDTO changeEmailBody);
+    R<UserDTO> changeEmail(ChangeEmailDTO changeEmailDTO);
 
     /**
      * 用户登出

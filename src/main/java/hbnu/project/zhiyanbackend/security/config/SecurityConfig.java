@@ -1,12 +1,14 @@
 package hbnu.project.zhiyanbackend.security.config;
 
+import hbnu.project.zhiyanbackend.security.filter.JwtAuthenticationFilter;
 import hbnu.project.zhiyanbackend.security.interceptor.HeaderInterceptor;
 
-import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -34,8 +36,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 public class SecurityConfig implements WebMvcConfigurer {
 
-    @Resource
-    private UserDetailsService userDetailsService;
+    @Qualifier("authUserDetailsServiceImpl")
+    private final UserDetailsService userDetailsService;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -60,9 +62,8 @@ public class SecurityConfig implements WebMvcConfigurer {
      * 认证提供者配置
      */
     @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
