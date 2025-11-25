@@ -46,6 +46,17 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     long countByStatus(ProjectStatus status);
 
+    /**
+     * 查询用户参与的项目（包括创建的和加入的，不包含已删除的项目）
+     *
+     * @param userId 用户ID
+     * @param pageable 分页参数
+     * @return 项目分页列表
+     */
+    @Query("SELECT DISTINCT p FROM Project p LEFT JOIN ProjectMember pm ON p.id = pm.projectId " +
+           "WHERE (p.creatorId = :userId OR pm.userId = :userId) AND p.isDeleted = false")
+    Page<Project> findUserProjects(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT p FROM Project p WHERE p.createdAt BETWEEN :startTime AND :endTime")
     Page<Project> findByCreatedAtBetween(@Param("startTime") LocalDateTime startTime,
                                          @Param("endTime") LocalDateTime endTime,

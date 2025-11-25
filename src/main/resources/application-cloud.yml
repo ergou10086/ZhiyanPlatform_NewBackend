@@ -14,4 +14,23 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
     open-in-view: false
+  
+    # 邮件配置 - 网易163邮箱
+  mail:
+    host: smtp.163.com
+    port: 465
+    username: zhiyan163verif@163.com
+    password: UJrssfvfNrMJKvD4
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+            required: true
+          # 163邮箱需要SSL连接
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+            port: 465
+    default-encoding: UTF-8
 

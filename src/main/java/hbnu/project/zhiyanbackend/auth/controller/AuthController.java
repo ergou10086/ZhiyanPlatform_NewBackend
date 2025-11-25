@@ -63,8 +63,9 @@ public class AuthController {
     @Operation(summary = "用户登录", description = "用户登录获取访问令牌")
     public R<UserLoginResponseDTO> login(
             @Valid @RequestBody LoginDTO loginDTO, HttpServletResponse response) {
-        log.info("用户登录API请求: 邮箱={}", loginBody.getEmail());
+        log.info("用户登录API请求: 邮箱={}", loginDTO.getEmail());
 
-
+        // 直接调用认证服务执行登录逻辑
+        return authService.login(loginDTO);
     }
 }

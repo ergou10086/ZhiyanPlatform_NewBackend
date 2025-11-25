@@ -93,7 +93,7 @@ public class TaskServiceImpl implements TaskService {
                             .isActive(true)
                             .roleType(RoleType.EXECUTOR)
                             .build())
-                    .toList();
+                    .collect(Collectors.toList());
             taskUserRepository.saveAll(taskUsers);
         }
 

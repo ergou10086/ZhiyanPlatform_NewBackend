@@ -1,6 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.model.dto;
 
-import hbnu.project.zhiyancommonoauth.model.dto.OAuth2UserInfo;
+import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

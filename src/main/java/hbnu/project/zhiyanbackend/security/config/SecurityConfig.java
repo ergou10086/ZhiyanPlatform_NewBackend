@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.security.config;
 
+import hbnu.project.zhiyanbackend.security.filter.JwtAuthenticationFilter;
 import hbnu.project.zhiyanbackend.security.interceptor.HeaderInterceptor;
 
 import jakarta.annotation.Resource;
@@ -61,8 +62,8 @@ public class SecurityConfig implements WebMvcConfigurer {
      */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
+        // 当前依赖的 DaoAuthenticationProvider 只提供带 UserDetailsService 参数的构造器
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }

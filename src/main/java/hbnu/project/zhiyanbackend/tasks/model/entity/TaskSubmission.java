@@ -55,13 +55,6 @@ public class TaskSubmission {
     @Column(name = "submitter_id", nullable = false, columnDefinition = "BIGINT")
     private Long submitterId;
 
-    /**
-     * 提交类型：COMPLETE-完成提交，PARTIAL-阶段性提交，MILESTONE-里程碑提交
-
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "submission_type", nullable = false, columnDefinition = "VARCHAR(32)")
-    private SubmissionType submissionType = SubmissionType.COMPLETE;*/
 
     /**
      * 提交说明（必填，描述完成情况）

@@ -2,7 +2,7 @@ package hbnu.project.zhiyanbackend.tasks.model.entity;
 
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
-import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtil;
+import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.tasks.model.enums.AssignType;
 import hbnu.project.zhiyanbackend.tasks.model.enums.RoleType;
 import jakarta.persistence.*;
@@ -126,7 +126,7 @@ public class TaskUser extends BaseAuditEntity {
     @PrePersist
     protected void onCreate() {
         if (this.id == null) {
-            this.id = SnowflakeIdUtil.nextId();
+            this.id = SnowflakeIdUtils.nextId();
         }
         if (this.assignedAt == null) {
             this.assignedAt = Instant.now();
