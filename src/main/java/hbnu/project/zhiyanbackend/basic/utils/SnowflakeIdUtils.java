@@ -13,7 +13,7 @@ import cn.hutool.system.SystemUtil;
  * @author ErgouTree
  * @date 2025-09-23
  */
-public class SnowflakeIdUtil {
+public class SnowflakeIdUtils {
 
     /**
      * 默认的雪花ID生成器
@@ -146,7 +146,7 @@ public class SnowflakeIdUtil {
      * @param workerId     工作机器ID
      */
     public static void resetDefaultSnowflake(long datacenterId, long workerId) {
-        synchronized (SnowflakeIdUtil.class) {
+        synchronized (SnowflakeIdUtils.class) {
             defaultSnowflake = createSnowflake(datacenterId, workerId);
         }
     }
