@@ -1,21 +1,54 @@
+# 云服务器环境（服务器环境）
+# 新数据库架构：使用PostgreSQL + Schema隔离
+
+server:
+  port: 8090
+
 spring:
+  application:
+    name: zhiyan-backend
+
+  # PostgreSQL数据库配置（使用Schema进行逻辑隔离）
   datasource:
-    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform
+    # 在searchPath中包含所有schema，按优先级排序
+    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
     username: postgres
-    # 建议使用环境变量或本地修改来提供真实密码，不要提交到仓库
     password: zjm10086
     driver-class-name: org.postgresql.Driver
+    # HikariCP连接池配置
+    hikari:
+      pool-name: ZhiyanBackendHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+      connection-test-query: SELECT 1
+      # PostgreSQL Schema配置，包含所有业务schema
+      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage
 
+  # JPA配置
   jpa:
     hibernate:
-      ddl-auto: none  # 你已经手工建表，建议使用 none 或 validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        # 格式化SQL
+        format_sql: true
+        # 显示SQL
+        show_sql: true
+        # 命名策略
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        # 批量操作优化
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
     show-sql: true
     open-in-view: false
-  
-    # 邮件配置 - 网易163邮箱
+
+  # 邮件配置 - 网易163邮箱
   mail:
     host: smtp.163.com
     port: 465
@@ -34,3 +67,145 @@ spring:
             port: 465
     default-encoding: UTF-8
 
+  # Jackson配置
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Redis配置（生产环境）
+  data:
+    redis:
+      # Redis 服务器地址（生产环境）
+      host: 152.136.245.180
+      # Redis 服务器连接端口
+      port: 6379
+      # Redis 服务器连账密
+      username: default
+      password: zjm10086
+      # 连接超时时间（毫秒）
+      timeout: 30000
+      # 命令超时时间
+      connect-timeout: 10000
+      # 数据库索引（0-15）
+      database: 0
+      lettuce:
+        pool:
+          # 连接池最大连接数
+          max-active: 16
+          # 连接池最大阻塞等待时间（使用负值表示没有限制）
+          max-wait: 10000
+          # 连接池中的最大空闲连接
+          max-idle: 8
+          # 连接池中的最小空闲连接
+          min-idle: 2
+        # 关闭超时时间
+        shutdown-timeout: 100ms
+
+# 验证码配置
+app:
+  verification-code:
+    length: 6
+    expire-minutes: 10
+    rate-limit-minutes: 1
+    enable-database-storage: true
+    enable-email-sending: true
+    enable-cleanup-task: true
+    max-retry-attempts: 3
+  name: 智研平台
+
+# JWT配置
+jwt:
+  secret: "zhiyan-platform-2025-this-is-a-very-long-secret-key-for-jwt-tokens-256-bits"
+  issuer: "zhiyan-platform"
+  access-token-expire-minutes: 1440  # 1天 = 24小时 = 1440分钟
+  refresh-token-expire-minutes: 10080  # 7天
+
+# 自定义security配置
+security:
+  # Xss攻击过滤路径
+  xss:
+    enabled: true
+    exclude-urls:
+      - /actuator/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /error
+      - /favicon.ico
+      - /zhiyan/auth/send-verfcode
+      - /zhiyan/auth/verify-code
+
+# 日志配置
+logging:
+  # 明确指定不使用外部日志配置文件，使用Spring Boot默认的Logback
+  config: ""  # 覆盖Nacos中可能存在的log4j2配置
+  level:
+    root: INFO
+    hbnu.project.zhiyanbackend: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.zaxxer.hikari: INFO
+    # 关闭特定框架的冗余日志
+    org.springframework.data.redis.repository: WARN
+    org.springframework.data.redis: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/zhiyan-backend.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+
+# Swagger配置
+swagger:
+  enabled: true
+  title: "智研平台后端服务"
+  description: "用户认证、项目管理、任务管理等核心功能"
+
+# SSE配置
+sse:
+  enabled: true
+
+# Dify流式配置
+dify:
+  stream-enabled: true
+
+# OAuth2第三方登录配置
+zhiyan:
+  oauth2:
+    # 是否启用OAuth2功能
+    enabled: true
+    # 回调地址基础路径（不包含具体路径）
+    # 开发环境：本地运行，使用localhost
+    # 生产环境：需要改为实际域名，如 https://yourdomain.com
+    callback-base-url: http://localhost:8090
+    # 前端页面URL配置（根据登录状态跳转到不同页面）
+    # TODO: 请根据实际前端部署地址修改以下URL
+    frontend-home-url: http://localhost:8080  # 主页URL（登录成功后跳转）
+    frontend-supplement-url: http://localhost:8080/oauth2/supplement  # 补充信息页面URL
+    frontend-bind-url: http://localhost:8080/oauth2/bind  # 绑定页面URL
+    frontend-error-url: http://localhost:8080/oauth2/error  # 错误页面URL
+
+    github:
+      # 是否启用GitHub登录
+      enabled: true
+      # GitHub应用的Client ID（从GitHub开发者平台获取）
+      # 建议使用环境变量：${GITHUB_CLIENT_ID:your-github-client-id}
+      client-id: ${GITHUB_CLIENT_ID:Ov23liNSEUAOKgBl1xBA}
+      # GitHub应用的Client Secret（从GitHub开发者平台获取）
+      # 建议使用环境变量：${GITHUB_CLIENT_SECRET:your-github-client-secret}
+      client-secret: ${GITHUB_CLIENT_SECRET:760d26f6727b47dd9ed6e24e08532480136052ba}
+      # 授权范围（scope）
+      # read:user - 读取用户基本信息
+      # user:email - 读取用户邮箱（需要此权限才能获取邮箱）
+      scope: read:user,user:email
+      # 以下URL为GitHub固定值，一般不需要修改
+      authorization-uri: https://github.com/login/oauth/authorize
+      token-uri: https://github.com/login/oauth/access_token
+      user-info-uri: https://api.github.com/user
+      user-email-uri: https://api.github.com/user/emails

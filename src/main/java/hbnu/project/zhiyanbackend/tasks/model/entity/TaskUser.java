@@ -20,7 +20,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(
-        name = "task_user",
+        name = "task_user", schema = "zhiyantasks",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_task_user_role", columnNames = {"task_id", "user_id", "role_type"})
         },

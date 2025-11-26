@@ -19,7 +19,7 @@ import java.time.LocalDate;
  * 任务实体
  */
 @Entity
-@Table(name = "tasks")
+@Table(name = "tasks", schema = "zhiyantasks")
 @Getter
 @Setter
 @SuperBuilder
