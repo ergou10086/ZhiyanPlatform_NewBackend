@@ -2,7 +2,6 @@ package hbnu.project.zhiyanbackend.security.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +12,6 @@ import java.util.List;
  * @author ErgouTree
  */
 @Data
-@Configuration
 @ConfigurationProperties(prefix = "security.xss")
 public class XssProperties {
 
