@@ -11,11 +11,12 @@ import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 
 /**
  * 用户实体类
@@ -61,7 +62,6 @@ public class User extends BaseAuditEntity {
      * 头像二进制数据（PostgreSQL BYTEA类型）
      * 直接存储在数据库中，不使用对象存储
      */
-    @Lob
     @Column(name = "avatar_data", columnDefinition = "BYTEA")
     @JsonIgnore
     private byte[] avatarData;
@@ -109,7 +109,8 @@ public class User extends BaseAuditEntity {
      * 存储格式：["机器学习", "自然语言处理", "大模型"]
      * 最多5个标签
      */
-    @Column(name = "research_tags", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "research_tags")
     private String researchTags;
 
     /**
