@@ -2,7 +2,6 @@ package hbnu.project.zhiyanbackend.auth.oauth.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * OAuth2 总配置属性
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Component;
  * @author ErgouTree
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "zhiyan.oauth2")
 public class OAuth2Properties {
 

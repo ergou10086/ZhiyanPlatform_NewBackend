@@ -37,11 +37,6 @@ public class SseAutoConfiguration {
     }
 
     @Bean
-    public WebClient.Builder webClientBuilder() {
-        return WebClient.builder();
-    }
-
-    @Bean
     @ConditionalOnProperty(value = "dify.stream-enabled", havingValue = "true", matchIfMissing = false)
     public DifyStreamService difyStreamService(WebClient.Builder webClientBuilder) {
         return new DifyStreamService(webClientBuilder);

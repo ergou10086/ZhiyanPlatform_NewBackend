@@ -2,7 +2,7 @@
 # 新数据库架构：使用PostgreSQL + Schema隔离
 
 server:
-  port: 8090
+  port: 9006
 
 spring:
   application:
