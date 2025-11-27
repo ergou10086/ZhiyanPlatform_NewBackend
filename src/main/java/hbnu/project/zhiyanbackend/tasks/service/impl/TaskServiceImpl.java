@@ -16,7 +16,10 @@ import hbnu.project.zhiyanbackend.tasks.service.TaskService;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +31,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
@@ -36,6 +40,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskUserRepository taskUserRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberService projectMemberService;
+    private final InboxMessageService inboxMessageService;
 
     @Override
     @Transactional
@@ -95,6 +100,23 @@ public class TaskServiceImpl implements TaskService {
                             .build())
                     .collect(Collectors.toList());
             taskUserRepository.saveAll(taskUsers);
+            
+            // 发送任务分配消息给被分配的执行者
+            try {
+                Project project = projectOpt.get();
+                inboxMessageService.sendBatchPersonalMessage(
+                        MessageScene.TASK_ASSIGN,
+                        creatorId,
+                        assigneeIds,
+                        "新任务分配",
+                        String.format("您已被分配到任务「%s」（项目：%s）", saved.getTitle(), project.getName()),
+                        saved.getId(),
+                        "TASK",
+                        null
+                );
+            } catch (Exception e) {
+                log.warn("发送任务分配消息失败: taskId={}, assigneeIds={}", saved.getId(), assigneeIds, e);
+            }
         }
 
         return R.ok(saved, "任务创建成功");
@@ -123,7 +145,8 @@ public class TaskServiceImpl implements TaskService {
             task.setDescription(request.getDescription());
             updated = true;
         }
-        if (request.getStatus() != null) {
+        TaskStatus oldStatus = task.getStatus();
+        if (request.getStatus() != null && request.getStatus() != oldStatus) {
             task.setStatus(request.getStatus());
             updated = true;
         }
@@ -153,6 +176,40 @@ public class TaskServiceImpl implements TaskService {
         }
 
         Task saved = taskRepository.save(task);
+        
+        // 如果任务状态发生变更，发送状态变更消息给任务执行者和创建者
+        if (request.getStatus() != null && request.getStatus() != oldStatus) {
+            try {
+                Project project = projectRepository.findById(saved.getProjectId()).orElse(null);
+                List<Long> notifyUserIds = new ArrayList<>();
+                
+                // 添加任务执行者
+                List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(saved.getId());
+                executors.forEach(tu -> notifyUserIds.add(tu.getUserId()));
+                
+                // 添加任务创建者（如果不在执行者列表中）
+                if (!notifyUserIds.contains(saved.getCreatorId())) {
+                    notifyUserIds.add(saved.getCreatorId());
+                }
+                
+                if (!notifyUserIds.isEmpty() && project != null) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.TASK_STATUS_CHANGED,
+                            operatorId,
+                            notifyUserIds,
+                            "任务状态已变更",
+                            String.format("任务「%s」（项目：%s）的状态已从「%s」变更为「%s」", 
+                                    saved.getTitle(), project.getName(), oldStatus, saved.getStatus()),
+                            saved.getId(),
+                            "TASK",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送任务状态变更消息失败: taskId={}", saved.getId(), e);
+            }
+        }
+        
         return R.ok(saved, "任务更新成功");
     }
 
@@ -193,8 +250,43 @@ public class TaskServiceImpl implements TaskService {
             return R.fail("只有项目成员才能更新任务状态");
         }
 
+        TaskStatus oldStatus = task.getStatus();
         task.setStatus(newStatus);
         Task saved = taskRepository.save(task);
+        
+        // 发送任务状态变更消息给任务执行者和创建者
+        if (newStatus != oldStatus) {
+            try {
+                Project project = projectRepository.findById(saved.getProjectId()).orElse(null);
+                List<Long> notifyUserIds = new ArrayList<>();
+                
+                // 添加任务执行者
+                List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(saved.getId());
+                executors.forEach(tu -> notifyUserIds.add(tu.getUserId()));
+                
+                // 添加任务创建者（如果不在执行者列表中）
+                if (!notifyUserIds.contains(saved.getCreatorId())) {
+                    notifyUserIds.add(saved.getCreatorId());
+                }
+                
+                if (!notifyUserIds.isEmpty() && project != null) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.TASK_STATUS_CHANGED,
+                            operatorId,
+                            notifyUserIds,
+                            "任务状态已变更",
+                            String.format("任务「%s」（项目：%s）的状态已从「%s」变更为「%s」", 
+                                    saved.getTitle(), project.getName(), oldStatus, newStatus),
+                            saved.getId(),
+                            "TASK",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送任务状态变更消息失败: taskId={}", saved.getId(), e);
+            }
+        }
+        
         return R.ok(saved, "任务状态更新成功");
     }
 
@@ -286,6 +378,29 @@ public class TaskServiceImpl implements TaskService {
             }
             if (!newAssignees.isEmpty()) {
                 taskUserRepository.saveAll(newAssignees);
+                
+                // 发送任务分配消息给新分配的执行者
+                try {
+                    Project project = projectRepository.findById(task.getProjectId()).orElse(null);
+                    List<Long> newAssigneeIds = newAssignees.stream()
+                            .map(TaskUser::getUserId)
+                            .collect(Collectors.toList());
+                    
+                    if (project != null) {
+                        inboxMessageService.sendBatchPersonalMessage(
+                                MessageScene.TASK_ASSIGN,
+                                operatorId,
+                                newAssigneeIds,
+                                "任务分配",
+                                String.format("您已被分配到任务「%s」（项目：%s）", task.getTitle(), project.getName()),
+                                task.getId(),
+                                "TASK",
+                                null
+                        );
+                    }
+                } catch (Exception e) {
+                    log.warn("发送任务分配消息失败: taskId={}, newAssignees={}", taskId, toAdd, e);
+                }
             }
         }
 

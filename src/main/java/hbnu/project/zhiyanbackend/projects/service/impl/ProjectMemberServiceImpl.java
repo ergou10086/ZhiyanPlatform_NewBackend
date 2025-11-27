@@ -7,6 +7,8 @@ import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,14 +31,16 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
+    private final InboxMessageService inboxMessageService;
 
     @Override
     @Transactional
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
         // TODO 后续接入认证模块时，可在此校验 userId 是否为有效用户
 
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
+        if (!projectRepository.existsById(projectId)) {
+            throw new IllegalArgumentException("项目不存在");
+        }
 
         if (projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
             log.warn("用户[{}]已经是项目[{}]成员", userId, projectId);
@@ -76,7 +81,28 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                     .build();
 
             projectMemberRepository.save(member);
-            // TODO 后续接入消息模块时，可在此发送“项目成员添加”通知
+            
+            // 向所有项目成员发送成员加入消息
+            try {
+                Project project = projectRepository.findById(projectId).orElse(null);
+                if (project != null) {
+                    List<Long> allMemberIds = getProjectMemberUserIds(projectId);
+                    if (!allMemberIds.isEmpty()) {
+                        inboxMessageService.sendBatchPersonalMessage(
+                                MessageScene.PROJECT_MEMBER_INVITED,
+                                null, // 系统消息
+                                allMemberIds,
+                                "新成员加入项目",
+                                String.format("新成员已加入项目「%s」，角色：%s", project.getName(), role.getDescription()),
+                                projectId,
+                                "PROJECT",
+                                null
+                        );
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("发送项目成员加入消息失败: projectId={}, userId={}", projectId, userId, e);
+            }
 
             log.info("添加项目成员成功: projectId={}, userId={}, role={}", projectId, userId, role);
             return R.ok();
@@ -98,8 +124,29 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
             // TODO 后续接入认证/权限模块时，可在此增加删除成员的权限校验（如仅 OWNER/ADMIN 可移除他人）
 
+            // 在删除前获取所有成员ID（包括即将被移除的成员）
+            List<Long> allMemberIds = getProjectMemberUserIds(projectId);
+            
             projectMemberRepository.delete(member);
-            // TODO 后续接入消息模块时，可在此发送“项目成员移除”通知
+            
+            // 向所有项目成员发送成员移除消息
+            try {
+                Project project = projectRepository.findById(projectId).orElse(null);
+                if (project != null && !allMemberIds.isEmpty()) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.PROJECT_MEMBER_REMOVED,
+                            null, // 系统消息
+                            allMemberIds,
+                            "成员离开项目",
+                            String.format("有成员已离开项目「%s」", project.getName()),
+                            projectId,
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目成员移除消息失败: projectId={}, userId={}", projectId, userId, e);
+            }
 
             log.info("移除项目成员成功: projectId={}, userId={}", projectId, userId);
             return R.ok();
@@ -139,7 +186,28 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 return R.fail("管理员不能移除其他管理员，只有项目负责人可以");
             }
 
+            // 在删除前获取所有成员ID（包括即将被移除的成员）
+            List<Long> allMemberIds = getProjectMemberUserIds(projectId);
+            
             projectMemberRepository.delete(member);
+            
+            // 向所有项目成员发送成员移除消息
+            try {
+                if (project != null && !allMemberIds.isEmpty()) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.PROJECT_MEMBER_REMOVED,
+                            operatorId,
+                            allMemberIds,
+                            "成员离开项目",
+                            String.format("有成员已离开项目「%s」", project.getName()),
+                            projectId,
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目成员移除消息失败: projectId={}, userId={}", projectId, userId, e);
+            }
 
             log.info("移除项目成员成功: projectId={}, operatorId={}, userId={}", projectId, operatorId, userId);
             return R.ok();
@@ -167,9 +235,29 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
             // TODO 后续接入认证/权限模块时，可在此扩展更细粒度的角色变更规则
 
+            ProjectMemberRole oldRole = member.getProjectRole();
             member.setProjectRole(newRole);
             projectMemberRepository.save(member);
-            // TODO 后续接入消息模块时，可在此发送“成员角色变更”通知
+            
+            // 发送项目角色变更消息
+            try {
+                Project project = projectRepository.findById(projectId).orElse(null);
+                if (project != null && oldRole != newRole) {
+                    inboxMessageService.sendPersonalMessage(
+                            MessageScene.PROJECT_ROLE_CHANGED,
+                            null, // 系统消息
+                            userId,
+                            "项目角色变更",
+                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」", 
+                                    project.getName(), oldRole.getDescription(), newRole.getDescription()),
+                            projectId,
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目角色变更消息失败: projectId={}, userId={}", projectId, userId, e);
+            }
 
             log.info("更新项目成员角色成功: projectId={}, userId={}, newRole={}", projectId, userId, newRole);
             return R.ok();
@@ -209,8 +297,28 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 return R.fail("管理员不能将成员设置为项目负责人");
             }
 
+            ProjectMemberRole oldRole = member.getProjectRole();
             member.setProjectRole(newRole);
             projectMemberRepository.save(member);
+            
+            // 发送项目角色变更消息
+            try {
+                if (oldRole != newRole) {
+                    inboxMessageService.sendPersonalMessage(
+                            MessageScene.PROJECT_ROLE_CHANGED,
+                            operatorId,
+                            userId,
+                            "项目角色变更",
+                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」", 
+                                    project.getName(), oldRole.getDescription(), newRole.getDescription()),
+                            projectId,
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目角色变更消息失败: projectId={}, userId={}", projectId, userId, e);
+            }
 
             log.info("更新项目成员角色成功: projectId={}, operatorId={}, userId={}, newRole={}", projectId, operatorId, userId, newRole);
             return R.ok();
