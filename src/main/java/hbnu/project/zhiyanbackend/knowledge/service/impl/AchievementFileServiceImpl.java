@@ -606,8 +606,8 @@ public class AchievementFileServiceImpl implements AchievementFileService {
                 .fileUrl(fileUrl)
                 .uploaderName(uploadUserName)
                 .uploadAt(file.getUploadAt())
-                .extension(file.getFileType())  // fileType 就是扩展名
-                .content(null) // TODO: 如果需要提取文件内容/摘要
+                .extension(file.getFileType())
+                .content(null)
                 .build();
     }
 
