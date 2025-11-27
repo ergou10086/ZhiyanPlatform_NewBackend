@@ -37,4 +37,4 @@ src/main/resources/application-cloud.yml
 
 *.log
 logs/
-
+log/
