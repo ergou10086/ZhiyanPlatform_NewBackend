@@ -1,0 +1,8 @@
+# Spring Boot自动配置
+# 新架构：使用@AutoConfiguration注解，但保留spring.factories以兼容旧版本
+
+org.springframework.boot.autoconfigure.AutoConfiguration=\
+  hbnu.project.zhiyanbackend.auth.oauth.config.OAuth2AutoConfiguration,\
+  hbnu.project.zhiyanbackend.sse.config.SseAutoConfiguration
+
+

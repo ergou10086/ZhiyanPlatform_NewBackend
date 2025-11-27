@@ -1,0 +1,7 @@
+# Spring Boot 2.7+ 自动配置导入文件
+# 新架构使用@AutoConfiguration注解，通过此文件自动注册
+
+hbnu.project.zhiyanbackend.auth.oauth.config.OAuth2AutoConfiguration
+hbnu.project.zhiyanbackend.sse.config.SseAutoConfiguration
+
+
