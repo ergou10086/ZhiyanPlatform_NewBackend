@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.auth.model.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,7 +23,7 @@ public class ChangeEmailDTO {
     /**
      * 用户id
      */
-    @NotBlank
+    @NotNull(message = "用户ID不能为空")
     private Long userId;
 
     /**

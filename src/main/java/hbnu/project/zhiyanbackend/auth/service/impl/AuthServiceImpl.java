@@ -832,10 +832,14 @@ public class AuthServiceImpl implements AuthService {
             userRepository.save(user);
 
             // 6. 将旧 token 加入黑名单并清理（强制重新登录）
-            String userTokenKey = CacheConstants.USER_TOKEN_PREFIX + user.getId();
-            String oldToken = redisService.getCacheObject(userTokenKey);
-            if (oldToken != null) {
-                blacklistToken(oldToken, user.getId());
+            try {
+                String userTokenKey = CacheConstants.USER_TOKEN_PREFIX + user.getId();
+                String oldToken = redisService.getCacheObject(userTokenKey);
+                if (oldToken != null) {
+                    blacklistToken(oldToken, user.getId());
+                }
+            } catch (Exception e) {
+                log.warn("清理旧Token失败(不影响主流程) - userId: {}, 错误: {}", user.getId(), e.getMessage());
             }
 
             // 7. 删除用户的RememberMe token（强制重新登录）
