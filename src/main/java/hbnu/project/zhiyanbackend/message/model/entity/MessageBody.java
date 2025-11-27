@@ -10,6 +10,8 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,7 +25,9 @@ import java.util.List;
  * @author ErgouTree
  */
 @Entity
-@Table(name = "message_body",schema= "zhiyanmessage")
+@Table(name = "message_body",
+     schema = "zhiyanmessage")
+
 @Getter
 @Setter
 @SuperBuilder
@@ -78,7 +82,7 @@ public class MessageBody extends BaseAuditEntity {
     /**
      * 消息正文
      */
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Column(name = "content")
     private String content;
 
     /**
@@ -104,7 +108,8 @@ public class MessageBody extends BaseAuditEntity {
      * 扩展字段（JSON格式）
      * 可存储额外的业务数据，如跳转链接、操作按钮等
      */
-    @Column(name = "extend_data", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "extend_data", nullable = true)
     private String extendData;
 
     /**
@@ -121,6 +126,10 @@ public class MessageBody extends BaseAuditEntity {
         }
         if (this.triggerTime == null) {
             this.triggerTime = LocalDateTime.now();
+        }
+        // 确保 extendData 为 null 或有效 JSON 字符串（避免 JSONB 类型转换错误）
+        if (this.extendData != null && this.extendData.trim().isEmpty()) {
+            this.extendData = null;
         }
         // 在保存前，更新所有收件人的 messageBodyId
         if (this.id != null && this.recipients != null) {
