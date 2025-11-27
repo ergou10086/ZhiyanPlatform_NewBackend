@@ -86,7 +86,6 @@ public class Project extends BaseAuditEntity {
     /**
      * 项目封面图片二进制数据
      */
-    @Lob
     @Column(name = "imagedata", columnDefinition = "BYTEA")
     private byte[] imageData;
 

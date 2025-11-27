@@ -45,7 +45,7 @@ spring:
           batch_size: 20
         order_inserts: true
         order_updates: true
-    show-sql: true
+    show-sql: false
     open-in-view: false
 
   # 邮件配置 - 网易163邮箱
