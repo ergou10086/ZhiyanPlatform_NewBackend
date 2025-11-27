@@ -93,11 +93,16 @@ public class MailServiceImpl implements MailService {
      * 构建邮件主题
      */
     private String buildEmailSubject(VerificationCodeType type) {
-        return switch (type) {
-            case REGISTER -> appName + " - 注册验证码";
-            case RESET_PASSWORD -> appName + " - 密码重置验证码";
-            case CHANGE_EMAIL -> appName + " - 邮箱变更验证码";
-        };
+        switch (type) {
+            case REGISTER:
+                return appName + " - 注册验证码";
+            case RESET_PASSWORD:
+                return appName + " - 密码重置验证码";
+            case CHANGE_EMAIL:
+                return appName + " - 邮箱变更验证码";
+            default:
+                return appName + " - 验证码";
+        }
     }
 
 
@@ -105,11 +110,21 @@ public class MailServiceImpl implements MailService {
      * 构建邮件内容
      */
     private String buildEmailContent(String code, VerificationCodeType type) {
-        String action = switch (type) {
-            case REGISTER -> "注册账户";
-            case RESET_PASSWORD -> "重置密码";
-            case CHANGE_EMAIL -> "变更邮箱";
-        };
+        String action;
+        switch (type) {
+            case REGISTER:
+                action = "注册账户";
+                break;
+            case RESET_PASSWORD:
+                action = "重置密码";
+                break;
+            case CHANGE_EMAIL:
+                action = "变更邮箱";
+                break;
+            default:
+                action = "身份验证";
+                break;
+        }
 
         return String.format(
                 """
