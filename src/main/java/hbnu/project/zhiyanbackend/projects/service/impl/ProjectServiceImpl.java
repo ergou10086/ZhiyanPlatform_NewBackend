@@ -9,6 +9,8 @@ import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
+import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 项目服务实现（精简版）
@@ -31,6 +34,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectMemberService projectMemberService;
+    private final InboxMessageService inboxMessageService;
 
     @Override
     @Transactional
@@ -71,10 +75,25 @@ public class ProjectServiceImpl implements ProjectService {
             project.setCreatedBy(creatorId);
 
             project = projectRepository.save(project);
-            // TODO 后续接入消息模块时，可在此发送“项目创建”通知
-
+            
             // 创建者作为项目拥有者加入成员表
             projectMemberService.addMemberInternal(project.getId(), creatorId, ProjectMemberRole.OWNER);
+
+            // 发送项目创建消息（通知创建者）
+            try {
+                inboxMessageService.sendPersonalMessage(
+                        MessageScene.PROJECT_CREATED,
+                        creatorId,
+                        creatorId,
+                        "项目创建成功",
+                        String.format("您已成功创建项目「%s」", project.getName()),
+                        project.getId(),
+                        "PROJECT",
+                        null
+                );
+            } catch (Exception e) {
+                log.warn("发送项目创建消息失败: projectId={}, creatorId={}", project.getId(), creatorId, e);
+            }
 
             log.info("创建项目成功: id={}, name={}, creatorId={}", project.getId(), name, creatorId);
             return R.ok(project, "项目创建成功");
@@ -115,7 +134,8 @@ public class ProjectServiceImpl implements ProjectService {
                 project.setVisibility(visibility);
             }
 
-            if (status != null) {
+            ProjectStatus oldStatus = project.getStatus();
+            if (status != null && status != oldStatus) {
                 project.setStatus(status);
             }
 
@@ -128,6 +148,29 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             project = projectRepository.save(project);
+            
+            // 如果项目状态发生变更，发送状态变更消息给所有项目成员
+            if (status != null && status != oldStatus) {
+                try {
+                    List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
+                    if (!memberIds.isEmpty()) {
+                        inboxMessageService.sendBatchPersonalMessage(
+                                MessageScene.PROJECT_STATUS_CHANGED,
+                                project.getCreatedBy(),
+                                memberIds,
+                                "项目状态已变更",
+                                String.format("项目「%s」的状态已从「%s」变更为「%s」", 
+                                        project.getName(), oldStatus, status),
+                                project.getId(),
+                                "PROJECT",
+                                null
+                        );
+                    }
+                } catch (Exception e) {
+                    log.warn("发送项目状态变更消息失败: projectId={}", projectId, e);
+                }
+            }
+            
             log.info("更新项目成功: id={}, name={}", projectId, project.getName());
             return R.ok(project, "项目更新成功");
         } catch (Exception e) {
@@ -154,7 +197,25 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setIsDeleted(true);
             projectRepository.save(project);
-            // TODO 后续接入消息模块时，可在此发送“项目删除”通知
+            
+            // 发送项目删除消息给所有项目成员
+            try {
+                List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
+                if (!memberIds.isEmpty()) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.PROJECT_DELETED,
+                            userId,
+                            memberIds,
+                            "项目已删除",
+                            String.format("项目「%s」已被删除", project.getName()),
+                            project.getId(),
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目删除消息失败: projectId={}", projectId, e);
+            }
 
             log.info("软删除项目成功: id={}, operator={} ", projectId, userId);
             return R.ok(null, "项目删除成功");
@@ -252,8 +313,32 @@ public class ProjectServiceImpl implements ProjectService {
             if (project == null) {
                 return R.fail("项目不存在");
             }
+            ProjectStatus oldStatus = project.getStatus();
             project.setStatus(status);
             project = projectRepository.save(project);
+            
+            // 发送项目状态变更消息给所有项目成员
+            if (status != oldStatus) {
+                try {
+                    List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
+                    if (!memberIds.isEmpty()) {
+                        inboxMessageService.sendBatchPersonalMessage(
+                                MessageScene.PROJECT_STATUS_CHANGED,
+                                project.getCreatedBy(),
+                                memberIds,
+                                "项目状态已变更",
+                                String.format("项目「%s」的状态已从「%s」变更为「%s」", 
+                                        project.getName(), oldStatus, status),
+                                project.getId(),
+                                "PROJECT",
+                                null
+                        );
+                    }
+                } catch (Exception e) {
+                    log.warn("发送项目状态变更消息失败: projectId={}", projectId, e);
+                }
+            }
+            
             log.info("更新项目状态成功: id={}, status={}", projectId, status);
             return R.ok(project, "项目状态更新成功");
         } catch (Exception e) {
@@ -279,7 +364,25 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setStatus(ProjectStatus.ARCHIVED);
             projectRepository.save(project);
-            // TODO 后续接入消息模块时，可在此发送“项目归档”通知
+            
+            // 发送项目归档消息给所有项目成员
+            try {
+                List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
+                if (!memberIds.isEmpty()) {
+                    inboxMessageService.sendBatchPersonalMessage(
+                            MessageScene.PROJECT_ARCHIVED,
+                            userId,
+                            memberIds,
+                            "项目已归档",
+                            String.format("项目「%s」已被归档", project.getName()),
+                            project.getId(),
+                            "PROJECT",
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("发送项目归档消息失败: projectId={}", projectId, e);
+            }
 
             log.info("归档项目成功: id={}, operator={}", projectId, userId);
             return R.ok(null, "项目归档成功");
