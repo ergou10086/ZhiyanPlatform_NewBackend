@@ -32,6 +32,8 @@ build/
 ### VS Code ###
 .vscode/
 
+/src/main/resources/application-cloud.yml
+
 .logs/
 .logs
 
