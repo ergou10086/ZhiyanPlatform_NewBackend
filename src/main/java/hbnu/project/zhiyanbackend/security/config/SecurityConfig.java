@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -39,7 +42,20 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Qualifier("authUserDetailsServiceImpl")
     private final UserDetailsService userDetailsService;
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    /**
+
+     * RestTemplate Bean
+     * 提供给 GithubOAuth2Provider 等需要发起 HTTP 请求的组件使用
+     */
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
 
     /**
      * 密码编码器Bean
@@ -89,7 +105,6 @@ public class SecurityConfig implements WebMvcConfigurer {
                         "/actuator/**",
                         "/health",                    // 健康检查端点（兼容性）
                         "/swagger-ui/**",
-                        "/swagger-resources/**",
                         "/v3/api-docs/**",
                         "/doc.html",
                         "/doc.html/**"
@@ -102,7 +117,7 @@ public class SecurityConfig implements WebMvcConfigurer {
      * 集成JWT、RememberMe自动续签机制
      */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 // 关闭CSRF
                 .csrf(AbstractHttpConfigurer::disable)
@@ -123,7 +138,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/auth/auto-login-check",
                                 "/zhiyan/auth/clear-remember-me",
                                 "/zhiyan/auth/check-email",
-                                "zhiyan/auth/oauth2/**"
+                                "/zhiyan/auth/oauth2/**"
                         ).permitAll()
 
                         // 系统基础接口 - 无需登录

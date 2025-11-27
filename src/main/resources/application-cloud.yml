@@ -2,7 +2,7 @@
 # 新架构：使用PostgreSQL + Schema隔离
 
 server:
-  port: 8090
+  port: 9006
 
 spring:
   application:
@@ -10,7 +10,8 @@ spring:
 
   # PostgreSQL数据库配置（使用Schema进行逻辑隔离）
   datasource:
-    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?currentSchema=auth&searchPath=auth,public
+    # 在searchPath中包含所有schema，按优先级排序
+    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
     username: postgres
     password: zjm10086
     driver-class-name: org.postgresql.Driver
@@ -23,8 +24,8 @@ spring:
       max-lifetime: 1200000
       connection-timeout: 20000
       connection-test-query: SELECT 1
-      # PostgreSQL Schema配置
-      connection-init-sql: SET search_path TO auth, public
+      # PostgreSQL Schema配置，包含所有业务schema
+      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage
 
   # JPA配置
   jpa:
@@ -33,8 +34,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        # 默认Schema配置（用于实体类映射）
-        default_schema: auth
         # 格式化SQL
         format_sql: true
         # 显示SQL
@@ -82,9 +81,8 @@ spring:
       host: 152.136.245.180
       # Redis 服务器连接端口
       port: 6379
-      # 用户名
-      username: deafult
-      # Redis 服务器连接密码
+      # Redis 服务器连账密
+      username: default
       password: zjm10086
       # 连接超时时间（毫秒）
       timeout: 30000
@@ -196,6 +194,13 @@ zhiyan:
     # 开发环境：本地运行，使用localhost
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: http://localhost:8090
+    # 前端页面URL配置（根据登录状态跳转到不同页面）
+    # TODO: 请根据实际前端部署地址修改以下URL
+    frontend-home-url: http://localhost:8080  # 主页URL（登录成功后跳转）
+    frontend-supplement-url: http://localhost:8080/oauth2/supplement  # 补充信息页面URL
+    frontend-bind-url: http://localhost:8080/oauth2/bind  # 绑定页面URL
+    frontend-error-url: http://localhost:8080/oauth2/error  # 错误页面URL
+
     github:
       # 是否启用GitHub登录
       enabled: true

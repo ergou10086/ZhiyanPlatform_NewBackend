@@ -21,10 +21,11 @@ import hbnu.project.zhiyanbackend.security.context.LoginUserBody;
 import hbnu.project.zhiyanbackend.security.utils.PasswordUtils;
 
 import io.jsonwebtoken.Claims;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -74,6 +75,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
     private final RoleService roleService;
+    @Lazy
     private final AuthenticationManager authenticationManager;
     private final AuthUserDetailsServiceImpl authUserDetailsService;
     private final UserConverter userConverter;
@@ -188,6 +190,7 @@ public class AuthServiceImpl implements AuthService {
      * @return 登录结果（包含用户信息和JWT令牌）
      */
     @Override
+    @Transactional
     public R<UserLoginResponseDTO> login(LoginDTO loginDTO) {
         log.info("处理用户登录: 邮箱={}", loginDTO.getEmail());
 
