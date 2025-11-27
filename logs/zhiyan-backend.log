@@ -3706,3 +3706,46 @@ Caused by: org.postgresql.util.PSQLException: ERROR: syntax error at or near "DE
 
 2025-11-27 09:46:22.058 [http-nio-9006-exec-2] DEBUG h.p.z.s.c.SecurityContextHolder - 清除用户上下文 - 用户ID: 1993598896093401088, 用户名: Tokito
 2025-11-27 09:46:22.059 [http-nio-9006-exec-2] DEBUG h.p.z.s.i.HeaderInterceptor - 清理请求上下文完成
+2025-11-27 10:05:31.961 [http-nio-9006-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing GET /zhiyan/projects/creator/1993598896093401088?page=0&size=10
+2025-11-27 10:05:32.090 [http-nio-9006-exec-5] DEBUG h.p.z.a.service.impl.AuthServiceImpl - RememberMe token验证成功，用户ID: 1993598896093401088
+2025-11-27 10:05:32.148 [http-nio-9006-exec-5] DEBUG h.p.z.a.s.i.AuthUserDetailsServiceImpl - 用户[ID: 1993598896093401088]权限加载完成，共0个权限
+2025-11-27 10:05:32.171 [http-nio-9006-exec-5] DEBUG h.p.z.a.s.i.AuthUserDetailsServiceImpl - 用户[ID: 1993598896093401088]角色加载完成: [USER]
+2025-11-27 10:05:32.173 [http-nio-9006-exec-5] DEBUG h.p.z.s.c.SecurityContextHolder - 设置用户上下文 - 用户ID: 1993598896093401088, 用户名: Tokito
+2025-11-27 10:05:32.267 [http-nio-9006-exec-5] DEBUG h.p.z.a.service.impl.AuthServiceImpl - 刷新用户 1993598896093401088 的RememberMe token过期时间
+2025-11-27 10:05:32.267 [http-nio-9006-exec-5] DEBUG h.p.z.s.f.JwtAuthenticationFilter - RememberMe认证成功 - 用户ID: 1993598896093401088, 邮箱: 2816181175@qq.com, 角色数: 1
+2025-11-27 10:05:32.268 [http-nio-9006-exec-5] DEBUG o.s.security.web.FilterChainProxy - Secured GET /zhiyan/projects/creator/1993598896093401088?page=0&size=10
+2025-11-27 10:05:32.269 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - === Incoming Request ===
+2025-11-27 10:05:32.269 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - Method: GET
+2025-11-27 10:05:32.269 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - URL: http://localhost:9006/zhiyan/projects/creator/1993598896093401088
+2025-11-27 10:05:32.270 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - Authorization: null
+2025-11-27 10:05:32.270 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - Content-Type: null
+2025-11-27 10:05:32.270 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - User-Agent: Apifox/1.0.0 (https://apifox.com)
+2025-11-27 10:05:32.270 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - Remote Addr: 0:0:0:0:0:0:0:1
+2025-11-27 10:05:32.270 [http-nio-9006-exec-5] INFO  h.p.z.m.config.RequestLoggingFilter - =========================
+2025-11-27 10:05:32.347 [http-nio-9006-exec-5] DEBUG h.p.z.s.c.SecurityContextHolder - 清除用户上下文 - 用户ID: 1993598896093401088, 用户名: Tokito
+2025-11-27 10:05:32.347 [http-nio-9006-exec-5] DEBUG h.p.z.s.i.HeaderInterceptor - 清理请求上下文完成
+2025-11-27 10:45:13.905 [SpringApplicationShutdownHook] INFO  o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2025-11-27 10:45:14.097 [tomcat-shutdown] INFO  o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2025-11-27 10:45:14.975 [SpringApplicationShutdownHook] INFO  c.q.cos.http.DefaultCosHttpClient - shutdown stackTrace:
+Class: com.qcloud.cos.http.DefaultCosHttpClient, Method: shutdown, Line: 225
+Class: com.qcloud.cos.COSClient, Method: shutdown, Line: 185
+Class: jdk.internal.reflect.DirectMethodHandleAccessor, Method: invoke, Line: 103
+Class: java.lang.reflect.Method, Method: invoke, Line: 580
+Class: org.springframework.beans.factory.support.DisposableBeanAdapter, Method: invokeCustomDestroyMethod, Line: 312
+Class: org.springframework.beans.factory.support.DisposableBeanAdapter, Method: destroy, Line: 247
+Class: org.springframework.beans.factory.support.DefaultSingletonBeanRegistry, Method: destroyBean, Line: 795
+Class: org.springframework.beans.factory.support.DefaultSingletonBeanRegistry, Method: destroySingleton, Line: 745
+Class: org.springframework.beans.factory.support.DefaultListableBeanFactory, Method: destroySingleton, Line: 1500
+Class: org.springframework.beans.factory.support.DefaultSingletonBeanRegistry, Method: destroySingletons, Line: 704
+Class: org.springframework.beans.factory.support.DefaultListableBeanFactory, Method: destroySingletons, Line: 1493
+Class: org.springframework.context.support.AbstractApplicationContext, Method: destroyBeans, Line: 1215
+Class: org.springframework.context.support.AbstractApplicationContext, Method: doClose, Line: 1176
+Class: org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext, Method: doClose, Line: 176
+Class: org.springframework.context.support.AbstractApplicationContext, Method: close, Line: 1122
+Class: org.springframework.boot.SpringApplicationShutdownHook, Method: closeAndWait, Line: 147
+Class: java.lang.Iterable, Method: forEach, Line: 75
+Class: org.springframework.boot.SpringApplicationShutdownHook, Method: run, Line: 116
+Class: java.lang.Thread, Method: run, Line: 1583
+2025-11-27 10:45:15.026 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-11-27 10:45:15.150 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - ZhiyanBackendHikariPool - Shutdown initiated...
+2025-11-27 10:45:15.154 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - ZhiyanBackendHikariPool - Shutdown completed.
