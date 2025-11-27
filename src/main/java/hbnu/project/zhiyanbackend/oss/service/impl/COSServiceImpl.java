@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * 腾讯云 COS 对象存储服务
@@ -632,7 +631,7 @@ public class COSServiceImpl implements COSService {
 
     /**
      * 构建 MultipartFile 的对象元数据
-     *
+     * <p>
      * ObjectMetadata 用于描述 COS 对象的属性,包括:
      * - Content-Length: 文件大小,用于传输验证
      * - Content-Type: MIME 类型,影响浏览器如何处理文件
