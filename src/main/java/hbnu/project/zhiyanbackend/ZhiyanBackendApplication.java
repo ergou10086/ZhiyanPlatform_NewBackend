@@ -11,5 +11,4 @@ public class ZhiyanBackendApplication {
     public static void main(String[] args) {
         SpringApplication.run(ZhiyanBackendApplication.class, args);
     }
-
 }

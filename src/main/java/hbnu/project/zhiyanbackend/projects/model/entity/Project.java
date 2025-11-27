@@ -56,8 +56,7 @@ public class Project extends BaseAuditEntity {
      */
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "status",
-            columnDefinition = "VARCHAR(32) DEFAULT 'PLANNING'")
+    @Column(name = "status")
     private ProjectStatus status = ProjectStatus.PLANNING;
 
     /**
@@ -65,8 +64,7 @@ public class Project extends BaseAuditEntity {
      */
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "visibility",
-            columnDefinition = "VARCHAR(32) DEFAULT 'PRIVATE'")
+    @Column(name = "visibility")
     private ProjectVisibility visibility = ProjectVisibility.PRIVATE;
 
     /**
@@ -86,7 +84,6 @@ public class Project extends BaseAuditEntity {
     /**
      * 项目封面图片二进制数据
      */
-    @Lob
     @Column(name = "imagedata", columnDefinition = "BYTEA")
     private byte[] imageData;
 

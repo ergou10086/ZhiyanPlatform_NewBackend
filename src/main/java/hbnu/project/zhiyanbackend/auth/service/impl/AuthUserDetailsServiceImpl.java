@@ -2,6 +2,8 @@ package hbnu.project.zhiyanbackend.auth.service.impl;
 
 import hbnu.project.zhiyanbackend.auth.model.entity.Permission;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
+import hbnu.project.zhiyanbackend.auth.model.enums.SysRole;
+import hbnu.project.zhiyanbackend.auth.model.enums.SystemPermission;
 import hbnu.project.zhiyanbackend.auth.repository.PermissionRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.security.service.UserDetailsService;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -144,13 +147,27 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
      */
     private Set<String> loadUserPermissionsFromDatabase(Long userId) {
         try {
-            List<Permission> permissions = permissionRepository.findAllByUserId(userId);
-            Set<String> permissionNames = permissions.stream()
-                    .map(Permission::getName)
+            // 1. 先根据用户ID加载其系统角色名称列表（例如 USER、DEVELOPER 等）
+            List<String> roleNames = loadUserRolesFromDatabase(userId);
+
+            // 2. 将角色名称映射到 SysRole 枚举，并汇总各角色对应的 SystemPermission
+            Set<String> permissionCodes = roleNames.stream()
+                    .map(roleName -> {
+                        try {
+                            return SysRole.valueOf(roleName);
+                        } catch (IllegalArgumentException ex) {
+                            // 数据库中的角色名在 SysRole 中没有对应枚举时，跳过并记录日志
+                            log.warn("加载用户权限时发现未知系统角色: roleName={}, userId={}", roleName, userId);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .flatMap(sysRole -> sysRole.getPermissions().stream())
+                    .map(SystemPermission::getCode)
                     .collect(Collectors.toSet());
 
-            log.debug("用户[ID: {}]权限加载完成，共{}个权限", userId, permissionNames.size());
-            return permissionNames;
+            log.debug("用户[ID: {}]权限加载完成（基于SysRole枚举），共{}个权限", userId, permissionCodes.size());
+            return permissionCodes;
 
         } catch (Exception e) {
             log.error("加载用户权限异常 - userId: {}, 错误: {}", userId, e.getMessage(), e);

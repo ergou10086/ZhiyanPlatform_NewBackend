@@ -145,7 +145,7 @@ logging:
     hbnu.project.zhiyanbackend: DEBUG
     org.springframework.security: DEBUG
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: INFO
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     com.zaxxer.hikari: INFO
     # 关闭特定框架的冗余日志
