@@ -160,9 +160,8 @@ public class ProjectController {
             if (file == null || file.isEmpty()) {
                 return R.fail("上传文件为空");
             }
-            byte[] data = file.getBytes();
-            String contentType = file.getContentType();
-            return projectImageService.updateProjectImage(projectId, data, contentType);
+            // 委托给项目图片服务，内部负责上传到 COS 并更新数据库字段
+            return projectImageService.updateProjectImage(projectId, file);
         } catch (Exception e) {
             return R.fail("上传项目图片失败: " + e.getMessage());
         }
