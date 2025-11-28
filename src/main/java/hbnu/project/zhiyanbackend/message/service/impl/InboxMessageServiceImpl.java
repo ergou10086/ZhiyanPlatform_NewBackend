@@ -159,13 +159,19 @@ public class InboxMessageServiceImpl implements InboxMessageService {
         messageBody = messageBodyRepository.save(messageBody);
 
         // 创建发送记录
+        LocalDateTime now = LocalDateTime.now();
         MessageSendRecord sendRecord = MessageSendRecord.builder()
                 .messageBodyId(messageBody.getId())
-                .sendTime(LocalDateTime.now())
+                .sendTime(now)
                 .totalRecipients(receiverIds.size())
                 .successCount(0)
                 .failedCount(0)
                 .status("SENDING")
+                .createdAt(now)  // 设置创建时间
+                .createdBy(senderId) // 设置创建人
+                .updatedAt(now)  // 设置更新时间
+                .updatedBy(senderId) // 设置更新人
+                .version(0) // 初始化版本号
                 .build();
         messageSendRecordRepository.save(sendRecord);
 

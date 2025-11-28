@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -238,7 +239,7 @@ public class TaskServiceImpl implements TaskService {
         task.setIsDeleted(true);
         taskRepository.save(task);
 
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
         taskUserRepository.deactivateTaskAssignees(taskId, now, operatorId);
 
         return R.ok(null, "任务已删除");
@@ -565,7 +566,7 @@ public class TaskServiceImpl implements TaskService {
             return R.fail("已完成的任务无法取消负责人");
         }
 
-        Instant now = Instant.now();
+        LocalDateTime now = LocalDateTime.now();
         taskUserRepository.deactivateTaskAssignees(taskId, now, operatorId);
 
         task.setStatus(TaskStatus.TODO);

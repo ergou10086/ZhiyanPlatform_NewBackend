@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,14 +46,14 @@ public interface TaskUserRepository extends JpaRepository<TaskUser, Long> {
     @Modifying
     @Query("UPDATE TaskUser tu SET tu.isActive = false, tu.removedAt = :removedAt, tu.removedBy = :removedBy, tu.updatedAt = :removedAt WHERE tu.taskId = :taskId AND tu.isActive = true")
     int deactivateTaskAssignees(@Param("taskId") Long taskId,
-                                @Param("removedAt") Instant removedAt,
+                                @Param("removedAt") LocalDateTime removedAt,
                                 @Param("removedBy") Long removedBy);
 
     @Modifying
     @Query("UPDATE TaskUser tu SET tu.isActive = false, tu.removedAt = :removedAt, tu.removedBy = :removedBy, tu.updatedAt = :removedAt WHERE tu.taskId = :taskId AND tu.userId = :userId AND tu.isActive = true")
     int deactivateTaskUser(@Param("taskId") Long taskId,
                            @Param("userId") Long userId,
-                           @Param("removedAt") Instant removedAt,
+                           @Param("removedAt") LocalDateTime removedAt,
                            @Param("removedBy") Long removedBy);
 
     @Query("SELECT tu FROM TaskUser tu WHERE tu.userId = :userId AND tu.isActive = :isActive")
