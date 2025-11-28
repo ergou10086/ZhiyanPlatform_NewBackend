@@ -11,6 +11,7 @@ import hbnu.project.zhiyanbackend.basic.exception.UtilException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,6 +24,8 @@ import java.util.Map;
  * @author yui
  * @modify ErgouTree
  */
+
+@Component
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class JsonUtils {
 
