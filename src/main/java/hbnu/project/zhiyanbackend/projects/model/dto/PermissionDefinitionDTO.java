@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * 项目权限定义 DTO（精简版）
+ *
+ * @author Tokito
  */
 @Data
 @Builder

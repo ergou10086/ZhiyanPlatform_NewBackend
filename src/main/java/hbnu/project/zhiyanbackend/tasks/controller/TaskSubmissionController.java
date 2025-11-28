@@ -19,6 +19,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 任务提交控制器
+ * 处理任务提交、审核相关的接口
+ *
+ * @author Tokito
+ */
+
 @RestController
 @RequestMapping("/zhiyan/projects/tasks/submissions")
 @Tag(name = "任务提交管理", description = "任务提交、审核、撤回等接口")

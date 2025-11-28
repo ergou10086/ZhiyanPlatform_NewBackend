@@ -19,9 +19,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 项目成员管理接口
+ * 项目成员控制器
+ * 项目成员采用直接邀请方式，无需申请审批流程
  *
- * @author ErgouTree
+ * @author Tokito
  */
 @RestController
 @RequestMapping("/api/projects")

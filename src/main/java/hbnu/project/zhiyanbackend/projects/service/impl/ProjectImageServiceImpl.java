@@ -12,13 +12,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 项目图片服务接口
+ * 负责处理项目封面图片在数据库中的存储与读取
+ *
+ * @author Tokito
+ */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectImageServiceImpl implements ProjectImageService {
 
     private final ProjectRepository projectRepository;
-    private final COSService cosService;
 
     @Override
     @Transactional
@@ -33,23 +39,15 @@ public class ProjectImageServiceImpl implements ProjectImageService {
                 return R.fail("上传文件为空");
             }
 
-            // 1. 上传到 COS 对象存储，使用业务目录 project_cover
-            UploadFileResponseDTO uploadResult = cosService.uploadFileSenior(file, "project_cover", null);
-
-            // 2. 可选：同时在数据库中保留一份二进制数据，兼容现有 GET /image 接口
+            // 仅将图片二进制数据保存在 PostgreSQL 的 image_data(bytea) 字段中
             byte[] imageData = file.getBytes();
             project.setImageData(imageData);
 
-            // 3. 记录对象存储信息，便于前端或后续服务直接访问 COS 资源
-            project.setImageObjectKey(uploadResult.getObjectKey());
-            project.setImageUrl(uploadResult.getUrl());
-
             projectRepository.save(project);
 
-            log.info("更新项目封面图片成功: projectId={}, size={}, objectKey={}",
+            log.info("更新项目封面图片成功: projectId={}, size={}",
                     projectId,
-                    imageData.length,
-                    uploadResult.getObjectKey());
+                    imageData.length);
             return R.ok();
         } catch (Exception e) {
             log.error("更新项目封面图片失败: projectId={}", projectId, e);

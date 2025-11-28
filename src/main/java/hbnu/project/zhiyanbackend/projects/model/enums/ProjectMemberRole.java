@@ -5,6 +5,8 @@ import java.util.List;
 
 /**
  * 项目成员角色枚举
+ *
+ * @author Tokito
  */
 public enum ProjectMemberRole {
 

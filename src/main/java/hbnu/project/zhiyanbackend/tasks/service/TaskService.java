@@ -14,6 +14,9 @@ import java.util.List;
 
 /**
  * 任务服务接口
+ * 根据产品设计文档完整实现任务管理功能
+ *
+ * @author Tokito
  */
 public interface TaskService {
 

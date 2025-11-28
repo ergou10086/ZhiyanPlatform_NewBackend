@@ -23,8 +23,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 项目服务实现（精简版）
- * 仅依赖本模块的数据层，不包含跨服务调用和消息通知
+ * 项目服务实现
+ *
+ * @author Tokito
  */
 @Slf4j
 @Service
