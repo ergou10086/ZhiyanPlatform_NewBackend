@@ -10,14 +10,14 @@ import lombok.experimental.SuperBuilder;
 
 /**
  * 成果-任务关联实体
- *
+ * <p>
  * 作用说明：
  * 1. 用于在应用层实现成果与任务的关联关系（跨数据库关联方案）
  * 2. 由于成果表在知识库数据库，任务表在项目数据库，无法使用数据库外键关联
  * 3. 此表存储在知识库数据库中，只存储成果ID和任务ID的映射关系
  * 4. 实际的任务详情通过调用项目服务API获取
  * 5. 支持一个成果关联多个任务，一个任务可以被多个成果关联
- *
+ * <p>
  * 设计要点：
  * - 使用唯一约束确保同一成果不会重复关联同一任务
  * - 软删除支持（继承BaseAuditEntity）
@@ -33,7 +33,8 @@ import lombok.experimental.SuperBuilder;
         uniqueConstraints = @UniqueConstraint(columnNames = {"achievement_id", "task_id"}),
         indexes = {
                 @Index(name = "idx_achievement_id", columnList = "achievement_id"),
-                @Index(name = "idx_task_id", columnList = "task_id")
+                @Index(name = "idx_task_id", columnList = "task_id"),
+                @Index(name = "uk_achievement_task", columnList = "achievement_id, task_id", unique = true)
         })
 @SuperBuilder
 @NoArgsConstructor

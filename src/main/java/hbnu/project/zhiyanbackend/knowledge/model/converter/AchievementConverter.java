@@ -2,16 +2,14 @@ package hbnu.project.zhiyanbackend.knowledge.model.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
-import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDTO;
-import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDetailDTO;
-import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementFileDTO;
-import hbnu.project.zhiyanbackend.knowledge.model.dto.CreateAchievementDTO;
+import hbnu.project.zhiyanbackend.knowledge.model.dto.*;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementDetail;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
 
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -84,6 +82,10 @@ public interface AchievementConverter {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "version", ignore = true)
     Achievement toEntity(CreateAchievementDTO dto);
+
+    @Mapping(target = "status", expression = "java(task.getStatus() == null ? null : task.getStatus().name())")
+    @Mapping(target = "priority", expression = "java(task.getPriority() == null ? null : task.getPriority().name())")
+    TaskResultTaskRefDTO toTaskResultTaskRefDTO(Task task);
 
     // ==================== 辅助方法 ====================
 

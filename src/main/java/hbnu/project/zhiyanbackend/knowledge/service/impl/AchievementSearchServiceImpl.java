@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.knowledge.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
+import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
 import hbnu.project.zhiyanbackend.knowledge.model.converter.AchievementConverter;
 import hbnu.project.zhiyanbackend.knowledge.model.converter.AchievementFileConverter;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDTO;
@@ -94,14 +95,13 @@ public class AchievementSearchServiceImpl implements AchievementSearchService {
     public Page<AchievementDTO> getAchievementsByProjectId(Long projectId, Pageable pageable) {
         log.info("根据项目ID查询成果列表: projectId={}", projectId);
 
-        if (projectId == null) {
-            throw new ServiceException("项目ID不能为空");
-        }
+        // 1. 参数校验
+        ValidationUtils.requireId(projectId, "项目ID");
 
-        // 获取当前用户ID
+        // 2. 获取当前用户ID
         Long currentUserId = SecurityUtils.getUserId();
 
-        // 判断当前用户是否为项目成员
+        // 3. 判断当前用户是否为项目成员
         boolean isProjectMember = false;
         if (currentUserId != null) {
             isProjectMember = projectSecurityUtils.isMember(projectId, currentUserId);
@@ -110,35 +110,29 @@ public class AchievementSearchServiceImpl implements AchievementSearchService {
         log.info("用户权限检查: userId={}, projectId={}, isProjectMember={}",
                 currentUserId, projectId, isProjectMember);
 
-        List<Achievement> achievements = achievementRepository.findByProjectIdWithFiles(projectId);
+        // 4. 构建查询条件（使用Specification）
+        boolean finalIsProjectMember = isProjectMember;
+        Specification<Achievement> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-        // 根据权限过滤成果
-        List<Achievement> filteredAchievements;
-        if (isProjectMember) {
-            // 项目成员可以看到所有成果
-            filteredAchievements = achievements;
-            log.info("项目成员，显示所有成果: 共{}个", achievements.size());
-        } else {
-            // 非项目成员只能看到公开成果
-            filteredAchievements = achievements.stream()
-                    .filter(achievement -> Boolean.TRUE.equals(achievement.getIsPublic()))
-                    .toList();
-            log.info("非项目成员，只显示公开成果: 共{}个（总数{}个）",
-                    filteredAchievements.size(), achievements.size());
-        }
+            // 项目ID条件
+            predicates.add(criteriaBuilder.equal(root.get("projectId"), projectId));
 
-        // 手动分页
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), filteredAchievements.size());
-        List<Achievement> pageContent = filteredAchievements.subList(start, end);
+            // 权限过滤：非项目成员只能看到公开成果
+            if (!finalIsProjectMember) {
+                predicates.add(criteriaBuilder.equal(root.get("isPublic"), true));
+            }
 
-        // 转换为Page对象
-        Page<Achievement> achievementPage = new org.springframework.data.domain.PageImpl<>(
-                pageContent,
-                pageable,
-                filteredAchievements.size()
-        );
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
 
+        // 5. 执行分页查询（优化：使用JPA原生分页，避免手动分页）
+        Page<Achievement> achievementPage = achievementRepository.findAll(spec, pageable);
+
+        log.info("查询成功: totalElements={}, totalPages={}, isProjectMember={}",
+                achievementPage.getTotalElements(), achievementPage.getTotalPages(), isProjectMember);
+
+        // 6. 转换为DTO
         return achievementPage.map(achievementConverter::toDTO);
     }
 
