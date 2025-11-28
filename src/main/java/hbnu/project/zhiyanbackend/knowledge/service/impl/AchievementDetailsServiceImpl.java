@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
-import hbnu.project.zhiyanbackend.knowledge.model.converter.AchievementFileConverter;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.*;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementDetail;
@@ -50,8 +49,6 @@ public class AchievementDetailsServiceImpl implements AchievementDetailsService 
 
     @Resource
     private JsonUtils jsonUtils;
-
-    private final AchievementFileConverter achievementFileConverter;
 
     /**
      * 创建成果及其详情

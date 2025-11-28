@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -340,6 +339,7 @@ public class MessageSendServiceImpl implements MessageSendService {
      *
      * @param achievement 创建的成果
      */
+    @Override
     public void notifyAchievementCreated(Achievement achievement) {
         if (achievement == null) {
             log.warn("成果创建通知参数不完整");
@@ -350,7 +350,7 @@ public class MessageSendServiceImpl implements MessageSendService {
 
         Long operatorId = achievement.getCreatorId();
         Long projectId = achievement.getProjectId();
-        String projectName = projectRepository.findProjectNameById(projectId).orElse("未知项目");;
+        String projectName = projectRepository.findProjectNameById(projectId).orElse("未知项目");
 
         if (projectMemberIds.isEmpty()) {
             log.warn("项目[{}]没有成员，无法发送通知", projectName);
@@ -370,7 +370,8 @@ public class MessageSendServiceImpl implements MessageSendService {
         try{
             // 获取创建者姓名
             String creatorName = getOperatorName(operatorId);
-            // 获取项目名
+            // 构建扩展数据JSON
+            String extendDataJson = buildAchievementCreatedExtendData(achievement, projectName, creatorName);
 
             inboxMessageService.sendBatchPersonalMessage(
                     MessageScene.ACHIEVEMENT_CREATED,
@@ -384,10 +385,16 @@ public class MessageSendServiceImpl implements MessageSendService {
                             creatorName),
                     achievement.getId(),
                     "ACHIEVEMENT",
-
+                    extendDataJson
             );
+            log.info("成果创建通知发送成功: achievementId={}, projectName={}, receivers={}",
+                    achievement.getId(), projectName, filteredReceiverIds.size());
         }catch (ServiceException e){
-
+            log.error("发送成果创建通知失败 - ServiceException: achievementId={}", achievement.getId(), e);
+            // 服务异常，可能是业务逻辑错误
+        } catch (Exception e) {
+            log.error("发送成果创建通知失败: achievementId={}", achievement.getId(), e);
+            // 通知发送失败不影响主流程
         }
     }
 
@@ -537,6 +544,23 @@ public class MessageSendServiceImpl implements MessageSendService {
         extendData.put("newStatusName", getStatusDisplayName(newStatus));
         extendData.put("operatorId", operatorId);
         extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建成果创建扩展数据JSON
+     */
+    private String buildAchievementCreatedExtendData(Achievement achievement, String projectName, String creatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("projectId", achievement.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("creatorId", achievement.getCreatorId());
+        extendData.put("creatorName", creatorName);
+        extendData.put("achievementType", achievement.getType() != null ? achievement.getType().getName() : "未知类型");
+        extendData.put("createdAt", achievement.getCreatedAt());
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
     }

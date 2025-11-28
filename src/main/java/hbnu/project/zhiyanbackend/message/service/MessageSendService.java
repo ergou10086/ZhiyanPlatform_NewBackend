@@ -7,6 +7,11 @@ import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 消息发送服务
+ *
+ * @author ErgouTree
+ */
 public interface MessageSendService {
 
     /**
@@ -56,4 +61,11 @@ public interface MessageSendService {
      * @param operatorId 操作的用户id
      */
     void notifyAchievementStatusChange(Achievement achievement, AchievementStatus oldStatus, AchievementStatus status, Long operatorId);
+
+    /**
+     * 发送 成果创建的通知
+     *
+     * @param achievement 创建的成果
+     */
+    void notifyAchievementCreated(Achievement achievement);
 }
