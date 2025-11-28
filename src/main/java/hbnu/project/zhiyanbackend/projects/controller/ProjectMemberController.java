@@ -18,6 +18,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 项目成员控制器
+ * 项目成员采用直接邀请方式，无需申请审批流程
+ *
+ * @author Tokito
+ */
 @RestController
 @RequestMapping("/api/projects")
 @Tag(name = "项目成员管理(精简版)", description = "项目成员增删改查相关接口（无鉴权、无外部服务，只做基础成员管理）")

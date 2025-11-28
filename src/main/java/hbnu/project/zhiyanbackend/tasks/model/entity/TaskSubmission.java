@@ -16,6 +16,8 @@ import java.time.Instant;
 /**
  * 任务提交记录实体类
  * 用于记录任务的提交、审核、退回历史
+ *
+ * @author Tokito
  */
 @Entity
 @Table(name = "task_submission", schema = "zhiyantasks")

@@ -3,6 +3,8 @@ package hbnu.project.zhiyanbackend.projects.model.enums;
 /**
  * 项目权限枚举
  * 定义项目模块中的所有权限
+ *
+ * @author Tokito
  */
 public enum ProjectPermission {
 

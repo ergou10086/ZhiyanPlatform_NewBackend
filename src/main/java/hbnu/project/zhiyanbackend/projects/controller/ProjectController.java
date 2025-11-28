@@ -25,6 +25,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
+/**
+ * 项目控制器
+ * 基于角色的权限控制
+ *
+ * @author Tokito
+ */
+
 @RestController
 @RequestMapping("/zhiyan/projects")
 @Tag(name = "项目管理", description = "项目增删改查接口（精简版）")

@@ -2,6 +2,8 @@ package hbnu.project.zhiyanbackend.tasks.model.enums;
 
 /**
  * 任务内用户角色类型
+ *
+ * @author Tokito
  */
 public enum RoleType {
 

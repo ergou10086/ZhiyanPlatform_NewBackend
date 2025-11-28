@@ -19,13 +19,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 项目角色控制器（精简版）
+ * 项目角色控制器
  * 仅提供角色/权限定义查询，不做权限校验，不依赖外部服务。
+ *
+ * @author Tokito
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/projects")
-@Tag(name = "项目角色管理(精简版)", description = "项目角色、权限定义查询接口")
+@Tag(name = "项目角色管理", description = "项目角色、权限定义查询接口")
 public class ProjectRoleController {
 
     /**

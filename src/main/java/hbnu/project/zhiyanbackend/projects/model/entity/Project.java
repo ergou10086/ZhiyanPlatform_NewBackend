@@ -18,6 +18,8 @@ import java.time.LocalDate;
 /**
  * 项目实体（精简版）
  * 对应表：projects
+ *
+ * @author Tokito
  */
 @Entity
 @Table(name = "projects", schema = "zhiyanproject")
@@ -84,20 +86,8 @@ public class Project extends BaseAuditEntity {
     /**
      * 项目封面图片二进制数据
      */
-    @Column(name = "imagedata", columnDefinition = "BYTEA")
+    @Column(name = "image_data", columnDefinition = "BYTEA")
     private byte[] imageData;
-
-    /**
-     * 项目封面图片在对象存储中的对象键
-     */
-    @Column(name = "image_object_key", length = 512)
-    private String imageObjectKey;
-
-    /**
-     * 项目封面图片的公网访问地址
-     */
-    @Column(name = "image_url", length = 1024)
-    private String imageUrl;
 
     /**
      * 创建人 ID（逻辑关联用户表）
