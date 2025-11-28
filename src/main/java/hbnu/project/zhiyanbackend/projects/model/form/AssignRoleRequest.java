@@ -10,8 +10,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * 分配角色请求
- *
- * @author Tokito
  */
 @Data
 @Builder

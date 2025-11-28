@@ -15,6 +15,7 @@ import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementFileRepository;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementRepository;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementFileService;
+import hbnu.project.zhiyanbackend.message.service.impl.MessageSendServiceImpl;
 import hbnu.project.zhiyanbackend.oss.config.COSProperties;
 import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
 import hbnu.project.zhiyanbackend.oss.service.COSService;
@@ -47,7 +48,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
     private final AchievementRepository achievementRepository;
     private final ProjectMemberService projectMemberService;
     private final AchievementFileConverter achievementFileConverter;
-    private final KnowledgeMessageServiceImpl knowledgeMessageService;
+    private final MessageSendServiceImpl knowledgeMessageService;
     private final UserRepository userRepository;
 
     /**
@@ -118,7 +119,8 @@ public class AchievementFileServiceImpl implements AchievementFileService {
                 .fileType(fileExtension)
                 .bucketName(cosProperties.getBucketName())
                 .objectKey(uploadResult.getObjectKey())
-                .minioUrl(uploadResult.getUrl()) // 保留字段名，实际存储COS URL
+                // 保留字段名，实际存储COS URL
+                .cosUrl(uploadResult.getUrl())
                 .uploadBy(uploadDTO.getUploadBy())
                 .uploadAt(LocalDateTime.now())
                 .build();
@@ -557,7 +559,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
                 .orElse(null);
 
         // 获取上传用户信息
-        Long uploadUserId = file.getUploadBy();
+        Long uploadUserId = Objects.requireNonNull(file).getUploadBy();
         String uploadUserName;
         if (uploadUserId != null) {
             Optional<String> userNameOptional = userRepository.findNameById(uploadUserId);
@@ -566,6 +568,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
             uploadUserName = "未知用户";
         }
 
+        // 防爆刷
         if (file == null) {
             log.warn("[文件上下文] 文件不存在: fileId={}", fileId);
             return null;
@@ -590,7 +593,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
             log.error("[文件上下文] 生成文件 URL 失败: fileId={}", fileId, e);
             // 失败时使用 COS 公网 URL 作为备用
             // 保留字段名，实际存储COS URL
-            fileUrl = file.getMinioUrl();
+            fileUrl = file.getCosUrl();
         }
 
         // 格式化文件大小

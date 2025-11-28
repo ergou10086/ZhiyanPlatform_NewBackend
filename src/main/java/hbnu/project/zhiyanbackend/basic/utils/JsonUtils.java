@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import hbnu.project.zhiyanbackend.basic.exception.UtilException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -203,6 +204,21 @@ public class JsonUtils {
         } catch (IOException e) {
             throw new RuntimeException("解析Map列表失败", e);
         }
+    }
+
+    /**
+     * 将Map转换为JSON字符串
+     */
+    public String convertToJson(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return "{}";
+        }
+
+        String jsonString = JsonUtils.toJsonString(data);
+        if (StringUtils.isEmpty(jsonString)) {
+            throw new UtilException("详情数据格式错误");
+        }
+        return jsonString;
     }
 }
 

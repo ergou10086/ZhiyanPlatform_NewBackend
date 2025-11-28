@@ -8,8 +8,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * 图片上传响应DTO
- *
- * @author Tokito
  */
 @Data
 @Builder

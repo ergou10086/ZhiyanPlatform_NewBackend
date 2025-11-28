@@ -90,6 +90,18 @@ public class Project extends BaseAuditEntity {
     private byte[] imageData;
 
     /**
+     * 项目封面图片在对象存储中的对象键
+     */
+    @Column(name = "image_object_key", length = 512)
+    private String imageObjectKey;
+
+    /**
+     * 项目封面图片的公网访问地址
+     */
+    @Column(name = "image_url", length = 1024)
+    private String imageUrl;
+
+    /**
      * 创建人 ID（逻辑关联用户表）
      */
     @LongToString

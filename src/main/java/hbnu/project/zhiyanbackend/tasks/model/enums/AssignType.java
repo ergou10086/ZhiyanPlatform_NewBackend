@@ -2,8 +2,6 @@ package hbnu.project.zhiyanbackend.tasks.model.enums;
 
 /**
  * 任务分配类型
- *
- * @author Tokito
  */
 public enum AssignType {
 

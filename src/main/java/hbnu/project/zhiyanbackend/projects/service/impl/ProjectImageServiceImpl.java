@@ -1,6 +1,8 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
+import hbnu.project.zhiyanbackend.oss.service.COSService;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;

@@ -72,5 +72,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     @Query("SELECT p FROM Project p WHERE p.isDeleted = false AND (p.name LIKE %:keyword% OR p.description LIKE %:keyword%)")
     Page<Project> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("SELECT p.name FROM Project p WHERE p.isDeleted = false AND p.id = :id")
+    Optional<String> findProjectNameById(@Param("id") Long id);
 }
 

@@ -17,8 +17,6 @@ import java.util.List;
 
 /**
  * 创建任务请求
- *
- * @author Tokito
  */
 @Getter
 @Setter
