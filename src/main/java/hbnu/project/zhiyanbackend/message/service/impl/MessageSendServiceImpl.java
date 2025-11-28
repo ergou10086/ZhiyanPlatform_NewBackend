@@ -38,6 +38,86 @@ public class MessageSendServiceImpl implements MessageSendService {
     private final ProjectRepository projectRepository;
 
     /**
+     * 发送批量文件上传通知
+     * 发送给除了上传者的所有项目成员
+     *
+     * @param achievement 成果实体
+     * @param files       上传的文件列表
+     * @param uploaderId  上传者ID
+     */
+    @Override
+    public void notifyAchievementFilesBatchUpload(Achievement achievement, List<AchievementFile> files, Long uploaderId) {
+        if (achievement == null || files == null || files.isEmpty()) {
+            log.warn("批量文件上传通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(achievement.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", achievement.getProjectId());
+                return;
+            }
+
+            // 过滤上传者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(uploaderId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 计算总文件大小
+            long totalSize = files.stream()
+                    .mapToLong(file -> file.getFileSize() != null ? file.getFileSize() : 0L)
+                    .sum();
+
+            // 构建文件名称列表（最多显示前3个）
+            String fileNamesPreview = files.stream()
+                    .map(AchievementFile::getFileName)
+                    .limit(3)
+                    .collect(Collectors.joining("、"));
+
+            if (files.size() > 3) {
+                fileNamesPreview += " 等";
+            }
+
+            // 获取上传者姓名
+            String uploaderName = getOperatorName(uploaderId);
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildBatchUploadExtendData(achievement, files, uploaderId, uploaderName);
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.ACHIEVEMENT_FILES_BATCH_UPLOADED,
+                    uploaderId,
+                    filteredReceiverIds,
+                    "成果文件批量上传",
+                    String.format("成果「%s」有 %d 个文件被批量上传\n涉及文件：%s\n总大小：%s\n上传者：%s\n该成果已更新，请及时查看",
+                            achievement.getTitle(),
+                            files.size(),
+                            fileNamesPreview,
+                            FileUtils.formatFileSize(totalSize),
+                            uploaderName),
+                    achievement.getId(),
+                    "ACHIEVEMENT",
+                    extendDataJson
+            );
+
+            log.info("批量文件上传通知发送成功: achievementId={}, fileCount={}, receivers={}",
+                    achievement.getId(), files.size(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送批量文件上传通知失败: achievementId={}", achievement.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
      * 发送成果文件上传的通知
      * 发送给除了上传者的所有项目成员
      *
@@ -544,6 +624,26 @@ public class MessageSendServiceImpl implements MessageSendService {
         extendData.put("newStatusName", getStatusDisplayName(newStatus));
         extendData.put("operatorId", operatorId);
         extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建批量上传扩展数据JSON
+     */
+    private String buildBatchUploadExtendData(Achievement achievement, List<AchievementFile> files, Long uploaderId, String uploaderName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileCount", files.size());
+        extendData.put("fileNames", files.stream()
+                .map(AchievementFile::getFileName)
+                .collect(Collectors.toList()));
+        extendData.put("fileIds", files.stream()
+                .map(AchievementFile::getId)
+                .collect(Collectors.toList()));
+        extendData.put("uploaderId", uploaderId);
+        extendData.put("uploaderName", uploaderName);
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
     }

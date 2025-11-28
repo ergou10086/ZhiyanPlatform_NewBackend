@@ -25,9 +25,11 @@ import lombok.experimental.SuperBuilder;
  *
  * @author Tokito
  */
+@Getter
+@Setter
 @Entity
 @Table(name = "achievement_task_ref",
-        schema = "knowledge",
+        schema = "zhiyanknowledge",
         uniqueConstraints = @UniqueConstraint(columnNames = {"achievement_id", "task_id"}),
         indexes = {
                 @Index(name = "idx_achievement_id", columnList = "achievement_id"),

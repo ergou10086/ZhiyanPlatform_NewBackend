@@ -57,7 +57,13 @@ public class AchievementFileServiceImpl implements AchievementFileService {
     private static final int DEFAULT_EXPIRY_SECONDS = 3 * 24 * 3600;
 
     /**
+     * 最大文件上传限制 200MB
+     */
+    private static final long MAX_FILE_SIZE = 500 * 1024 * 1024; // 200MB
+
+    /**
      * 上传成果文件
+     * 调用 COS 的高级接口上传文件，自动处理分片
      *
      * @param file      文件
      * @param uploadDTO 上传DTO
@@ -105,6 +111,11 @@ public class AchievementFileServiceImpl implements AchievementFileService {
         // 4. 使用COS高级接口上传文件（自动处理分片）
         UploadFileResponseDTO uploadResult;
         try {
+            // 超限禁止
+            if (file.getSize() > MAX_FILE_SIZE) {
+                throw new ServiceException("文件大小超过限制（最大500MB）");
+            }
+
             uploadResult = cosService.uploadFileSenior(file, "achievement", null);
         } catch (Exception e) {
             log.error("文件上传COS失败", e);
@@ -138,6 +149,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
     /**
      * 批量上传成果文件
+     * 使用 COS SDK 的批量上传功能，然后保存文件记录到数据库
      *
      * @param files        文件列表
      * @param achievementId 成果ID
@@ -147,19 +159,109 @@ public class AchievementFileServiceImpl implements AchievementFileService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<AchievementFileDTO> uploadFilesBatch(MultipartFile[] files, Long achievementId, Long uploadBy) {
-        if (files == null) {
+        log.info("开始批量上传成果文件: achievementId={}, fileCount={}, uploadBy={}",
+                achievementId, files != null ? files.length : 0, uploadBy);
+
+        if (files == null || files.length == 0) {
             throw new ServiceException("文件列表不能为空");
         }
 
-        List<AchievementFileDTO> results = new ArrayList<>();
-        // 业务类型为achievement，成果文件
-        String businessType = "achievement";
-        try {
-            cosService.uploadBatch(files, businessType);
-        }catch (Exception e){
-            log.error("批量上传文件出现问题", e);
-            // 继续处理其他文件，不阻塞
+        // 1. 验证成果是否存在
+        Achievement achievement = achievementRepository.findById(achievementId)
+                .orElseThrow(() -> new ServiceException("成果不存在"));
+
+        // 2. 验证用户权限
+        if (!projectMemberService.isMember(achievement.getProjectId(), uploadBy)) {
+            throw new ServiceException("无权限向该成果上传文件");
         }
+
+        // 3. 使用 COS SDK 批量上传文件
+        String businessType = "achievement";
+        List<UploadFileResponseDTO> uploadResults;
+        try {
+            uploadResults = cosService.uploadBatch(files, businessType);
+            log.info("COS批量上传完成: 成功上传 {} 个文件", uploadResults.size());
+        } catch (Exception e) {
+            log.error("COS批量上传失败", e);
+            throw new ServiceException("批量上传文件失败: " + e.getMessage());
+        }
+
+        if (uploadResults.isEmpty()) {
+            log.warn("批量上传后没有成功的结果");
+            throw new ServiceException("所有文件上传失败");
+        }
+
+        // 4. 保存文件记录到数据库
+        List<AchievementFile> savedFiles = new ArrayList<>();
+        List<AchievementFileDTO> results = new ArrayList<>();
+        LocalDateTime uploadTime = LocalDateTime.now();
+
+        for (int i = 0; i < uploadResults.size() && i < files.length; i++) {
+            UploadFileResponseDTO uploadResult = uploadResults.get(i);
+            MultipartFile file = files[i];
+
+            try {
+                // 检查是否存在同名文件，如果存在则删除旧文件（覆盖模式）
+                Optional<AchievementFile> existingFile = achievementFileRepository
+                        .findByAchievementIdAndFileName(achievementId, file.getOriginalFilename());
+
+                if (existingFile.isPresent()) {
+                    AchievementFile oldFile = existingFile.get();
+                    log.info("检测到同名文件，执行覆盖删除: fileId={}, objectKey={}",
+                            oldFile.getId(), oldFile.getObjectKey());
+
+                    try {
+                        cosService.deleteObject(cosProperties.getBucketName(), oldFile.getObjectKey());
+                        achievementFileRepository.deleteById(oldFile.getId());
+                        log.info("旧文件删除成功: fileId={}", oldFile.getId());
+                    } catch (Exception e) {
+                        log.error("删除旧文件失败: fileId={}", oldFile.getId(), e);
+                        // 继续处理新文件
+                    }
+                }
+
+                // 获取文件扩展名
+                String fileExtension = FileUtils.getExtension(file);
+
+                // 创建文件记录
+                AchievementFile achievementFile = AchievementFile.builder()
+                        .achievementId(achievementId)
+                        .fileName(file.getOriginalFilename())
+                        .fileSize(file.getSize())
+                        .fileType(fileExtension)
+                        .bucketName(cosProperties.getBucketName())
+                        .objectKey(uploadResult.getObjectKey())
+                        .cosUrl(uploadResult.getUrl())
+                        .uploadBy(uploadBy)
+                        .uploadAt(uploadTime)
+                        .build();
+
+                achievementFile = achievementFileRepository.save(achievementFile);
+                savedFiles.add(achievementFile);
+                results.add(achievementFileConverter.toDTO(achievementFile));
+
+                log.debug("文件记录保存成功: fileId={}, fileName={}", achievementFile.getId(), file.getOriginalFilename());
+            } catch (Exception e) {
+                log.error("保存文件记录失败: fileName={}", file.getOriginalFilename(), e);
+                // 尝试删除已上传到COS的文件
+                try {
+                    cosService.deleteObject(cosProperties.getBucketName(), uploadResult.getObjectKey());
+                    log.info("已删除上传失败的文件: objectKey={}", uploadResult.getObjectKey());
+                } catch (Exception deleteEx) {
+                    log.error("删除上传失败的文件时出错: objectKey={}", uploadResult.getObjectKey(), deleteEx);
+                }
+            }
+        }
+
+        if (savedFiles.isEmpty()) {
+            log.error("批量上传后没有成功保存的文件记录");
+            throw new ServiceException("所有文件记录保存失败");
+        }
+
+        log.info("批量上传成果文件完成: achievementId={}, 成功上传 {} 个文件", achievementId, savedFiles.size());
+
+        // 5. 发送批量上传通知给项目成员（除了上传者自己）
+        knowledgeMessageService.notifyAchievementFilesBatchUpload(achievement, savedFiles, uploadBy);
 
         return results;
     }

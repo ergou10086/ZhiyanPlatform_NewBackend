@@ -178,11 +178,11 @@ dify:
 # 腾讯云 COS 配置（使用环境变量注入）
 tencent:
   cos:
-    secret-id: ${TENCENT_COS_SECRET_ID:AKIDxoUxCNM8VmvrZ4TgiYDgvyqY4NVQBj3R}
-    secret-key: ${TENCENT_COS_SECRET_KEY:OcrgXEk3B7pPmywhN1WzCsRp6C6nNmyw}
-    region: ${TENCENT_COS_REGION:ap-beijing}
-    bucket-name: ${TENCENT_COS_BUCKET:achievement-files-1330641416}
-    public-domain: ${TENCENT_COS_PUBLIC_DOMAIN:https://achievement-files-1330641416.cos.ap-beijing.myqcloud.com}
+    secret-id: ${TENCENT_COS_SECRET_ID:}
+    secret-key: ${TENCENT_COS_SECRET_KEY}
+    region: ${TENCENT_COS_REGION}
+    bucket-name: ${TENCENT_COS_BUCKET}
+    public-domain: ${TENCENT_COS_PUBLIC_DOMAIN}
     default-directory: uploads
 
 # OAuth2第三方登录配置

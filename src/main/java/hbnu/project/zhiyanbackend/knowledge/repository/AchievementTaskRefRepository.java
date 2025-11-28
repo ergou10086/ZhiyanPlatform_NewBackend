@@ -92,5 +92,14 @@ public interface AchievementTaskRefRepository extends JpaRepository<AchievementT
      * @return 关联成果数量
      */
     long countByTaskId(Long taskId);
+
+    /**
+     * 批量查询任务关联的成果ID列表
+     * 
+     * @param taskIds 任务ID列表
+     * @return 关联关系列表
+     */
+    @Query("SELECT r FROM AchievementTaskRef r WHERE r.taskId IN :taskIds")
+    List<AchievementTaskRef> findByTaskIdIn(@Param("taskIds") List<Long> taskIds);
 }
 
