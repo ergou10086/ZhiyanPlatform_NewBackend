@@ -36,6 +36,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /**
      * 检查用户名是否已存在
+     *
+     * @param name 用户名
+     * @return 匹配结果
      */
     boolean existsByName(String name);
 
@@ -103,5 +106,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 用户对象（可能为空）
      */
     Optional<User> findByNameAndIsDeletedFalse(String name);
+
+    /**
+     * 根据用户ID查找用户名
+     *
+     * @param userId 用户ID
+     * @return 用户名（可能为空）
+     */
+    @Query("SELECT u.name FROM User u WHERE u.id = :userId AND u.isDeleted = false")
+    Optional<String> findNameById(@Param("userId") Long userId);
 }
 

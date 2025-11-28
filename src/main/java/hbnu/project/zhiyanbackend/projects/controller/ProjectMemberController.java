@@ -18,6 +18,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 项目成员管理接口
+ *
+ * @author ErgouTree
+ */
 @RestController
 @RequestMapping("/api/projects")
 @Tag(name = "项目成员管理(精简版)", description = "项目成员增删改查相关接口（无鉴权、无外部服务，只做基础成员管理）")

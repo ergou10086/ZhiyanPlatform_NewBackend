@@ -59,6 +59,8 @@ public class InboxMessageServiceImpl implements InboxMessageService {
     @Transactional(rollbackFor = Exception.class)
     public MessageBody sendPersonalMessage(MessageScene scene, Long senderId, Long receiverId, String title, String content, Long businessId, String businessType, String extendDataJson) {
         // 构建消息体
+
+
         MessageBody messageBody = MessageBody.builder()
                 .senderId(senderId)
                 .messageType(MessageType.PERSONAL)
