@@ -12,8 +12,7 @@ import org.mapstruct.factory.Mappers;
 import java.util.List;
 
 /**
- * 成果文件实体转换器
- * 使用 MapStruct 进行实体与 DTO 之间的转换
+ * 成果文件相关实体转换器
  *
  * @author ErgouTree
  */
@@ -26,13 +25,13 @@ public interface AchievementFileConverter{
      * minioUrl 字段映射到 fileUrl
      */
     @Named("fileToDTO")
-    @Mapping(target = "fileUrl", source = "minioUrl")
+    @Mapping(target = "fileUrl", source = "cosUrl")
     AchievementFileDTO toDTO(AchievementFile file);
 
     /**
      * DTO转实体
      */
-    @Mapping(target = "minioUrl", source = "fileUrl")
+    @Mapping(target = "cosUrl", source = "fileUrl")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "achievement", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

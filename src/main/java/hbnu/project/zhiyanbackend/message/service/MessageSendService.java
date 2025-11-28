@@ -1,12 +1,13 @@
-package hbnu.project.zhiyanbackend.knowledge.service;
+package hbnu.project.zhiyanbackend.message.service;
 
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
+import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 
 import java.util.List;
 import java.util.Map;
 
-public interface KnowledgeMessageService {
+public interface MessageSendService {
 
     /**
      * 发送成果文件上传的通知
@@ -46,4 +47,13 @@ public interface KnowledgeMessageService {
      */
     void notifyAchievementAllFilesDeleted(Achievement achievement,
                                           List<AchievementFile> files, Long operatorId);
+
+    /**
+     * 发送 更新成果状态 通知给项目成员
+     * @param achievement 更改的成果
+     * @param oldStatus 旧状态
+     * @param status 新状态
+     * @param operatorId 操作的用户id
+     */
+    void notifyAchievementStatusChange(Achievement achievement, AchievementStatus oldStatus, AchievementStatus status, Long operatorId);
 }

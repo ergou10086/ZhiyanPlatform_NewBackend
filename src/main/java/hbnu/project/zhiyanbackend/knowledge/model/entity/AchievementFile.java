@@ -84,7 +84,7 @@ public class AchievementFile extends BaseAuditEntity {
      * 注意：此URL为完整访问地址，可直接用于文件下载或预览
      */
     @Column(name = "minio_url", nullable = false, length = 1000, columnDefinition = "VARCHAR(1000) COMMENT '文件访问URL（兼容MinIO和COS）'")
-    private String minioUrl;
+    private String cosUrl;
 
     /**
      * 上传者ID

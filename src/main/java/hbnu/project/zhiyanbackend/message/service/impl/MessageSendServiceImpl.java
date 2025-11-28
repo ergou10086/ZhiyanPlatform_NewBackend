@@ -1,12 +1,16 @@
-package hbnu.project.zhiyanbackend.knowledge.service.impl;
+package hbnu.project.zhiyanbackend.message.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
+import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.FileUtils;
 import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
-import hbnu.project.zhiyanbackend.knowledge.service.KnowledgeMessageService;
+import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
+import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,21 +19,24 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * 知识库消息服务实现
- * 负责知识库相关的消息通知发送
+ * 消息服务实现
+ * 负责项目所有业务相关的消息通知发送
  *
  * @author ErgouTree
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
+public class MessageSendServiceImpl implements MessageSendService {
 
     private final InboxMessageService inboxMessageService;
     private final ProjectMemberService projectMemberService;
+    private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
 
     /**
      * 发送成果文件上传的通知
@@ -68,8 +75,11 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
             // 格式化文件大小
             String fileSizeStr = FileUtils.formatFileSize(file.getFileSize() != null ? file.getFileSize() : 0L);
 
+            // 获取上传者姓名
+            String uploaderName = getOperatorName(uploaderId);
+
             // 构建扩展数据JSON
-            String extendDataJson = buildFileUploadExtendData(achievement, file);
+            String extendDataJson = buildFileUploadExtendData(achievement, file, uploaderId, uploaderName);
 
             // 发送批量消息
             inboxMessageService.sendBatchPersonalMessage(
@@ -77,8 +87,8 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                     uploaderId,
                     filteredReceiverIds,
                     "成果文件上传",
-                    String.format("成果「%s」有新文件上传\n文件名：「%s」\n文件大小：%s\n该成果已更新，请及时查看",
-                            achievement.getTitle(), file.getFileName(), fileSizeStr),
+                    String.format("成果「%s」有新文件上传\n文件名：「%s」\n文件大小：%s\n上传者：%s\n该成果已更新，请及时查看",
+                            achievement.getTitle(), file.getFileName(), fileSizeStr, uploaderName),
                     achievement.getId(),
                     "ACHIEVEMENT",
                     extendDataJson
@@ -125,8 +135,11 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                 return;
             }
 
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
             // 构建扩展数据JSON
-            String extendDataJson = buildFileDeleteExtendData(achievement, file);
+            String extendDataJson = buildFileDeleteExtendData(achievement, file, operatorId, operatorName);
 
             // 发送批量消息
             inboxMessageService.sendBatchPersonalMessage(
@@ -134,8 +147,8 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                     operatorId,
                     filteredReceiverIds,
                     "成果文件删除",
-                    String.format("成果「%s」的文件「%s」已被删除，请及时查看",
-                            achievement.getTitle(), file.getFileName()),
+                    String.format("成果「%s」的文件「%s」已被删除\n操作者：%s\n请及时查看",
+                            achievement.getTitle(), file.getFileName(), operatorName),
                     achievement.getId(),
                     "ACHIEVEMENT",
                     extendDataJson
@@ -227,8 +240,11 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                     .mapToLong(file -> file.getFileSize() != null ? file.getFileSize() : 0L)
                     .sum();
 
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
             // 构建扩展数据JSON
-            String extendDataJson = buildAllFilesDeleteExtendData(achievement, files);
+            String extendDataJson = buildAllFilesDeleteExtendData(achievement, files, operatorId, operatorName);
 
             // 发送批量消息
             inboxMessageService.sendBatchPersonalMessage(
@@ -236,10 +252,11 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                     operatorId,
                     filteredReceiverIds,
                     "成果文件批量删除",
-                    String.format("成果「%s」的所有文件（共%d个，总大小%s）已被批量删除\n请及时查看成果状态",
+                    String.format("成果「%s」的所有文件（共%d个，总大小%s）已被批量删除\n操作者：%s\n请及时查看成果状态",
                             achievement.getTitle(),
                             files.size(),
-                            FileUtils.formatFileSize(totalSize)),
+                            FileUtils.formatFileSize(totalSize),
+                            operatorName),
                     achievement.getId(),
                     "ACHIEVEMENT",
                     extendDataJson
@@ -252,6 +269,128 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
             // 通知发送失败不影响主流程
         }
     }
+
+    /**
+     * 发送 更新成果状态 通知给项目成员
+     *
+     * @param achievement 更改的成果
+     * @param oldStatus   旧状态
+     * @param status      新状态
+     * @param operatorId  操作的用户id
+     */
+    @Override
+    public void notifyAchievementStatusChange(Achievement achievement, AchievementStatus oldStatus, AchievementStatus status, Long operatorId) {
+        if(achievement == null || oldStatus == null || status == null){
+            log.warn("啥都没有就发送？？");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(achievement.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", achievement.getProjectId());
+                return;
+            }
+
+            // 过滤操作者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(operatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
+            // 获取状态显示名称
+            String oldStatusName = getStatusDisplayName(oldStatus);
+            String newStatusName = getStatusDisplayName(status);
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildStatusChangeExtendData(achievement, oldStatus, status, operatorId, operatorName);
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.ACHIEVEMENT_STATUS_CHANGED,
+                    operatorId,
+                    filteredReceiverIds,
+                    "成果状态更新",
+                    String.format("成果「%s」的状态已更新\n原状态：%s\n新状态：%s\n操作者：%s\n请及时查看",
+                            achievement.getTitle(), oldStatusName, newStatusName, operatorName),
+                    achievement.getId(),
+                    "ACHIEVEMENT",
+                    extendDataJson
+            );
+
+            log.info("成果状态更新通知发送成功: achievementId={}, oldStatus={}, newStatus={}, receivers={}",
+                    achievement.getId(), oldStatus, status, filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送更新成果状态通知失败: achievementId={}", achievement.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送 成果创建的通知
+     *
+     * @param achievement 创建的成果
+     */
+    public void notifyAchievementCreated(Achievement achievement) {
+        if (achievement == null) {
+            log.warn("成果创建通知参数不完整");
+            return;
+        }
+
+        List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(achievement.getProjectId());
+
+        Long operatorId = achievement.getCreatorId();
+        Long projectId = achievement.getProjectId();
+        String projectName = projectRepository.findProjectNameById(projectId).orElse("未知项目");;
+
+        if (projectMemberIds.isEmpty()) {
+            log.warn("项目[{}]没有成员，无法发送通知", projectName);
+            return;
+        }
+
+        // 过滤掉创建者自己
+        List<Long> filteredReceiverIds = projectMemberIds.stream()
+                .filter(memberId -> !memberId.equals(operatorId))
+                .toList();
+
+        if (filteredReceiverIds.isEmpty()) {
+            log.info("过滤后没有接收者，跳过发送");
+            return;
+        }
+
+        try{
+            // 获取创建者姓名
+            String creatorName = getOperatorName(operatorId);
+            // 获取项目名
+
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.ACHIEVEMENT_CREATED,
+                    operatorId,
+                    filteredReceiverIds,
+                    "新成果创建",
+                    String.format("项目「%s」中有新成果「%s」创建\n成果类型：%s\n创建者：「%s」\n请及时查看",
+                            projectName,
+                            achievement.getTitle(),
+                            achievement.getType() != null ? achievement.getType().getName() : "未知类型",
+                            creatorName),
+                    achievement.getId(),
+                    "ACHIEVEMENT",
+
+            );
+        }catch (ServiceException e){
+
+        }
+    }
+
 
     /**
      * 为单个成果发送批量删除通知
@@ -291,8 +430,11 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                 fileNamesPreview += " 等";
             }
 
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
             // 构建扩展数据JSON
-            String extendDataJson = buildBatchDeleteExtendData(achievement, files);
+            String extendDataJson = buildBatchDeleteExtendData(achievement, files, operatorId, operatorName);
 
             // 发送批量消息
             inboxMessageService.sendBatchPersonalMessage(
@@ -300,11 +442,12 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
                     operatorId,
                     filteredReceiverIds,
                     "成果文件批量删除",
-                    String.format("成果「%s」的 %d 个文件已被批量删除\n涉及文件：%s\n总大小：%s\n请及时查看",
+                    String.format("成果「%s」的 %d 个文件已被批量删除\n涉及文件：%s\n总大小：%s\n操作者：%s\n请及时查看",
                             achievement.getTitle(),
                             files.size(),
                             fileNamesPreview,
-                            FileUtils.formatFileSize(totalSize)),
+                            FileUtils.formatFileSize(totalSize),
+                            operatorName),
                     achievement.getId(),
                     "ACHIEVEMENT",
                     extendDataJson
@@ -321,13 +464,15 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
     /**
      * 构建文件上传扩展数据JSON
      */
-    private String buildFileUploadExtendData(Achievement achievement, AchievementFile file) {
+    private String buildFileUploadExtendData(Achievement achievement, AchievementFile file, Long uploaderId, String uploaderName) {
         Map<String, Object> extendData = new HashMap<>();
         extendData.put("achievementId", achievement.getId());
         extendData.put("achievementTitle", achievement.getTitle());
         extendData.put("fileId", file.getId());
         extendData.put("fileName", file.getFileName());
-        extendData.put("fileUrl", file.getMinioUrl());
+        extendData.put("fileUrl", file.getCosUrl());
+        extendData.put("uploaderId", uploaderId);
+        extendData.put("uploaderName", uploaderName);
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
     }
@@ -335,12 +480,14 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
     /**
      * 构建文件删除扩展数据JSON
      */
-    private String buildFileDeleteExtendData(Achievement achievement, AchievementFile file) {
+    private String buildFileDeleteExtendData(Achievement achievement, AchievementFile file, Long operatorId, String operatorName) {
         Map<String, Object> extendData = new HashMap<>();
         extendData.put("achievementId", achievement.getId());
         extendData.put("achievementTitle", achievement.getTitle());
         extendData.put("fileId", file.getId());
         extendData.put("fileName", file.getFileName());
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
     }
@@ -348,7 +495,7 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
     /**
      * 构建批量删除扩展数据JSON
      */
-    private String buildBatchDeleteExtendData(Achievement achievement, List<AchievementFile> files) {
+    private String buildBatchDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
         Map<String, Object> extendData = new HashMap<>();
         extendData.put("achievementId", achievement.getId());
         extendData.put("achievementTitle", achievement.getTitle());
@@ -356,6 +503,8 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
         extendData.put("fileNames", files.stream()
                 .map(AchievementFile::getFileName)
                 .collect(Collectors.toList()));
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
     }
@@ -363,12 +512,76 @@ public class KnowledgeMessageServiceImpl implements KnowledgeMessageService {
     /**
      * 构建所有文件删除扩展数据JSON
      */
-    private String buildAllFilesDeleteExtendData(Achievement achievement, List<AchievementFile> files) {
+    private String buildAllFilesDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
         Map<String, Object> extendData = new HashMap<>();
         extendData.put("achievementId", achievement.getId());
         extendData.put("achievementTitle", achievement.getTitle());
         extendData.put("fileCount", files.size());
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
         return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建状态变更扩展数据JSON
+     */
+    private String buildStatusChangeExtendData(Achievement achievement, AchievementStatus oldStatus, 
+                                               AchievementStatus newStatus, Long operatorId, String operatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("oldStatus", oldStatus.name());
+        extendData.put("newStatus", newStatus.name());
+        extendData.put("oldStatusName", getStatusDisplayName(oldStatus));
+        extendData.put("newStatusName", getStatusDisplayName(newStatus));
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 获取操作者姓名
+     * 如果查询失败或用户不存在，返回"未知用户"
+     *
+     * @param operatorId 操作者ID
+     * @return 操作者姓名
+     */
+    private String getOperatorName(Long operatorId) {
+        if (operatorId == null) {
+            return "未知用户";
+        }
+        try {
+            return userRepository.findNameById(operatorId)
+                    .orElse("未知用户");
+        } catch (Exception e) {
+            log.warn("获取操作者姓名失败: operatorId={}", operatorId, e);
+            return "未知用户";
+        }
+    }
+
+    /**
+     * 获取状态显示名称
+     *
+     * @param status 成果状态
+     * @return 状态显示名称
+     */
+    private String getStatusDisplayName(AchievementStatus status) {
+        if (status == null) {
+            return "未知状态";
+        }
+        switch (status) {
+            case draft:
+                return "草稿";
+            case under_review:
+                return "审核中";
+            case published:
+                return "已发布";
+            case obsolete:
+                return "已过时";
+            default:
+                return status.name();
+        }
     }
 }

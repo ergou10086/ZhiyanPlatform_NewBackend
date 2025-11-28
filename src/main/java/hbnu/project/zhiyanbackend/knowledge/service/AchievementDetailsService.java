@@ -84,13 +84,6 @@ public interface AchievementDetailsService {
     boolean validateDetailData(Long achievementId, Map<String, Object> detailData);
 
     /**
-     * 获取所有预设模板
-     *
-     * @return 所有类型的模板列表
-     */
-    List<AchievementTemplateDTO> getAllSystemTemplates();
-
-    /**
      * 获取成果类型的预设模板
      * 根据成果类型返回推荐的字段模板
      *
