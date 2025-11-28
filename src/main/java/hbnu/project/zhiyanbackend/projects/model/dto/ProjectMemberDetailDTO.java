@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 
 /**
  * 项目成员详细信息DTO
+ *
+ * @author Tokito
  */
 @Data
 @Builder

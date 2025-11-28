@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 /**
  * 项目成员关系实体（精简版）
  * 对应表：project_members
+ *
+ * @author Tokito
  */
 @Entity
 @Table(name = "project_members",

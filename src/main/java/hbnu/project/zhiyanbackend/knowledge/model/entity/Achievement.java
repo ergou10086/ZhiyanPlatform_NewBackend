@@ -2,7 +2,7 @@ package hbnu.project.zhiyanbackend.knowledge.model.entity;
 
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
-import hbnu.project.zhiyanbackend.knowledge.model.converter.AchievementConverter;
+//import hbnu.project.zhiyanbackend.knowledge.model.converter.AchievementConverter;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
@@ -55,7 +55,7 @@ public class Achievement extends BaseAuditEntity {
     /**
      * 成果类型：paper(论文)、patent(专利)、dataset(数据集)、model(模型)、report(报告)、custom(自定义)、task_result(任务成果)
      */
-    @Convert(converter = AchievementConverter.class)
+   // @Convert(converter = AchievementConverter.class)
     @Column(name = "type", nullable = false, length = 50, columnDefinition = "VARCHAR(50) CHECK (type IN ('paper', 'patent', 'dataset', 'model', 'report', 'custom', 'task_result'))")
     private AchievementType type;
 

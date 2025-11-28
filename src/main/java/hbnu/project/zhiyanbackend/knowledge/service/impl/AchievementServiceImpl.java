@@ -26,4 +26,18 @@ import java.util.Map;
 public class AchievementServiceImpl implements AchievementService {
 
 
+    @Override
+    public void updateAchievementStatus(Long achievementId, AchievementStatus status, Long userId) {
+
+    }
+
+    @Override
+    public Map<String, Object> getProjectAchievementStats(Long projectId) {
+        return Map.of();
+    }
+
+    @Override
+    public Map<AchievementStatus, Long> countByStatus(Long projectId) {
+        return Map.of();
+    }
 }

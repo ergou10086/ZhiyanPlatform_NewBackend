@@ -10,6 +10,8 @@ import java.util.List;
 
 /**
  * 项目角色定义 DTO（精简版）
+ *
+ * @author Tokito
  */
 @Data
 @Builder

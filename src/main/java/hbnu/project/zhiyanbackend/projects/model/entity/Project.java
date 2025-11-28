@@ -18,6 +18,8 @@ import java.time.LocalDate;
 /**
  * 项目实体（精简版）
  * 对应表：projects
+ *
+ * @author Tokito
  */
 @Entity
 @Table(name = "projects", schema = "zhiyanproject")

@@ -17,6 +17,8 @@ import java.time.Instant;
 
 /**
  * 任务用户关联实体
+ *
+ * @author Tokito
  */
 @Entity
 @Table(

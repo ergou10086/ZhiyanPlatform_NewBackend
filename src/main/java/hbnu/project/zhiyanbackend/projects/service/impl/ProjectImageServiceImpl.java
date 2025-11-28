@@ -10,6 +10,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 项目图片服务接口
+ * 负责处理项目封面图片在数据库中的存储与读取
+ *
+ * @author Tokito
+ */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor

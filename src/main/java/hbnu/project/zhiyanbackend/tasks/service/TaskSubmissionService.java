@@ -11,6 +11,8 @@ import java.util.Map;
 
 /**
  * 任务提交服务接口
+ *
+ * @author Tokito
  */
 public interface TaskSubmissionService {
 

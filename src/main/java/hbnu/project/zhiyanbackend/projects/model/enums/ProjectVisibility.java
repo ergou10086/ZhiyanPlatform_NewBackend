@@ -2,6 +2,8 @@ package hbnu.project.zhiyanbackend.projects.model.enums;
 
 /**
  * 项目可见性枚举
+ *
+ * @author Tokito
  */
 public enum ProjectVisibility {
 
