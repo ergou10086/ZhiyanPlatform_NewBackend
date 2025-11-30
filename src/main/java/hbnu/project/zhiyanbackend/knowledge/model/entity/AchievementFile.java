@@ -68,14 +68,14 @@ public class AchievementFile extends BaseAuditEntity {
      * 存储桶名称
      * 统一存储桶名称（单桶策略，通过目录区分业务）
      */
-    @Column(name = "bucket_name", nullable = false, length = 100, columnDefinition = "VARCHAR(100) COMMENT '存储桶名称（兼容MinIO和COS）'")
+    @Column(name = "bucket_name", nullable = false, length = 100, columnDefinition = "VARCHAR(100)")
     private String bucketName;
 
     /**
      * 对象存储键（Object Key）
      * 腾讯云COS，对象键（包含业务目录路径，如 achievement_file/2024/01/01/xxx.pdf）
      */
-    @Column(name = "object_key", nullable = false, length = 500, columnDefinition = "VARCHAR(500) COMMENT '对象存储键（兼容MinIO和COS）'")
+    @Column(name = "object_key", nullable = false, length = 500, columnDefinition = "VARCHAR(500)")
     private String objectKey;
 
     /**
@@ -83,7 +83,7 @@ public class AchievementFile extends BaseAuditEntity {
      * 腾讯云COS: COS公网访问URL（通过 publicDomain + objectKey 构建）
      * 注意：此URL为完整访问地址，可直接用于文件下载或预览
      */
-    @Column(name = "minio_url", nullable = false, length = 1000, columnDefinition = "VARCHAR(1000) COMMENT '文件访问URL（兼容MinIO和COS）'")
+    @Column(name = "minio_url", nullable = false, length = 1000, columnDefinition = "VARCHAR(1000)")
     private String cosUrl;
 
     /**

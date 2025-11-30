@@ -221,7 +221,7 @@ public class AchievementFileController {
      * @param fileId 文件 ID
      * @return 文件上下文
      */
-    @GetMapping("/{fileId}")
+    @GetMapping("/content/{fileId}")
     @Operation(summary = "获取单个文件信息", description = "根据文件 ID 获取文件的详细信息")
     public R<FileContextDTO> getFileById(
             @Parameter(description = "文件 ID") @PathVariable Long fileId) {

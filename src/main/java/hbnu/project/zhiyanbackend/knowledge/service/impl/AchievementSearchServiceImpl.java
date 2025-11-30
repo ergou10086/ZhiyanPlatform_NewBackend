@@ -235,6 +235,46 @@ public class AchievementSearchServiceImpl implements AchievementSearchService {
         return statistics;
     }
 
+    /**
+     * 组合搜索：多关键字搜索
+     *
+     * @param keyword  搜索关键字
+     * @param pageable 分页参数
+     * @return 成果分页列表
+     */
+    @Override
+    public Page<AchievementDTO> combinationSearch(String keyword, Pageable pageable) {
+        log.info("组合搜索: keyword={}", keyword);
+
+        if (StringUtils.isEmpty(keyword)) {
+            throw new ServiceException("搜索关键字不能为空");
+        }
+
+        Specification<Achievement> spec = (root, query, criteriaBuilder) -> {
+            // 不区分大小写
+            String lowerKeyword = keyword.toLowerCase();
+
+            // 左连接detail表
+            Join<Achievement, AchievementDetail> detailJoin = root.join("detail", JoinType.LEFT);
+
+            // 在标题、摘要中搜索（OR关系）
+            Predicate titlePredicate = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("title")),
+                    "%" + lowerKeyword + "%"
+            );
+
+            Predicate abstractPredicate = criteriaBuilder.like(
+                    criteriaBuilder.lower(detailJoin.get("abstractText")),
+                    "%" + lowerKeyword + "%"
+            );
+
+            // 组合条件（OR关系）
+            return criteriaBuilder.or(titlePredicate, abstractPredicate);
+        };
+
+        Page<Achievement> achievements = achievementRepository.findAll(spec, pageable);
+        return achievements.map(achievementConverter::toDTO);
+    }
 
     /**
      * 构建动态查询条件（Specification）

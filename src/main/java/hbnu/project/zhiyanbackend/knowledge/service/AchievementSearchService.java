@@ -58,4 +58,13 @@ public interface AchievementSearchService {
      * @return 统计结果Map
      */
     Map<String, Long> statisticsByType(Long projectId);
+
+    /**
+     * 组合搜索：多关键字搜索
+     *
+     * @param keyword  搜索关键字
+     * @param pageable 分页参数
+     * @return 成果分页列表
+     */
+    Page<AchievementDTO> combinationSearch(String keyword, Pageable pageable);
 }
