@@ -33,6 +33,7 @@ build/
 .vscode/
 
 src/main/resources/application-cloud.yml
+
 *.yml
 
 *.log

@@ -25,10 +25,11 @@ spring:
       connection-timeout: 20000
       connection-test-query: SELECT 1
       # PostgreSQL Schema配置，包含所有业务schema
-      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage
+      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage, zhiyanwiki
 
   # JPA配置
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     properties:
@@ -38,13 +39,18 @@ spring:
         format_sql: true
         # 显示SQL
         show_sql: true
+        use_sql_comments: true
         # 命名策略
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-        # 批量操作优化
+        # JDBC批处理
         jdbc:
-          batch_size: 20
+          batch_size: 50
+          fetch_size: 50
         order_inserts: true
         order_updates: true
+        # JSONB类型支持
+        type:
+          json_format_mapper: io.hypersistence.utils.hibernate.type.json.JsonBinaryType
     show-sql: true
     open-in-view: false
 
