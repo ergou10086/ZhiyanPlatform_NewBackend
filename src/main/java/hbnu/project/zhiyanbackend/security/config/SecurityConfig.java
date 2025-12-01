@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -199,12 +200,18 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/message/**"    // 批量权限校验
                         ).permitAll()
 
-                        // 用户项目头像管理接口 - 认证用户可以访问
+                        // 图片/头像读取接口 - 允许匿名GET访问，方便<img>标签渲染
+                        .requestMatchers(HttpMethod.GET,
+                                "/zhiyan/projects/get-image",
+                                "/zhiyan/projects/get-image/**",
+                                "/zhiyan/auth/user-avatar/**",
+                                "/zhiyan/users/avatar/**"
+                        ).permitAll()
+
+                        // 用户项目图片管理接口 - 上传/删除等需要认证
                         .requestMatchers(
-                                "/zhiyan/users/avatar/**",
                                 "/zhiyan/projects/upload-image",
                                 "/zhiyan/projects/delete-image",
-                                "/zhiyan/projects/get-image",
                                 "/zhiyan/projects/get-images",
                                 "/zhiyan/projects/get-image-url",
                                 "/zhiyan/projects/get-image-urls",

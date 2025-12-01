@@ -1,8 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
-import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
-import hbnu.project.zhiyanbackend.oss.service.COSService;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
@@ -42,6 +40,8 @@ public class ProjectImageServiceImpl implements ProjectImageService {
             // 仅将图片二进制数据保存在 PostgreSQL 的 image_data(bytea) 字段中
             byte[] imageData = file.getBytes();
             project.setImageData(imageData);
+            // 同时更新可直接访问的图片URL，便于前端在刷新后仍能展示
+            project.setImageUrl("/zhiyan/projects/get-image?projectId=" + projectId);
 
             projectRepository.save(project);
 
