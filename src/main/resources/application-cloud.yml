@@ -38,7 +38,7 @@ spring:
         # 格式化SQL
         format_sql: true
         # 显示SQL
-        show_sql: true
+        show_sql: false
         use_sql_comments: true
         # 命名策略
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
