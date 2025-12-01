@@ -25,6 +25,8 @@ import lombok.experimental.SuperBuilder;
  *
  * @author Tokito
  */
+@Getter
+@Setter
 @Entity
 @Table(name = "achievement_task_ref",
         schema = "zhiyanknowledge",
