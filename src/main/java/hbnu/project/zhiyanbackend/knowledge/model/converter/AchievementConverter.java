@@ -6,11 +6,13 @@ import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDetailDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementFileDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.CreateAchievementDTO;
+import hbnu.project.zhiyanbackend.knowledge.model.dto.TaskResultTaskRefDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementDetail;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -84,6 +86,13 @@ public interface AchievementConverter {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "version", ignore = true)
     Achievement toEntity(CreateAchievementDTO dto);
+
+    // ==================== Task 相关转换 ====================
+
+    /**
+     * Task 转 TaskResultTaskRefDTO（成果关联任务展示用）
+     */
+    TaskResultTaskRefDTO toTaskResultTaskRefDTO(Task task);
 
     // ==================== 辅助方法 ====================
 
