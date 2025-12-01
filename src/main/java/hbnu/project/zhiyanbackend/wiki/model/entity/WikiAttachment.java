@@ -1,9 +1,10 @@
 package hbnu.project.zhiyanbackend.wiki.model.entity;
 
-
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.wiki.model.enums.AttachmentType;
+
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;

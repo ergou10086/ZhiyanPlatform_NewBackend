@@ -198,6 +198,8 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setIsDeleted(true);
             projectRepository.save(project);
+
+            // TODO:项目删除时候，需要级联删除项目内对应的所有内容，包括任务，知识库（记录和文件），整个的wiki文档
             
             // 发送项目删除消息给所有项目成员
             try {

@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
+
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
@@ -171,9 +172,9 @@ public class WikiPage extends BaseAuditEntity {
      * 最近版本历史（保留最近 10 个版本）
      * 使用PostgreSQL的JSONB类型存储，支持索引和查询
      */
+    @Builder.Default
     @Type(JsonBinaryType.class)
     @Column(name = "recent_versions", columnDefinition = "jsonb")
-    @Builder.Default
     private List<RecentVersionInfo> recentVersions = new ArrayList<>();
 
     // ==================== 协同编辑相关字段（预留） ====================
