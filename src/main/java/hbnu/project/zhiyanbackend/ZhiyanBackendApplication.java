@@ -12,9 +12,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableJpaAuditing
 @SpringBootApplication
 public class ZhiyanBackendApplication {
-
     public static void main(String[] args) {
-
         SpringApplication.run(ZhiyanBackendApplication.class, args);
         System.out.println("开了？我说的是服务");
     }

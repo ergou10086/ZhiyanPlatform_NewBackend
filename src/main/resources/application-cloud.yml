@@ -48,9 +48,6 @@ spring:
           fetch_size: 50
         order_inserts: true
         order_updates: true
-        # JSONB类型支持
-        type:
-          json_format_mapper: io.hypersistence.utils.hibernate.type.json.JsonBinaryType
     show-sql: true
     open-in-view: false
 

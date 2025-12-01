@@ -21,7 +21,7 @@ import java.util.Optional;
  * @author ErgouTree
  */
 @Repository
-public interface WikiVersionHistoryRepository {
+public interface WikiVersionHistoryRepository extends JpaRepository<WikiVersionHistory, Long>  {
 
     // ==================== 基础查询 ====================
 

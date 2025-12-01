@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.wiki.model.dto.*;
 import hbnu.project.zhiyanbackend.wiki.model.entity.ChangeStats;
 import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
+import hbnu.project.zhiyanbackend.wiki.model.entity.WikiVersionHistory;
 import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
 import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
 import hbnu.project.zhiyanbackend.wiki.repository.WikiVersionHistoryRepository;
@@ -211,7 +212,27 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public void archiveOldVersion(Long wikiPageId, Long projectId, WikiPage.RecentVersionInfo recentVersion) {
+        try {
+            WikiVersionHistory history = WikiVersionHistory.builder()
+                    .wikiPageId(wikiPageId)
+                    .projectId(projectId)
+                    .version(recentVersion.getVersion())
+                    .contentDiff(recentVersion.getContentDiff())
+                    .changeDescription(recentVersion.getChangeDescription())
+                    .build();
 
+            history.setCreatedBy(recentVersion.getEditorId());
+            history.setCreatedAt(recentVersion.getCreatedAt());
+            history.setAddedLines(recentVersion.getAddedLines());
+            history.setDeletedLines(recentVersion.getDeletedLines());
+            history.setChangedChars(recentVersion.getChangedChars());
+            history.setContentHash(recentVersion.getContentHash());
+
+            versionHistoryRepository.save(history);
+            log.info("归档旧版本成功: wikiPageId={}, version={}", wikiPageId, recentVersion.getVersion());
+        } catch (Exception e) {
+            log.error("归档旧版本失败: wikiPageId={}, version={}", wikiPageId, recentVersion.getVersion(), e);
+        }
     }
 
     /**
@@ -221,8 +242,14 @@ public class WikiPageServiceImpl implements WikiPageService {
      * @param sortOrder 新的排序序号
      */
     @Override
+    @Transactional
     public void updateSortOrder(Long pageId, Integer sortOrder) {
+        WikiPage page = wikiPageRepository.findById(pageId).orElseThrow(() -> new ServiceException("Wiki页面不存在"));
 
+        page.setSortOrder(sortOrder);
+        wikiPageRepository.save(page);
+
+        log.info("更新Wiki页面排序: pageId={}, sortOrder={}", pageId, sortOrder);
     }
 
     /**
@@ -233,7 +260,20 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public void deleteWikiPage(Long pageId, Long operatorId) {
+        WikiPage wikiPage = wikiPageRepository.findById(pageId).orElseThrow(() -> new ServiceException("Wiki页面不存在"));
 
+        // 检查是否有子页面
+        long childrenCount = wikiPageRepository.countByParentId(pageId);
+        if (childrenCount > 0) {
+            throw new ServiceException("该页面下还有子页面，请先删除子页面");
+        }
+
+        // 删除其版本历史
+        versionHistoryRepository.deleteByWikiPageId(pageId);
+
+        // 删除元数据
+        wikiPageRepository.delete(wikiPage);
+        log.info("删除Wiki页面成功: id={}, title={}", wikiPage.getId(), wikiPage.getTitle());
     }
 
     /**
@@ -243,7 +283,22 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public void deletePageRecursively(Long pageId) {
+        WikiPage wikiPage = wikiPageRepository.findById(pageId).orElseThrow(() -> new ServiceException("Wiki页面不存在"));
 
+        // 如果是目录，递归删除所有子页面
+        if (wikiPage.getPageType() == PageType.DIRECTORY) {
+            List<WikiPage> childrenPage = wikiPageRepository.findChildPages(wikiPage.getProjectId(), pageId);
+            for (WikiPage child : childrenPage) {
+                deletePageRecursively(child.getId());
+            }
+        }
+
+        // 删除对应的页面的版面历史
+        versionHistoryRepository.deleteByWikiPageId(pageId);
+
+        // 删除当前页面
+        wikiPageRepository.delete(wikiPage);
+        log.info("递归删除Wiki页面: id={}, title={}", wikiPage.getId(), wikiPage.getTitle());
     }
 
     /**

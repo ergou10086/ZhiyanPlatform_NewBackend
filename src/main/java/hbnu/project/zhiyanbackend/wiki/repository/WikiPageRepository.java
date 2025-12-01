@@ -248,7 +248,7 @@ public interface WikiPageRepository extends JpaRepository<WikiPage, Long> {
      * @param pageable 分页参数
      * @return Wiki页面列表
      */
-    Page<WikiPage> findByUpdateByOrderByUpdatedAtDesc(Long userId, Pageable pageable);
+    Page<WikiPage> findByUpdatedByOrderByUpdatedAtDesc(Long userId, Pageable pageable);
 
     // ==================== 公开页面查询 ====================
 
