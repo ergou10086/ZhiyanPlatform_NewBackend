@@ -12,7 +12,7 @@ import java.util.List;
  * @author ErgouTree
  * @rewrite ErgouTree
  */
-public interface WikiContentService {
+public interface WikiContentVersionService {
 
     /**
      * 获取指定版本的完整内容
