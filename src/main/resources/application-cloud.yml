@@ -180,7 +180,12 @@ sse:
 
 # Dify流式配置
 dify:
-  stream-enabled: true
+  apiUrl: https://dify.aipfuture.com/v1
+  apiKey: app-Z0Uo6XAytf94sGkSO7oYMQV5
+  timeout: 60000
+  maxTokens: 4096
+  temperature: 0.7
+  streamEnabled: true
 
 # 腾讯云 COS 配置（使用环境变量注入）
 tencent:
