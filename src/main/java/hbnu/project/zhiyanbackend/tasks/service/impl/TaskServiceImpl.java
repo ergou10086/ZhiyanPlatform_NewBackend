@@ -1,6 +1,8 @@
 package hbnu.project.zhiyanbackend.tasks.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.tasks.model.dto.TaskDetailDTO;
 import hbnu.project.zhiyanbackend.tasks.model.dto.UserTaskStatisticsDTO;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import hbnu.project.zhiyanbackend.tasks.model.entity.TaskUser;
@@ -49,6 +51,7 @@ public class TaskServiceImpl implements TaskService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberService projectMemberService;
     private final InboxMessageService inboxMessageService;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -691,5 +694,61 @@ public class TaskServiceImpl implements TaskService {
                 .build();
 
         return R.ok(dto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public R<Page<TaskDetailDTO>> getProjectTasksWithAssignees(Long projectId, Pageable pageable) {
+        Page<Task> taskPage = taskRepository.findByProjectIdAndIsDeleted(projectId, false, pageable);
+        
+        List<TaskDetailDTO> taskDTOs = taskPage.getContent().stream()
+                .map(this::convertToTaskDetailDTO)
+                .collect(Collectors.toList());
+        
+        Page<TaskDetailDTO> resultPage = new PageImpl<>(taskDTOs, pageable, taskPage.getTotalElements());
+        return R.ok(resultPage);
+    }
+
+    /**
+     * 将 Task 实体转换为 TaskDetailDTO（包含执行者信息）
+     */
+    private TaskDetailDTO convertToTaskDetailDTO(Task task) {
+        // 获取任务的所有活跃执行者
+        List<TaskUser> taskUsers = taskUserRepository.findActiveExecutorsByTaskId(task.getId());
+        log.info("[convertToTaskDetailDTO] 任务ID: {}, 标题: {}, 活跃执行者数量: {}", 
+                task.getId(), task.getTitle(), taskUsers.size());
+        taskUsers.forEach(tu -> log.info("[convertToTaskDetailDTO] 执行者: userId={}, isActive={}", 
+                tu.getUserId(), tu.getIsActive()));
+        
+        // 转换执行者信息
+        List<TaskDetailDTO.AssigneeDTO> assignees = taskUsers.stream()
+                .map(tu -> {
+                    String userName = userRepository.findNameById(tu.getUserId()).orElse("未知用户");
+                    return TaskDetailDTO.AssigneeDTO.builder()
+                            .userId(tu.getUserId())
+                            .userName(userName)
+                            .build();
+                })
+                .collect(Collectors.toList());
+        
+        // 获取创建者名称
+        String creatorName = userRepository.findNameById(task.getCreatorId()).orElse("未知用户");
+        
+        return TaskDetailDTO.builder()
+                .id(task.getId())
+                .projectId(task.getProjectId())
+                .creatorId(task.getCreatorId())
+                .creatorName(creatorName)
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .worktime(task.getWorktime())
+                .status(task.getStatus())
+                .priority(task.getPriority())
+                .dueDate(task.getDueDate())
+                .requiredPeople(task.getRequiredPeople())
+                .isDeleted(task.getIsDeleted())
+                .isMilestone(task.getIsMilestone())
+                .assignees(assignees)
+                .build();
     }
 }

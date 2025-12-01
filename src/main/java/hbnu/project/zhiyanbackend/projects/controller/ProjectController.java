@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
@@ -148,10 +149,12 @@ public class ProjectController {
 
     @GetMapping("/public/active")
     @Operation(summary = "获取公开且活跃的项目")
-    public R<Page<Project>> getPublicActiveProjects(@RequestParam(defaultValue = "0") int page,
+    public R<Page<ProjectDTO>> getPublicActiveProjects(@RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return projectService.getPublicActiveProjects(pageable);
+        // 使用ProjectServiceImpl的getPublicActiveProjectsDTO方法，返回包含创建者名称的DTO
+        return ((hbnu.project.zhiyanbackend.projects.service.impl.ProjectServiceImpl) projectService)
+                .getPublicActiveProjectsDTO(pageable);
     }
 
     @PatchMapping("/{projectId}/status")

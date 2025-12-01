@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
@@ -77,17 +78,19 @@ public class ProjectMemberController {
     }
 
     /**
-     * 获取项目成员分页列表
+     * 获取项目成员分页列表（包含用户名称）
      */
     @GetMapping("/{projectId}/members")
-    @Operation(summary = "获取项目成员列表", description = "分页获取指定项目的成员列表")
-    public R<Page<ProjectMember>> getProjectMembers(
+    @Operation(summary = "获取项目成员列表", description = "分页获取指定项目的成员列表，包含用户详细信息")
+    public R<Page<ProjectMemberDetailDTO>> getProjectMembers(
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码，从0开始") int page,
             @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<ProjectMember> members = projectMemberService.getProjectMembers(projectId, pageable);
+        // 使用ProjectMemberServiceImpl的getProjectMembersWithDetails方法，返回包含用户名称的DTO
+        Page<ProjectMemberDetailDTO> members = ((hbnu.project.zhiyanbackend.projects.service.impl.ProjectMemberServiceImpl) projectMemberService)
+                .getProjectMembersWithDetails(projectId, pageable);
         return R.ok(members);
     }
 

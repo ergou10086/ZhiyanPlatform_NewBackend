@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
@@ -11,9 +12,12 @@ import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
+import hbnu.project.zhiyanbackend.auth.service.UserService;
+import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +40,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectMemberService projectMemberService;
     private final InboxMessageService inboxMessageService;
+    private final UserService userService;
 
     @Override
     @Transactional
@@ -435,6 +440,86 @@ public class ProjectServiceImpl implements ProjectService {
             log.error("统计用户参与项目数量失败: userId={}", userId, e);
             return R.fail("统计失败: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 获取公开且活跃的项目（返回DTO，包含创建者名称）
+     * @param pageable 分页参数
+     * @return 项目DTO分页列表
+     */
+    public R<Page<ProjectDTO>> getPublicActiveProjectsDTO(Pageable pageable) {
+        try {
+            Page<Project> projects = projectRepository.findPublicActiveProjects(pageable);
+            List<ProjectDTO> dtoList = convertToDTOList(projects.getContent());
+            Page<ProjectDTO> dtoPage = new PageImpl<>(dtoList, pageable, projects.getTotalElements());
+            return R.ok(dtoPage);
+        } catch (Exception e) {
+            log.error("获取公开活跃项目失败", e);
+            return R.fail("获取项目列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 将Project实体转换为ProjectDTO，并填充创建者名称
+     * @param project 项目实体
+     * @return ProjectDTO
+     */
+    private ProjectDTO convertToDTO(Project project) {
+        if (project == null) {
+            return null;
+        }
+        
+        // 查询创建者名称
+        String creatorName = "未知用户";
+        if (project.getCreatorId() != null) {
+            try {
+                R<UserDTO> userResult = userService.getCurrentUser(project.getCreatorId());
+                if (R.isSuccess(userResult) && userResult.getData() != null) {
+                    creatorName = userResult.getData().getName();
+                }
+            } catch (Exception e) {
+                log.warn("查询创建者名称失败: creatorId={}", project.getCreatorId(), e);
+            }
+        }
+        
+        // 查询成员数量
+        Integer memberCount = 0;
+        try {
+            memberCount = (int) projectMemberRepository.countByProjectId(project.getId());
+        } catch (Exception e) {
+            log.warn("查询项目成员数量失败: projectId={}", project.getId(), e);
+        }
+        
+        return ProjectDTO.builder()
+                .id(String.valueOf(project.getId()))
+                .name(project.getName())
+                .description(project.getDescription())
+                .status(project.getStatus())
+                .visibility(project.getVisibility())
+                .startDate(project.getStartDate())
+                .endDate(project.getEndDate())
+                .imageUrl(project.getImageUrl())
+                .creatorId(String.valueOf(project.getCreatorId()))
+                .creatorName(creatorName)
+                .memberCount(memberCount)
+                .taskCount(0) // TODO: 后续接入任务模块时填充
+                .createdAt(project.getCreatedAt())
+                .updatedAt(project.getUpdatedAt())
+                .build();
+    }
+    
+    /**
+     * 批量转换Project列表为ProjectDTO列表
+     * @param projects 项目列表
+     * @return ProjectDTO列表
+     */
+    private List<ProjectDTO> convertToDTOList(List<Project> projects) {
+        if (projects == null || projects.isEmpty()) {
+            return List.of();
+        }
+        return projects.stream()
+                .map(this::convertToDTO)
+                .toList();
     }
 }
 
