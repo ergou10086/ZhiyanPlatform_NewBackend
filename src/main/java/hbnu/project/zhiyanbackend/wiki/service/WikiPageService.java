@@ -2,9 +2,11 @@ package hbnu.project.zhiyanbackend.wiki.service;
 
 import hbnu.project.zhiyanbackend.wiki.model.dto.*;
 import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
+import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -168,4 +170,16 @@ public interface WikiPageService {
      * @return 最近更新的页面列表
      */
     List<WikiPageTreeDTO> getRecentlyUpdated(Long projectId, int limit);
+
+    /**
+     * 全文搜索Wiki内容
+     * 整合PostgreSQL全文搜索功能
+     * 同时搜索标题和内容，返回带上下文的结果
+     *
+     * @param projectId 项目id
+     * @param keyword 关键字
+     * @param pageable 分页
+     * @return WikiSearchDTO
+     */
+    Page<WikiSearchDTO> fullTextSearch(Long projectId, String keyword, Pageable pageable);
 }

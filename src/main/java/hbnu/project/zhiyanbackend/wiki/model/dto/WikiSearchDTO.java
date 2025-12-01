@@ -21,7 +21,12 @@ public class WikiSearchDTO {
     /**
      * 页面ID
      */
-    private String id;
+    private Long id;
+
+    /**
+     * 项目ID（新增字段）
+     */
+    private Long projectId;
 
     /**
      * 页面标题
@@ -44,12 +49,22 @@ public class WikiSearchDTO {
     private String contentSummary;
 
     /**
+     * 内容上下文（新增字段，用于存储匹配的上下文）
+     */
+    private String contentContext;
+
+    /**
+     * 搜索得分（新增字段，用于排序）
+     */
+    private Float score;
+
+    /**
      * 更新时间
      */
     private LocalDateTime updatedAt;
 
     /**
-     * 最后编辑者ID
+     * 最后编辑者ID（修正为Long类型，与实体类保持一致）
      */
-    private String lastEditorId;
+    private Long lastEditorId;
 }

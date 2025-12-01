@@ -12,7 +12,12 @@ import hbnu.project.zhiyanbackend.wiki.service.WikiPageService;
 import hbnu.project.zhiyanbackend.wiki.utils.WikiDiffUtils;
 
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.util.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,8 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Wiki页面服务实现类
@@ -32,6 +38,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class WikiPageServiceImpl implements WikiPageService {
 
     @Resource
@@ -42,6 +49,12 @@ public class WikiPageServiceImpl implements WikiPageService {
 
     @Resource
     private WikiDiffUtils wikiDiffUtils;
+
+    @Resource
+    private ApplicationContext applicationContext;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * 创建 Wiki 页面
@@ -256,7 +269,7 @@ public class WikiPageServiceImpl implements WikiPageService {
      * 删除Wiki页面
      *
      * @param pageId     页面ID
-     * @param operatorId
+     * @param operatorId 操作者id
      */
     @Override
     public void deleteWikiPage(Long pageId, Long operatorId) {
@@ -289,7 +302,8 @@ public class WikiPageServiceImpl implements WikiPageService {
         if (wikiPage.getPageType() == PageType.DIRECTORY) {
             List<WikiPage> childrenPage = wikiPageRepository.findChildPages(wikiPage.getProjectId(), pageId);
             for (WikiPage child : childrenPage) {
-                deletePageRecursively(child.getId());
+                // 通过代理对象调用自身，也就是通过容器获取代理对象，再调用方法
+                applicationContext.getBean(WikiPageService.class).deletePageRecursively(child.getId());
             }
         }
 
@@ -309,7 +323,13 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public List<WikiPageTreeDTO> getProjectWikiTree(Long projectId) {
-        return List.of();
+        // 获取所有根页面
+        List<WikiPage> rootPages = wikiPageRepository.findRootPages(projectId);
+
+        // 构建树状结构
+        return rootPages.stream()
+                .map(this::buildWikiTree)
+                .toList();
     }
 
     /**
@@ -320,7 +340,38 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public WikiPageTreeDTO buildWikiTree(WikiPage page) {
-        return null;
+        // 构建Wiki树
+        WikiPageTreeDTO dto = WikiPageTreeDTO.builder()
+                .id(String.valueOf(page.getId()))
+                .title(page.getTitle())
+                .parentId(page.getParentId() != null ? String.valueOf(page.getParentId()) : null)
+                .path(page.getPath())
+                .sortOrder(page.getSortOrder())
+                .isPublic(page.getIsPublic())
+                .pageType(page.getPageType().name())
+                .currentVersion(page.getCurrentVersion())
+                .contentSummary(page.getContentSummary())
+                .createdAt(page.getCreatedAt() != null ? page.getCreatedAt().toString() : null)
+                .updatedAt(page.getUpdatedAt() != null ? page.getUpdatedAt().toString() : null)
+                .build();
+
+        // 获取子页面
+        List<WikiPage> children = wikiPageRepository.findChildPages(page.getProjectId(), page.getId());
+        dto.setHasChildren(!children.isEmpty());
+        dto.setChildrenCount(children.size());
+
+        // 递归构建子树
+        if (!children.isEmpty()) {
+            List<WikiPageTreeDTO> childrenDtos = children.stream()
+                    .map(this::buildWikiTree)
+                    .toList();
+
+            dto.setChildren(childrenDtos);
+        }else{
+            dto.setChildren(new ArrayList<>());
+        }
+
+        return dto;
     }
 
     /**
@@ -333,7 +384,13 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public String calculatePath(Long projectId, Long parentId, String title) {
-        return "";
+        if (parentId == null) {
+            return "/" + title;
+        }
+
+        WikiPage parent = wikiPageRepository.findById(parentId).orElseThrow(() -> new ServiceException("父页面不存在"));
+
+        return parent.getPath() + "/" + title;
     }
 
     /**
@@ -344,7 +401,32 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public WikiPageDetailDTO getWikiPageWithContent(Long pageId) {
-        return null;
+        WikiPage page = wikiPageRepository.findById(pageId).orElseThrow(() -> new ServiceException("Wiki页面不存在"));
+
+        WikiPageDetailDTO.WikiPageDetailDTOBuilder builder = WikiPageDetailDTO.builder()
+                .id(String.valueOf(page.getId()))
+                .projectId(String.valueOf(page.getProjectId()))
+                .title(page.getTitle())
+                .pageType(page.getPageType().name())
+                .parentId(page.getParentId() != null ? String.valueOf(page.getParentId()) : null)
+                .path(page.getPath())
+                .contentSummary(page.getContentSummary())
+                .currentVersion(page.getCurrentVersion())
+                .contentSize(page.getContentSize())
+                .isPublic(page.getIsPublic())
+                .isLocked(page.getIsLocked())
+                .lockedBy(page.getLockedBy() != null ? String.valueOf(page.getLockedBy()) : null)
+                .creatorId(String.valueOf(page.getCreatedBy()))
+                .lastEditorId(page.getUpdatedBy() != null ? String.valueOf(page.getUpdatedBy()) : null)
+                .createdAt(page.getCreatedAt())
+                .updatedAt(page.getUpdatedAt());
+
+        // 如果是文档类型，获取内容
+        if (page.getPageType() == PageType.DOCUMENT) {
+            builder.content(page.getContent());
+        }
+
+        return builder.build();
     }
 
     /**
@@ -357,7 +439,17 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public Page<WikiSearchDTO> searchByTitle(Long projectId, String keyword, Pageable pageable) {
-        return null;
+        Page<WikiPage> pages = wikiPageRepository.findByProjectIdAndTitleContainingIgnoreCase(projectId, keyword, pageable);
+
+        return pages.map(page -> WikiSearchDTO.builder()
+                .id(page.getId())
+                .title(page.getTitle())
+                .path(page.getPath())
+                .pageType(page.getPageType().name())
+                .contentSummary(page.getContentSummary())
+                .updatedAt(page.getUpdatedAt())
+                .lastEditorId(page.getUpdatedBy() != null ? page.getUpdatedBy() : null)
+                .build());
     }
 
     /**
@@ -370,7 +462,26 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public Page<WikiSearchDTO> searchByContent(Long projectId, String keyword, Pageable pageable) {
-        return null;
+        log.info("[Wiki内容搜索] 开始搜索: projectId={}, keyword={}", projectId, keyword);
+
+        // 使用PostgreSQL全文搜索
+        Page<WikiPage> pages = wikiPageRepository.fullTextSearch(projectId, keyword, pageable);
+        log.info("[Wiki内容搜索] PostgreSQL返回结果数: {}", pages.getTotalElements());
+
+        return pages.map(page -> {
+            // 提取匹配内容的上下文作为摘要
+            String summary = extractMatchContext(page.getContent(), keyword, 200);
+
+            return WikiSearchDTO.builder()
+                    .id(page.getId())
+                    .title(page.getTitle())
+                    .path(page.getPath())
+                    .pageType(page.getPageType().name())
+                    .contentSummary(summary)
+                    .updatedAt(page.getUpdatedAt())
+                    .lastEditorId(page.getUpdatedBy() != null ? page.getUpdatedBy() : null)
+                    .build();
+        });
     }
 
     /**
@@ -383,7 +494,39 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public String extractMatchContext(String content, String keyword, int maxLength) {
-        return "";
+        if (content == null || content.isEmpty() || keyword == null || keyword.isEmpty()) {
+            return "";
+        }
+
+        // 处理多关键字情况（空格分隔）
+        String[] keywords = keyword.split("\\s+");
+        Pattern pattern = Pattern.compile(String.join("|", keywords), Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(content);
+
+        // 找到第一个匹配项
+        if (matcher.find()) {
+            int start = Math.max(0, matcher.start() - maxLength / 2);
+            int end = Math.min(content.length(), matcher.end() + maxLength / 2);
+
+            // 截取上下文并添加省略号
+            String context = content.substring(start, end);
+            if (start > 0) {
+                context = "..." + context;
+            }
+            if (end < content.length()) {
+                context = context + "...";
+            }
+
+            // 高亮关键字（可根据前端需求调整格式）
+            for (String kw : keywords) {
+                context = context.replaceAll("(?i)" + Pattern.quote(kw), "<em>" + kw + "</em>");
+            }
+
+            return context;
+        }
+
+        // 如果内容中没有关键字但标题中有，返回内容开头
+        return content.length() > maxLength ? content.substring(0, maxLength) + "..." : content;
     }
 
     /**
@@ -394,7 +537,95 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public WikiStatisticsDTO getProjectStatistics(Long projectId) {
-        return null;
+        log.info("获取项目[{}]的Wiki统计信息", projectId);
+
+        if (projectId == null) {
+            log.warn("projectId为空，返回空统计信息");
+            return WikiStatisticsDTO.builder()
+                    .projectId("0")
+                    .totalPages(0L)
+                    .documentCount(0L)
+                    .directoryCount(0L)
+                    .totalContentSize(0L)
+                    .contributorCount(0)
+                    .recentUpdates(0L)
+                    .totalVersions(0L)
+                    .contributorStats(new HashMap<>())
+                    .build();
+        }
+
+        // 获取所有页面
+        List<WikiPage> allPages = wikiPageRepository.findByProjectId(projectId);
+        log.debug("项目[{}]共有{}个Wiki页面", projectId, allPages.size());
+
+        // 统计文档和目录数量
+        long documentCount = allPages.stream()
+                .filter(p -> p.getPageType() == PageType.DOCUMENT)
+                .count();
+        long directoryCount = allPages.stream()
+                .filter(p -> p.getPageType() == PageType.DIRECTORY)
+                .count();
+
+        log.debug("项目[{}]文档数: {}, 目录数: {}", projectId, documentCount, directoryCount);
+
+        // 统计总内容大小
+        long totalContentSize = allPages.stream()
+                .filter(p -> p.getContentSize() != null)
+                .mapToLong(WikiPage::getContentSize)
+                .sum();
+
+        // 统计贡献者
+        Set<Long> contributors = new HashSet<>();
+        allPages.stream()
+                .map(WikiPage::getCreatedBy)
+                .filter(Objects::nonNull)
+                .forEach(contributors::add);
+        allPages.stream()
+                .map(WikiPage::getUpdatedBy)
+                .filter(Objects::nonNull)
+                .forEach(contributors::add);
+
+        // 统计最近30天更新
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        long recentUpdates = allPages.stream()
+                .filter(p -> p.getUpdatedAt() != null && p.getUpdatedAt().isAfter(thirtyDaysAgo))
+                .count();
+
+        // 统计各贡献者编辑次数
+        Map<String, Integer> contributorStats = new HashMap<>();
+        for (WikiPage page : allPages) {
+            if (page.getCreatedBy() != null) {
+                String creatorId = String.valueOf(page.getCreatedBy());
+                contributorStats.put(creatorId, contributorStats.getOrDefault(creatorId, 0) + 1);
+            }
+        }
+
+        // 统计总版本数
+        long totalVersions = allPages.stream()
+                .filter(p -> p.getCurrentVersion() != null)
+                .mapToLong(p -> p.getCurrentVersion().longValue())
+                .sum();
+
+        // 加上历史版本数
+        totalVersions += versionHistoryRepository.countByProjectId(projectId);
+
+        WikiStatisticsDTO result = WikiStatisticsDTO.builder()
+                .projectId(String.valueOf(projectId))
+                .totalPages((long) allPages.size())
+                .documentCount(documentCount)
+                .directoryCount(directoryCount)
+                .totalContentSize(totalContentSize)
+                .contributorCount(contributors.size())
+                .recentUpdates(recentUpdates)
+                .totalVersions(totalVersions)
+                .contributorStats(contributorStats)
+                .build();
+
+        log.info("项目[{}]的Wiki统计信息: 总页面数={}, 文档数={}, 目录数={}, 贡献者数={}",
+                projectId, result.getTotalPages(), result.getDocumentCount(),
+                result.getDirectoryCount(), result.getContributorCount());
+
+        return result;
     }
 
     /**
@@ -408,7 +639,35 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public WikiPage copyPage(Long sourcePageId, Long targetParentId, String newTitle, Long userId) {
-        return null;
+        WikiPage sourcePage = wikiPageRepository.findById(sourcePageId)
+                .orElseThrow(() -> new ServiceException("源页面不存在"));
+
+        // 生成新标题
+        if (!StringUtils.hasText(newTitle)) {
+            newTitle = "副本-" + sourcePage.getTitle();
+        }
+
+        // 创建DTO
+        CreateWikiPageDTO dto = CreateWikiPageDTO.builder()
+                .projectId(sourcePage.getProjectId())
+                .title(newTitle)
+                .pageType(sourcePage.getPageType())
+                .parentId(targetParentId)
+                .isPublic(sourcePage.getIsPublic())
+                .creatorId(userId)
+                .changeDescription("复制自: " + sourcePage.getTitle())
+                .build();
+
+        // 如果是文档类型，复制内容
+        if (sourcePage.getPageType() == PageType.DOCUMENT) {
+            dto.setContent(sourcePage.getContent());
+        }
+
+        // 通过容器获取代理对象，再调用方法
+        WikiPage newPage = applicationContext.getBean(WikiPageService.class).createWikiPage(dto);
+
+        log.info("复制Wiki页面: sourceId={}, newId={}", sourcePageId, newPage.getId());
+        return newPage;
     }
 
     /**
@@ -416,11 +675,34 @@ public class WikiPageServiceImpl implements WikiPageService {
      *
      * @param pageId      页面ID
      * @param newParentId 新父页面ID
-     * @param operatorId
+     * @param operatorId 操作者id
      */
     @Override
     public void moveWikiPage(Long pageId, Long newParentId, Long operatorId) {
+        WikiPage page = wikiPageRepository.findById(pageId)
+                .orElseThrow(() -> new ServiceException("Wiki页面不存在"));
 
+        // 验证新父页面
+        if (newParentId != null) {
+            WikiPage newParent = wikiPageRepository.findById(newParentId)
+                    .orElseThrow(() -> new ServiceException("新父页面不存在"));
+
+            if (newParent.getPageType() == PageType.DOCUMENT) {
+                throw new ServiceException("不能移动到文档节点下");
+            }
+
+            if (!newParent.getProjectId().equals(page.getProjectId())) {
+                throw new ServiceException("不能移动到其他项目");
+            }
+        }
+
+        // 更新父页面和路径
+        page.setParentId(newParentId);
+        page.setPath(calculatePath(page.getProjectId(), newParentId, page.getTitle()));
+        page.setUpdatedBy(operatorId);
+        wikiPageRepository.save(page);
+
+        log.info("移动Wiki页面成功: id={}, newParentId={}", pageId, newParentId);
     }
 
     /**
@@ -432,6 +714,76 @@ public class WikiPageServiceImpl implements WikiPageService {
      */
     @Override
     public List<WikiPageTreeDTO> getRecentlyUpdated(Long projectId, int limit) {
-        return List.of();
+        Pageable pageable = PageRequest.of(0, limit);
+        Page<WikiPage> pages = wikiPageRepository.findRecentlyUpdated(projectId, pageable);
+
+        return pages.getContent().stream()
+                .map(page -> WikiPageTreeDTO.builder()
+                        .id(String.valueOf(page.getId()))
+                        .title(page.getTitle())
+                        .path(page.getPath())
+                        .pageType(page.getPageType().name())
+                        .contentSummary(page.getContentSummary())
+                        .currentVersion(page.getCurrentVersion())
+                        .updatedAt(page.getUpdatedAt() != null ? page.getUpdatedAt().toString() : null)
+                        .build())
+                .toList();
+    }
+
+    /**
+     * 全文搜索Wiki内容
+     * 整合PostgreSQL全文搜索功能
+     * 同时搜索标题和内容，返回带上下文的结果
+     *
+     * @param projectId 项目id
+     * @param keyword   关键字
+     * @param pageable  分页
+     * @return WikiSearchDTO
+     */
+    @Override
+    public Page<WikiSearchDTO> fullTextSearch(Long projectId, String keyword, Pageable pageable) {
+        // 使用已有的PostgreSQL全文搜索查询
+        Page<WikiPage> pages = wikiPageRepository.fullTextSearch(projectId, keyword, pageable);
+
+        return pages.map(page -> {
+            WikiSearchDTO dto = new WikiSearchDTO();
+            dto.setId(page.getId());
+            dto.setProjectId(page.getProjectId());
+            dto.setTitle(page.getTitle());
+            dto.setPageType(page.getPageType().name());
+            dto.setPath(page.getPath());
+            dto.setUpdatedAt(page.getUpdatedAt());
+            dto.setLastEditorId(page.getUpdatedBy());
+
+            // 提取包含关键字的上下文
+            dto.setContentContext(extractMatchContext(page.getContent(), keyword, 200));
+
+            // 计算简单得分（实际可根据PostgreSQL的ts_rank调整）
+            dto.setScore(calculateSearchScore(page.getTitle(), page.getContent(), keyword));
+
+            return dto;
+        });
+    }
+
+    /**
+     * 计算搜索得分（简单实现）
+     * 标题匹配权重高于内容匹配
+     */
+    private Float calculateSearchScore(String title, String content, String keyword) {
+        float score = 0.0f;
+        String[] keywords = keyword.split("\\s+");
+
+        // 标题匹配权重更高
+        for (String kw : keywords) {
+            if (title.toLowerCase().contains(kw.toLowerCase())) {
+                score += 2.0f; // 标题匹配权重
+            }
+            if (content != null && content.toLowerCase().contains(kw.toLowerCase())) {
+                score += 1.0f; // 内容匹配权重
+            }
+        }
+
+        // 归一化得分
+        return Math.min(10.0f, score);
     }
 }
