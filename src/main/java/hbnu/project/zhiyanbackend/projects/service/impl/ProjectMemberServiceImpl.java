@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
@@ -9,9 +10,12 @@ import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
+import hbnu.project.zhiyanbackend.auth.service.UserService;
+import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 项目成员服务实现（精简版）
@@ -34,6 +39,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
     private final InboxMessageService inboxMessageService;
+    private final UserService userService;
 
     @Override
     @Transactional
@@ -380,6 +386,73 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     @Override
     public List<Long> getProjectMemberUserIds(Long projectId) {
         return projectMemberRepository.findUserIdsByProjectId(projectId);
+    }
+    
+    /**
+     * 获取项目成员详细信息列表（包含用户名称）
+     * @param projectId 项目ID
+     * @param pageable 分页参数
+     * @return 成员详细信息分页列表
+     */
+    public Page<ProjectMemberDetailDTO> getProjectMembersWithDetails(Long projectId, Pageable pageable) {
+        Page<ProjectMember> memberPage = projectMemberRepository.findByProjectId(projectId, pageable);
+        List<ProjectMemberDetailDTO> detailList = memberPage.getContent().stream()
+                .map(this::convertToDetailDTO)
+                .collect(Collectors.toList());
+        return new PageImpl<>(detailList, pageable, memberPage.getTotalElements());
+    }
+    
+    /**
+     * 将ProjectMember转换为ProjectMemberDetailDTO
+     * @param member 项目成员实体
+     * @return 成员详细信息DTO
+     */
+    private ProjectMemberDetailDTO convertToDetailDTO(ProjectMember member) {
+        if (member == null) {
+            return null;
+        }
+        
+        // 查询用户信息
+        String username = "未知用户";
+        String email = "";
+        if (member.getUserId() != null) {
+            try {
+                R<UserDTO> userResult = userService.getCurrentUser(member.getUserId());
+                if (R.isSuccess(userResult) && userResult.getData() != null) {
+                    UserDTO user = userResult.getData();
+                    username = user.getName();
+                    email = user.getEmail();
+                }
+            } catch (Exception e) {
+                log.warn("查询用户信息失败: userId={}", member.getUserId(), e);
+            }
+        }
+        
+        // 查询项目名称
+        String projectName = "";
+        if (member.getProjectId() != null) {
+            try {
+                Project project = projectRepository.findById(member.getProjectId()).orElse(null);
+                if (project != null) {
+                    projectName = project.getName();
+                }
+            } catch (Exception e) {
+                log.warn("查询项目名称失败: projectId={}", member.getProjectId(), e);
+            }
+        }
+        
+        return ProjectMemberDetailDTO.builder()
+                .id(member.getId())
+                .projectId(member.getProjectId())
+                .projectName(projectName)
+                .userId(member.getUserId())
+                .username(username)
+                .email(email)
+                .projectRole(member.getProjectRole())
+                .roleName(member.getProjectRole() != null ? member.getProjectRole().getDescription() : "")
+                .joinedAt(member.getJoinedAt())
+                .isCurrentUser(false) // TODO: 根据当前登录用户判断
+                .build();
     }
 }
 

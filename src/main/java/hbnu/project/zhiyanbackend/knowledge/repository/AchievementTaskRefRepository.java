@@ -2,13 +2,17 @@ package hbnu.project.zhiyanbackend.knowledge.repository;
 
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementTaskRef;
 
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 成果-任务关联Repository
@@ -94,11 +98,12 @@ public interface AchievementTaskRefRepository extends JpaRepository<AchievementT
     long countByTaskId(Long taskId);
 
     /**
-     * 根据任务ID列表批量查询关联关系
+     * 批量查询任务关联的成果ID列表
      *
      * @param taskIds 任务ID列表
      * @return 关联关系列表
      */
-    List<AchievementTaskRef> findByTaskIdIn(List<Long> taskIds);
+    @Query("SELECT r FROM AchievementTaskRef r WHERE r.taskId IN :taskIds")
+    List<AchievementTaskRef> findByTaskIdIn(@Param("taskIds") List<Long> taskIds);
 }
 

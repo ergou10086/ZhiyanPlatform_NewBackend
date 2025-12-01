@@ -228,14 +228,18 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Override
     @Transactional(readOnly = true)
     public TaskSubmissionDTO getLatestSubmission(Long taskId) {
-        TaskSubmission submission = submissionRepository
-                .findFirstByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("该任务暂无提交记录"));
+        // 如果没有提交记录，返回null而不是抛出异常
+        Optional<TaskSubmission> submissionOpt = submissionRepository
+                .findFirstByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId);
+        
+        if (submissionOpt.isEmpty()) {
+            return null;
+        }
 
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在"));
 
-        return convertToDTO(submission, task);
+        return convertToDTO(submissionOpt.get(), task);
     }
 
     @Override

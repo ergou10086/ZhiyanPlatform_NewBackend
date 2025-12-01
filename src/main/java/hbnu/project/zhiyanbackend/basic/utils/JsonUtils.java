@@ -24,7 +24,6 @@ import java.util.Map;
  * @author yui
  * @modify ErgouTree
  */
-
 @Component
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class JsonUtils {

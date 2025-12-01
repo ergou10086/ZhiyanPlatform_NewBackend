@@ -25,10 +25,11 @@ spring:
       connection-timeout: 20000
       connection-test-query: SELECT 1
       # PostgreSQL Schema配置，包含所有业务schema
-      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage
+      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage, zhiyanwiki
 
   # JPA配置
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     properties:
@@ -37,12 +38,14 @@ spring:
         # 格式化SQL
         format_sql: true
         # 显示SQL
-        show_sql: true
+        show_sql: false
+        use_sql_comments: true
         # 命名策略
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-        # 批量操作优化
+        # JDBC批处理
         jdbc:
-          batch_size: 20
+          batch_size: 50
+          fetch_size: 50
         order_inserts: true
         order_updates: true
     show-sql: true
@@ -183,11 +186,11 @@ dify:
 # 腾讯云 COS 配置（使用环境变量注入）
 tencent:
   cos:
-    secret-id: ${TENCENT_COS_SECRET_ID:AKIDxoUxCNM8VmvrZ4TgiYDgvyqY4NVQBj3R}
-    secret-key: ${TENCENT_COS_SECRET_KEY:OcrgXEk3B7pPmywhN1WzCsRp6C6nNmyw}
-    region: ${TENCENT_COS_REGION:ap-beijing}
-    bucket-name: ${TENCENT_COS_BUCKET:achievement-files-1330641416}
-    public-domain: ${TENCENT_COS_PUBLIC_DOMAIN:https://achievement-files-1330641416.cos.ap-beijing.myqcloud.com}
+    secret-id: ${TENCENT_COS_SECRET_ID}
+    secret-key: ${TENCENT_COS_SECRET_KEY}
+    region: ${TENCENT_COS_REGION}
+    bucket-name: ${TENCENT_COS_BUCKET}
+    public-domain: ${TENCENT_COS_PUBLIC_DOMAIN}
     default-directory: uploads
 
 # OAuth2第三方登录配置

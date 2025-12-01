@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -24,8 +25,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     Page<Task> findByProjectIdAndIsDeleted(Long projectId, Boolean isDeleted, Pageable pageable);
 
-    List<Task> findByProjectIdAndIsDeleted(Long projectId, Boolean isDeleted);
-
     Page<Task> findByProjectIdAndStatusAndIsDeleted(Long projectId, TaskStatus status, Boolean isDeleted, Pageable pageable);
 
     Page<Task> findByProjectIdAndPriorityAndIsDeleted(Long projectId, TaskPriority priority, Boolean isDeleted, Pageable pageable);
@@ -36,12 +35,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("SELECT t FROM Task t WHERE t.projectId = :projectId AND t.isDeleted = false AND (t.title LIKE %:keyword% OR t.description LIKE %:keyword%)")
     Page<Task> searchByKeyword(@Param("projectId") Long projectId, @Param("keyword") String keyword, Pageable pageable);
-
-    long countByProjectId(Long projectId);
-
-    long countByProjectIdAndStatus(Long projectId, TaskStatus status);
-
-    long countByCreatorId(Long creatorId);
 
     @Query("SELECT t FROM Task t WHERE t.projectId = :projectId AND t.isDeleted = false " +
             "AND t.dueDate >= :today AND t.dueDate <= :targetDate " +
@@ -74,4 +67,29 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Page<Task> findMyOverdueTasks(@Param("userId") Long userId,
                                   @Param("today") LocalDate today,
                                   Pageable pageable);
+    @Query("""
+    SELECT t FROM Task t
+    WHERE t.id IN (:taskIds)
+      AND t.projectId = :projectId
+      AND (t.isDeleted = false OR t.isDeleted IS NULL)
+    """)
+    List<Task> findActiveByIdsAndProject(@Param("taskIds") Collection<Long> taskIds,
+                                         @Param("projectId") Long projectId);
+
+    @Query("""
+    SELECT DISTINCT t FROM Task t
+    INNER JOIN AchievementTaskRef ref ON t.id = ref.taskId
+    WHERE ref.achievementId = :achievementId
+      AND (t.isDeleted = false OR t.isDeleted IS NULL)
+    ORDER BY ref.createdAt DESC
+    """)
+    List<Task> findByAchievementIdWithJoin(@Param("achievementId") Long achievementId);
+
+    @Query("""
+    SELECT DISTINCT t FROM Task t
+    LEFT JOIN FETCH TaskUser tu ON t.id = tu.taskId AND tu.isActive = true
+    WHERE t.id IN (:taskIds)
+      AND (t.isDeleted = false OR t.isDeleted IS NULL)
+    """)
+    List<Task> findByIdsWithExecutors(@Param("taskIds") Collection<Long> taskIds);
 }

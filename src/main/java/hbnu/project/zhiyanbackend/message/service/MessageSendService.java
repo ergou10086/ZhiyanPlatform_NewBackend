@@ -25,6 +25,16 @@ public interface MessageSendService {
     void notifyAchievementFileUpload(Achievement achievement, AchievementFile file, Long uploaderId);
 
     /**
+     * 发送批量文件上传通知
+     * 发送给除了上传者的所有项目成员
+     *
+     * @param achievement 成果实体
+     * @param files       上传的文件列表
+     * @param uploaderId  上传者ID
+     */
+    void notifyAchievementFilesBatchUpload(Achievement achievement, List<AchievementFile> files, Long uploaderId);
+
+    /**
      * 发送成果文件删除的通知
      *
      * @param achievement 成果实体

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -23,9 +24,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
 
 /**
  * Spring Security安全配置
@@ -55,6 +61,24 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Bean
     public WebClient.Builder webClientBuilder() {
         return WebClient.builder();
+    }
+
+    /**
+     * 全局 CORS 配置，允许本地前端调试域访问
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:8001"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     /**
@@ -119,6 +143,7 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // 关闭CSRF
                 .csrf(AbstractHttpConfigurer::disable)
                 // 无状态会话
@@ -175,12 +200,18 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/message/**"    // 批量权限校验
                         ).permitAll()
 
-                        // 用户项目头像管理接口 - 认证用户可以访问
+                        // 图片/头像读取接口 - 允许匿名GET访问，方便<img>标签渲染
+                        .requestMatchers(HttpMethod.GET,
+                                "/zhiyan/projects/get-image",
+                                "/zhiyan/projects/get-image/**",
+                                "/zhiyan/auth/user-avatar/**",
+                                "/zhiyan/users/avatar/**"
+                        ).permitAll()
+
+                        // 用户项目图片管理接口 - 上传/删除等需要认证
                         .requestMatchers(
-                                "/zhiyan/users/avatar/**",
                                 "/zhiyan/projects/upload-image",
                                 "/zhiyan/projects/delete-image",
-                                "/zhiyan/projects/get-image",
                                 "/zhiyan/projects/get-images",
                                 "/zhiyan/projects/get-image-url",
                                 "/zhiyan/projects/get-image-urls",

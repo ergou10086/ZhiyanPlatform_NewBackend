@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 项目控制器
@@ -146,10 +149,12 @@ public class ProjectController {
 
     @GetMapping("/public/active")
     @Operation(summary = "获取公开且活跃的项目")
-    public R<Page<Project>> getPublicActiveProjects(@RequestParam(defaultValue = "0") int page,
+    public R<Page<ProjectDTO>> getPublicActiveProjects(@RequestParam(defaultValue = "0") int page,
                                                     @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return projectService.getPublicActiveProjects(pageable);
+        // 使用ProjectServiceImpl的getPublicActiveProjectsDTO方法，返回包含创建者名称的DTO
+        return ((hbnu.project.zhiyanbackend.projects.service.impl.ProjectServiceImpl) projectService)
+                .getPublicActiveProjectsDTO(pageable);
     }
 
     @PatchMapping("/{projectId}/status")
@@ -186,6 +191,47 @@ public class ProjectController {
         // 目前未在数据库中保存具体类型，这里暂时使用通用二进制类型
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         return new ResponseEntity<>(result.getData(), headers, HttpStatus.OK);
+    }
+
+    /**
+     * 兼容前端使用的上传项目图片接口
+     * 前端调用：POST /zhiyan/projects/upload-image
+     * 表单字段：file（必填），projectId（必填）
+     * 返回：R<{ imageUrl: string }>
+     */
+    @PostMapping(path = "/upload-image", consumes = "multipart/form-data")
+    @Operation(summary = "上传项目封面图片（兼容旧前端接口）")
+    public R<Map<String, String>> uploadProjectImageCompatible(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("projectId") Long projectId) {
+        try {
+            if (projectId == null) {
+                return R.fail("项目ID不能为空");
+            }
+
+            R<Void> updateResult = projectImageService.updateProjectImage(projectId, file);
+            if (!R.isSuccess(updateResult)) {
+                return R.fail(updateResult.getMsg());
+            }
+
+            // 使用后端图片获取接口构造可访问的URL
+            String imageUrl = "/zhiyan/projects/get-image?projectId=" + projectId;
+            Map<String, String> data = new HashMap<>();
+            data.put("imageUrl", imageUrl);
+            return R.ok(data);
+        } catch (Exception e) {
+            return R.fail("上传项目图片失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容前端使用的根据项目ID获取图片接口
+     * 前端可通过 imageUrl=/zhiyan/projects/get-image?projectId={id} 直接访问
+     */
+    @GetMapping("/get-image")
+    @Operation(summary = "获取项目封面图片（兼容旧前端接口）")
+    public ResponseEntity<byte[]> getProjectImageByQuery(@RequestParam("projectId") Long projectId) {
+        return getProjectImage(projectId);
     }
 
     @GetMapping("/count/my-created")

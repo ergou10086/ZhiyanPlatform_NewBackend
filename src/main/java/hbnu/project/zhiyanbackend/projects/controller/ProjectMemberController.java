@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
@@ -12,8 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +24,7 @@ import java.util.List;
  * @author Tokito
  */
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/zhiyan/projects")
 @Tag(name = "项目成员管理(精简版)", description = "项目成员增删改查相关接口（无鉴权、无外部服务，只做基础成员管理）")
 @RequiredArgsConstructor
 public class ProjectMemberController {
@@ -79,17 +78,19 @@ public class ProjectMemberController {
     }
 
     /**
-     * 获取项目成员分页列表
+     * 获取项目成员分页列表（包含用户名称）
      */
     @GetMapping("/{projectId}/members")
-    @Operation(summary = "获取项目成员列表", description = "分页获取指定项目的成员列表")
-    public R<Page<ProjectMember>> getProjectMembers(
+    @Operation(summary = "获取项目成员列表", description = "分页获取指定项目的成员列表，包含用户详细信息")
+    public R<Page<ProjectMemberDetailDTO>> getProjectMembers(
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码，从0开始") int page,
             @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<ProjectMember> members = projectMemberService.getProjectMembers(projectId, pageable);
+        // 使用ProjectMemberServiceImpl的getProjectMembersWithDetails方法，返回包含用户名称的DTO
+        Page<ProjectMemberDetailDTO> members = ((hbnu.project.zhiyanbackend.projects.service.impl.ProjectMemberServiceImpl) projectMemberService)
+                .getProjectMembersWithDetails(projectId, pageable);
         return R.ok(members);
     }
 
@@ -120,29 +121,35 @@ public class ProjectMemberController {
     }
 
     /**
-     * 检查用户是否为项目拥有者
+     * 检查当前登录用户是否为项目拥有者
      */
-    @GetMapping("/{projectId}/owner/check")
-    @Operation(summary = "检查是否为项目拥有者", description = "检查用户在项目中是否为 OWNER")
-    public ResponseEntity<Boolean> isProjectOwner(
-            @PathVariable("projectId") Long projectId,
-            @RequestParam("userId") Long userId
+    @GetMapping("/{projectId}/check-owner")
+    @Operation(summary = "检查是否为项目拥有者", description = "检查当前登录用户在项目中是否为 OWNER")
+    public R<Boolean> isProjectOwner(
+            @PathVariable("projectId") Long projectId
     ) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法检查项目拥有者身份");
+        }
         boolean isOwner = projectMemberService.isOwner(projectId, userId);
-        return new ResponseEntity<>(isOwner, HttpStatus.OK);
+        return R.ok(isOwner);
     }
 
     /**
-     * 检查用户是否为项目管理员（OWNER 或 ADMIN）
+     * 检查当前登录用户是否为项目管理员（OWNER 或 ADMIN）
      */
-    @GetMapping("/{projectId}/admin/check")
-    @Operation(summary = "检查是否为项目管理员", description = "检查用户在项目中是否为管理员（包含 OWNER 和 ADMIN）")
-    public ResponseEntity<Boolean> isProjectAdmin(
-            @PathVariable("projectId") Long projectId,
-            @RequestParam("userId") Long userId
+    @GetMapping("/{projectId}/check-admin")
+    @Operation(summary = "检查是否为项目管理员", description = "检查当前登录用户在项目中是否为管理员（包含 OWNER 和 ADMIN）")
+    public R<Boolean> isProjectAdmin(
+            @PathVariable("projectId") Long projectId
     ) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法检查项目管理员权限");
+        }
         boolean isAdmin = projectMemberService.isAdmin(projectId, userId);
-        return new ResponseEntity<>(isAdmin, HttpStatus.OK);
+        return R.ok(isAdmin);
     }
 
     /**

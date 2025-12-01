@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.tasks.service;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.tasks.model.dto.TaskDetailDTO;
 import hbnu.project.zhiyanbackend.tasks.model.dto.UserTaskStatisticsDTO;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import hbnu.project.zhiyanbackend.tasks.model.enums.TaskPriority;
@@ -57,4 +58,12 @@ public interface TaskService {
     R<Page<Task>> getMyOverdueTasks(Long userId, Pageable pageable);
 
     R<UserTaskStatisticsDTO> getUserTaskStatistics(Long userId);
+
+    /**
+     * 获取项目任务列表（包含执行者信息）
+     * @param projectId 项目ID
+     * @param pageable 分页参数
+     * @return 包含执行者信息的任务列表
+     */
+    R<Page<TaskDetailDTO>> getProjectTasksWithAssignees(Long projectId, Pageable pageable);
 }

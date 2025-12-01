@@ -87,11 +87,8 @@ public interface AchievementConverter {
     @Mapping(target = "version", ignore = true)
     Achievement toEntity(CreateAchievementDTO dto);
 
-    // ==================== Task 相关转换 ====================
-
-    /**
-     * Task 转 TaskResultTaskRefDTO（成果关联任务展示用）
-     */
+    @Mapping(target = "status", expression = "java(task.getStatus() == null ? null : task.getStatus().name())")
+    @Mapping(target = "priority", expression = "java(task.getPriority() == null ? null : task.getPriority().name())")
     TaskResultTaskRefDTO toTaskResultTaskRefDTO(Task task);
 
     // ==================== 辅助方法 ====================
