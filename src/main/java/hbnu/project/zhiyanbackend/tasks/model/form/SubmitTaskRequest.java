@@ -34,8 +34,4 @@ public class SubmitTaskRequest {
 
     @Schema(description = "实际工时（单位：小时，可选)")
     private BigDecimal actualWorktime;
-
-    @Builder.Default
-    @Schema(description = "是否为最终提交（TRUE-任务完成的最终提交，FALSE-阶段性提交）")
-    private Boolean isFinal = true;
 }

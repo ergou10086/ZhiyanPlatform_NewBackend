@@ -257,7 +257,6 @@ public class TaskResultAIGenerateController {
         }
         return submissions.stream()
                 .filter(s -> s.getReviewStatus() == ReviewStatus.APPROVED)
-                .filter(s -> Boolean.TRUE.equals(s.getIsFinal()))
                 .findFirst()
                 .orElse(null);
     }

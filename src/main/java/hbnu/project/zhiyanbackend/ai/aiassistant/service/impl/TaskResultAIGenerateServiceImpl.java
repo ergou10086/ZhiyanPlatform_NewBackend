@@ -194,7 +194,6 @@ public class TaskResultAIGenerateServiceImpl implements TaskResultAIGenerateServ
     private TaskSubmissionDTO findFinalApprovedSubmission(List<TaskSubmissionDTO> submissions) {
         return submissions.stream()
                 .filter(s -> s.getReviewStatus() == ReviewStatus.APPROVED)
-                .filter(s -> Boolean.TRUE.equals(s.getIsFinal()))
                 .findFirst()
                 .orElse(null);
     }
