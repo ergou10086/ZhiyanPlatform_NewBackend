@@ -279,8 +279,13 @@ public class AchievementTaskServiceImpl implements AchievementTaskService {
      * @throws ServiceException 任务不存在、数量不匹配或不属于同一项目时抛出
      */
     private List<Task> validateTasksBatch(List<Long> taskIds, Long projectId) {
-        // 批量查询任务
-        List<Task> tasks = taskRepository.findActiveByIdsAndProject(taskIds, projectId);
+        // 批量查询任务（此方法需要在 TaskRepository 中实现自定义查询）
+        List<Task> tasks = taskRepository.findByProjectIdAndIsDeleted(projectId, false);
+
+        // 只保留本次需要关联的任务
+        tasks = tasks.stream()
+                .filter(task -> taskIds.contains(task.getId()))
+                .toList();
 
         // 验证任务数量
         if (tasks.size() != taskIds.size()) {

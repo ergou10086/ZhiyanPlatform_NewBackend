@@ -2,22 +2,34 @@ package hbnu.project.zhiyanbackend.tasks.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
+import hbnu.project.zhiyanbackend.basic.utils.JwtUtils;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionDTO;
+import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionFileResponse;
 import hbnu.project.zhiyanbackend.tasks.model.form.ReviewSubmissionRequest;
 import hbnu.project.zhiyanbackend.tasks.model.form.SubmitTaskRequest;
 import hbnu.project.zhiyanbackend.tasks.service.TaskSubmissionService;
+import hbnu.project.zhiyanbackend.tasks.service.TaskSubmissionFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 任务提交控制器
@@ -33,6 +45,8 @@ import java.util.Map;
 public class TaskSubmissionController {
 
     private final TaskSubmissionService submissionService;
+    private final TaskSubmissionFileService fileService;
+    private final JwtUtils jwtUtils;
 
     @PostMapping("/{taskId}/submit")
     @Operation(summary = "提交任务", description = "任务执行者提交任务，等待任务创建者审核")
@@ -237,5 +251,115 @@ public class TaskSubmissionController {
             @PathVariable("taskId") @Parameter(description = "任务ID") Long taskId) {
         Map<String, Object> stats = submissionService.getTaskSubmissionStats(taskId);
         return R.ok(stats);
+    }
+
+    @PostMapping("/files/upload")
+    @Operation(summary = "上传任务附件（单个）")
+    public R<TaskSubmissionFileResponse> uploadSubmissionFile(@RequestPart("file") MultipartFile file) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法上传附件");
+        }
+        return R.ok(fileService.store(file), "上传成功");
+    }
+
+    @PostMapping("/files/upload-batch")
+    @Operation(summary = "上传任务附件（批量）")
+    public R<List<TaskSubmissionFileResponse>> uploadSubmissionFiles(@RequestPart("files") List<MultipartFile> files) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法上传附件");
+        }
+        return R.ok(fileService.storeBatch(files), "上传成功");
+    }
+
+    @DeleteMapping("/files")
+    @Operation(summary = "删除任务附件（单个）")
+    public R<Void> deleteSubmissionFile(@RequestParam("fileUrl") String fileUrl) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法删除附件");
+        }
+        boolean deleted = fileService.delete(fileUrl);
+        return deleted ? R.ok(null, "删除成功") : R.fail("附件不存在或已删除");
+    }
+
+    @DeleteMapping("/files/batch")
+    @Operation(summary = "删除任务附件（批量）")
+    public R<Map<String, Object>> deleteSubmissionFiles(@RequestBody List<String> fileUrls) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法删除附件");
+        }
+        int success = fileService.deleteBatch(fileUrls);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", success);
+        result.put("failed", (fileUrls == null ? 0 : fileUrls.size()) - success);
+        return R.ok(result, "删除完成");
+    }
+
+    @GetMapping("/files/presigned-url")
+    @Operation(summary = "获取任务附件下载链接（临时）")
+    public R<Map<String, String>> getPresignedUrl(@RequestParam("fileUrl") String fileUrl) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取下载链接");
+        }
+        String token = jwtUtils.createToken(String.valueOf(userId), 10);
+        String encodedPath = UriUtils.encode(fileUrl, StandardCharsets.UTF_8);
+        String downloadUrl = "/zhiyan/projects/tasks/submissions/files/download?fileUrl=" + encodedPath + "&token=" + token;
+        Map<String, String> result = new HashMap<>();
+        result.put("url", downloadUrl);
+        result.put("token", token);
+        return R.ok(result);
+    }
+
+    @GetMapping("/files/download")
+    @Operation(summary = "下载任务附件", description = "支持通过token参数校验的文件下载")
+    public ResponseEntity<Resource> downloadSubmissionFile(
+            @RequestParam("fileUrl") String fileUrl,
+            @RequestParam(value = "token", required = false) String token,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+
+        String effectiveToken = resolveToken(token, authorizationHeader);
+        if (!validateToken(effectiveToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Resource resource = fileService.loadAsResource(fileUrl);
+        if (resource == null || !resource.exists()) {
+            return ResponseEntity.notFound().build();
+        }
+        String filename = extractFilename(fileUrl);
+        String encodedFilename = UriUtils.encode(filename, StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename)
+                .body(resource);
+    }
+
+    private String resolveToken(String tokenParam, String authorizationHeader) {
+        if (tokenParam != null && !tokenParam.isBlank()) {
+            return tokenParam;
+        }
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
+    }
+
+    private boolean validateToken(String token) {
+        if (token == null) {
+            return false;
+        }
+        String subject = jwtUtils.parseToken(token);
+        return subject != null;
+    }
+
+    private String extractFilename(String fileUrl) {
+        if (fileUrl == null) {
+            return "file";
+        }
+        String[] parts = fileUrl.replace("\\", "/").split("/");
+        return parts.length > 0 ? parts[parts.length - 1] : "file";
     }
 }

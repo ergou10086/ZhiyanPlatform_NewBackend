@@ -68,7 +68,9 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             throw new IllegalArgumentException("只有任务执行者才能提交任务");
         }
 
-        if (Boolean.TRUE.equals(request.getIsFinal())) {
+        boolean isFinalSubmission = Boolean.TRUE.equals(request.getIsFinal());
+
+        if (isFinalSubmission) {
             boolean hasApprovedSubmission = checkIfTaskHasApprovedSubmission(taskId);
             if (hasApprovedSubmission) {
                 throw new IllegalArgumentException("任务已有执行者提交通过审核，无法再次提交最终版本");
@@ -99,16 +101,16 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .attachmentUrls(attachmentUrlsJson)
                 .actualWorktime(request.getActualWorktime())
                 .version(nextVersion)
-                .isFinal(request.getIsFinal())
+                .isFinal(isFinalSubmission)
                 .reviewStatus(ReviewStatus.PENDING)
                 .isDeleted(false)
                 .build();
 
         submission = submissionRepository.save(submission);
         log.info("任务提交成功: submissionId={}, version={}, isFinal={}",
-                submission.getId(), nextVersion, request.getIsFinal());
+                submission.getId(), nextVersion, isFinalSubmission);
 
-        if (Boolean.TRUE.equals(request.getIsFinal())) {
+        if (isFinalSubmission) {
             task.setStatus(TaskStatus.PENDING_REVIEW);
             taskRepository.save(task);
             log.info("任务状态已更新为待审核: taskId={}", taskId);

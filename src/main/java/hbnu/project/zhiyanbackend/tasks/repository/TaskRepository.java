@@ -23,6 +23,9 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
+    // 按项目和删除标记查询全部任务列表
+    List<Task> findByProjectIdAndIsDeleted(Long projectId, Boolean isDeleted);
+
     Page<Task> findByProjectIdAndIsDeleted(Long projectId, Boolean isDeleted, Pageable pageable);
 
     Page<Task> findByProjectIdAndStatusAndIsDeleted(Long projectId, TaskStatus status, Boolean isDeleted, Pageable pageable);
