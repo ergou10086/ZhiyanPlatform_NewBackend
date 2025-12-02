@@ -120,13 +120,6 @@ public class TaskSubmission {
     private Integer version = 1;
 
     /**
-     * 是否为最终提交（TRUE-任务完成的最终提交）
-     */
-    @Builder.Default
-    @Column(name = "is_final", nullable = false)
-    private Boolean isFinal = false;
-
-    /**
      * 记录创建时间
      */
     @Column(name = "created_at")

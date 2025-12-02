@@ -6,12 +6,9 @@ import hbnu.project.zhiyanbackend.wiki.model.enums.AttachmentType;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
-import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface WikiAttachmentMapper {
-
-    WikiAttachmentMapper INSTANCE = Mappers.getMapper(WikiAttachmentMapper.class);
 
     /**
      * 将WikiAttachment实体转换为WikiAttachmentDTO
