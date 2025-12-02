@@ -6,6 +6,7 @@ import hbnu.project.zhiyanbackend.wiki.model.enums.AttachmentType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,7 +24,7 @@ import java.util.Optional;
  * @author Tokito
  */
 @Repository
-public interface WikiAttachmentRepository extends JpaRepository<WikiAttachment, Long> {
+public interface WikiAttachmentRepository extends JpaRepository<WikiAttachment, Long>, JpaSpecificationExecutor<WikiAttachment> {
 
     // ==================== 基础查询 ====================
 
@@ -52,6 +53,17 @@ public interface WikiAttachmentRepository extends JpaRepository<WikiAttachment, 
     List<WikiAttachment> findByFileHashAndIsDeletedFalse(String fileHash);
 
     // ==================== Wiki页面相关查询 ====================
+
+    /**
+     * 根据Wiki页面ID和附件类型查询附件（分页）
+     *
+     * @param wikiPageId     Wiki页面ID
+     * @param attachmentType 附件类型
+     * @param pageable       分页参数
+     * @return 附件分页
+     */
+    Page<WikiAttachment> findByWikiPageIdAndAttachmentTypeAndIsDeletedFalse(
+            Long wikiPageId, AttachmentType attachmentType, Pageable pageable);
 
     /**
      * 根据Wiki页面查询所有附件

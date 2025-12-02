@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,7 @@ import java.util.HashMap;
  * @author Tokito
  */
 
+@Slf4j
 @RestController
 @RequestMapping("/zhiyan/projects/tasks/submissions")
 @Tag(name = "任务提交管理", description = "任务提交、审核、撤回等接口")
@@ -260,7 +263,12 @@ public class TaskSubmissionController {
         if (userId == null) {
             return R.fail("未登录或Token无效，无法上传附件");
         }
-        return R.ok(fileService.store(file), "上传成功");
+        log.info("用户[{}]上传任务附件: filename={}, size={}, contentType={}",
+                userId, file.getOriginalFilename(), file.getSize(), file.getContentType());
+        TaskSubmissionFileResponse response = fileService.store(file);
+        log.info("任务附件上传成功: userId={}, fileUrl={}, filename={}",
+                userId, response.getUrl(), response.getFilename());
+        return R.ok(response, "上传成功");
     }
 
     @PostMapping("/files/upload-batch")
@@ -321,20 +329,42 @@ public class TaskSubmissionController {
             @RequestParam(value = "token", required = false) String token,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
 
+        log.info("下载任务附件请求: fileUrl={}", fileUrl);
+        
         String effectiveToken = resolveToken(token, authorizationHeader);
         if (!validateToken(effectiveToken)) {
+            log.warn("下载附件失败: Token验证失败, fileUrl={}", fileUrl);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        
         Resource resource = fileService.loadAsResource(fileUrl);
         if (resource == null || !resource.exists()) {
-            return ResponseEntity.notFound().build();
+            log.warn("下载附件失败: 文件不存在, fileUrl={}", fileUrl);
+            // 返回更明确的错误信息，提示文件可能已被删除或路径不正确
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .header("X-Error-Message", "文件不存在，可能已被删除或路径不正确")
+                    .body(null);
         }
-        String filename = extractFilename(fileUrl);
-        String encodedFilename = UriUtils.encode(filename, StandardCharsets.UTF_8);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename)
-                .body(resource);
+        
+        try {
+            String filename = extractFilename(fileUrl);
+            log.info("下载附件: fileUrl={}, filename={}, size={}", fileUrl, filename, resource.contentLength());
+            
+            // 使用兼容性更好的 Content-Disposition 格式
+            String contentDisposition = String.format("attachment; filename=\"%s\"; filename*=UTF-8''%s",
+                    filename.replace("\"", "\\\""),
+                    UriUtils.encode(filename, StandardCharsets.UTF_8));
+            
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                    .contentLength(resource.contentLength())
+                    .body(resource);
+        } catch (IOException e) {
+            log.error("下载附件失败: 无法读取文件, fileUrl={}", fileUrl, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     private String resolveToken(String tokenParam, String authorizationHeader) {
