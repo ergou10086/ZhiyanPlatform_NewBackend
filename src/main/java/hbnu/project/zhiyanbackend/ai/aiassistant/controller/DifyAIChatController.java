@@ -74,19 +74,21 @@ public class DifyAIChatController {
             throw new IllegalStateException("未登录，无法进行 AI 对话");
         }
 
-        String convId = (conversationId == null || conversationId.isBlank())
+        String rawConvId = conversationId == null ? "" : conversationId.trim();
+        if (!rawConvId.isEmpty() && rawConvId.contains(",")) {
+            rawConvId = rawConvId.split(",")[0].trim();
+        }
+
+        String convId = rawConvId.isEmpty()
                 ? UUID.randomUUID().toString()
-                : conversationId;
+                : rawConvId;
 
         SseEmitter emitter = DifyStreamEmitter.createEmitter(convId, userId);
 
         Map<String, Object> body = new HashMap<>();
         body.put("query", query);
-        if (conversationId != null && !conversationId.isBlank()) {
-            body.put("conversation_id", conversationId);
-        } else {
-            body.put("conversation_id", "");
-        }
+        // 暂时总是让 Dify 视为新会话，避免使用本地 UUID 作为 conversation_id 导致 Conversation Not Exists
+        body.put("conversation_id", "");
         body.put("user", String.valueOf(userId));
         body.put("inputs", new HashMap<>());
 

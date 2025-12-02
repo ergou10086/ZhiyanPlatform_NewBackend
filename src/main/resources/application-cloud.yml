@@ -176,6 +176,13 @@ sse:
 
 # Dify流式配置
 dify:
+  # Dify API 基础地址（注意：必须带协议 https://，并且以 /v1 结尾）
+  api-url: "https://dify.aipfuture.com/v1"
+
+  # Dify 应用的 API Key（你给的 app- 开头那串）
+  api-key: "app-Z0Uo6XAytf94sGkSO7oYMQV5"
+
+  # 其它参数按需保留
   stream-enabled: true
 
 # 腾讯云 COS 配置（使用环境变量注入）
