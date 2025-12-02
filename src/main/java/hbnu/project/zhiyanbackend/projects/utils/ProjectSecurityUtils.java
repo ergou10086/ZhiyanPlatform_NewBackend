@@ -3,10 +3,13 @@ package hbnu.project.zhiyanbackend.projects.utils;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementRepository;
+import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
+import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectPermission;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
 import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
@@ -29,6 +32,7 @@ import java.util.Optional;
 public class ProjectSecurityUtils {
 
     private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectRepository projectRepository;
     private final AchievementRepository achievementRepository;
     private final WikiPageRepository wikiPageRepository;
 
@@ -197,6 +201,28 @@ public class ProjectSecurityUtils {
         }
     }
 
+    // ==================== 项目状态检查 ====================
+
+    /**
+     * 检查项目是否已归档
+     */
+    public boolean isProjectArchived(Long projectId) {
+        if (projectId == null) {
+            return false;
+        }
+        Project project = projectRepository.findById(projectId).orElse(null);
+        return project != null && project.getStatus() == ProjectStatus.ARCHIVED;
+    }
+
+    /**
+     * 要求项目未归档，否则抛出异常
+     */
+    public void requireProjectNotArchived(Long projectId) {
+        if (isProjectArchived(projectId)) {
+            throw new ServiceException("项目已归档，只允许查看，禁止新增或修改");
+        }
+    }
+
     // ==================== 成果访问控制 ====================
 
     /**
@@ -250,6 +276,11 @@ public class ProjectSecurityUtils {
 
         Achievement achievement = getAchievement(achievementId);
         Long projectId = achievement.getProjectId();
+
+        // 归档项目只允许查看，不允许编辑成果
+        if (isProjectArchived(projectId)) {
+            throw new ServiceException("项目已归档，只允许查看成果，禁止修改");
+        }
 
         // 验证是否为项目成员
         if (!isMember(projectId, userId)) {
