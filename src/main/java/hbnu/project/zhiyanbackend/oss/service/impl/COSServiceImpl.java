@@ -60,7 +60,7 @@ public class COSServiceImpl implements COSService {
 
         // 构建对象键和元数据
         String objectKey = cosUtils.buildObjectKey(businessType, filename, file.getOriginalFilename());
-        ObjectMetadata metadata = buildMetadataFromMultipartFile(file);
+        ObjectMetadata metadata = buildMetadataFromMultipartFile(file, filename);
 
         // 上传流类型
         try (InputStream inputStream = file.getInputStream()) {
@@ -136,6 +136,14 @@ public class COSServiceImpl implements COSService {
 
         // 构建对象键，包含业务类型目录
         String objectKey = cosUtils.buildObjectKey(businessType, filename, file.getOriginalFilename());
+
+        // 调试日志：确认当前 Web 进程实际使用的 COS 配置
+        String secretId = cosProperties.getSecretId();
+        String secretIdPrefix = secretId != null ? org.apache.commons.lang3.StringUtils.left(secretId, 6) : null;
+        log.info("COS debug(uploadFileSenior): region={}, bucket={}, secretIdPrefix={}",
+                cosProperties.getRegion(),
+                cosProperties.getBucketName(),
+                secretIdPrefix);
 
         try (InputStream inputStream = file.getInputStream()) {
             // 构建元数据
@@ -642,6 +650,20 @@ public class COSServiceImpl implements COSService {
         metadata.setContentLength(file.getSize());
         metadata.setContentType(cosUtils.resolveContentType(file.getContentType(), file.getOriginalFilename()));
         metadata.setContentDisposition(cosUtils.buildContentDisposition(file.getOriginalFilename()));
+        return metadata;
+    }
+
+    private ObjectMetadata buildMetadataFromMultipartFile(MultipartFile file, String overrideFilename) {
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(file.getSize());
+        String filenameForType = org.apache.commons.lang3.StringUtils.isNotBlank(overrideFilename)
+                ? overrideFilename
+                : file.getOriginalFilename();
+        metadata.setContentType(cosUtils.resolveContentType(file.getContentType(), filenameForType));
+        String filenameForDisposition = org.apache.commons.lang3.StringUtils.isNotBlank(overrideFilename)
+                ? overrideFilename
+                : file.getOriginalFilename();
+        metadata.setContentDisposition(cosUtils.buildContentDisposition(filenameForDisposition));
         return metadata;
     }
 

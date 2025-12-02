@@ -1,7 +1,6 @@
 package hbnu.project.zhiyanbackend.tasks.service;
 
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionFileResponse;
-import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -18,8 +17,6 @@ public interface TaskSubmissionFileService {
     boolean delete(String relativePath);
 
     int deleteBatch(List<String> relativePaths);
-
-    Resource loadAsResource(String relativePath);
 }
 
 

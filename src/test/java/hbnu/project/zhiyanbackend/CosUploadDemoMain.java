@@ -12,6 +12,8 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.util.concurrent.CountDownLatch;
+
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -29,6 +31,17 @@ public class CosUploadDemoMain {
                 .web(WebApplicationType.NONE)
                 .run(args);
 
+        // 在 JVM 退出时优雅关闭 Spring 容器
+        CountDownLatch latch = new CountDownLatch(1);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                context.close();
+            } finally {
+                latch.countDown();
+            }
+        }));
+
+        // 启动后执行一次测试上传
         try {
             COSProperties cosProperties = context.getBean(COSProperties.class);
             COSClient cosClient = context.getBean(COSClient.class);
@@ -61,8 +74,16 @@ public class CosUploadDemoMain {
                 System.err.println("Upload FAILED (Client): " + e.getMessage());
                 e.printStackTrace();
             }
-        } finally {
-            context.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 进入阻塞，保持当前进程持续运行，直到在 IDE 中手动停止
+        System.out.println("COS Demo is now running. Stop this run configuration in IDE to exit.");
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }

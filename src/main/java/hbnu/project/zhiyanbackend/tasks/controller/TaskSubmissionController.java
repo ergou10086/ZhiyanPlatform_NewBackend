@@ -18,10 +18,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,10 +28,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -346,7 +342,7 @@ public class TaskSubmissionController {
 
     @GetMapping("/files/download")
     @Operation(summary = "下载任务附件", description = "支持通过token参数校验的文件下载")
-    public ResponseEntity<Resource> downloadSubmissionFile(
+    public ResponseEntity<Void> downloadSubmissionFile(
             @RequestParam("fileUrl") String fileUrl,
             @RequestParam(value = "token", required = false) String token,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
@@ -359,7 +355,7 @@ public class TaskSubmissionController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // 优先从 COS 生成预签名 URL 并重定向
+        // 从 COS 生成预签名 URL 并重定向
         try {
             int expireMinutes = 10;
             Date expiration = new Date(System.currentTimeMillis() + expireMinutes * 60 * 1000L);
@@ -381,38 +377,10 @@ public class TaskSubmissionController {
                         .build();
             }
         } catch (Exception e) {
-            log.error("生成COS下载链接失败，尝试本地下载: fileUrl={}", fileUrl, e);
+            log.error("生成COS下载链接失败: fileUrl={}", fileUrl, e);
         }
-
-        // 兼容历史数据：回退到本地文件系统读取
-        Resource resource = fileService.loadAsResource(fileUrl);
-        if (resource == null || !resource.exists()) {
-            log.warn("下载附件失败: 文件不存在, fileUrl={}", fileUrl);
-            // 返回更明确的错误信息，提示文件可能已被删除或路径不正确
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .header("X-Error-Message", "文件不存在，可能已被删除或路径不正确")
-                    .body(null);
-        }
-        
-        try {
-            String filename = extractFilename(fileUrl);
-            log.info("下载附件: fileUrl={}, filename={}, size={}", fileUrl, filename, resource.contentLength());
-            
-            // 使用兼容性更好的 Content-Disposition 格式
-            String contentDisposition = String.format("attachment; filename=\"%s\"; filename*=UTF-8''%s",
-                    filename.replace("\"", "\\\""),
-                    UriUtils.encode(filename, StandardCharsets.UTF_8));
-            
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
-                    .contentLength(resource.contentLength())
-                    .body(resource);
-        } catch (IOException e) {
-            log.error("下载附件失败: 无法读取文件, fileUrl={}", fileUrl, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        log.warn("下载附件失败: 无法生成COS预签名URL, fileUrl={}", fileUrl);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 
     private String resolveToken(String tokenParam, String authorizationHeader) {
@@ -433,11 +401,4 @@ public class TaskSubmissionController {
         return subject != null;
     }
 
-    private String extractFilename(String fileUrl) {
-        if (fileUrl == null) {
-            return "file";
-        }
-        String[] parts = fileUrl.replace("\\", "/").split("/");
-        return parts.length > 0 ? parts[parts.length - 1] : "file";
-    }
 }
