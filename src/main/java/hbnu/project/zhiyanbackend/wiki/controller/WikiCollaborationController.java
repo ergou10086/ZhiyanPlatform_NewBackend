@@ -10,6 +10,7 @@ import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
 import hbnu.project.zhiyanbackend.wiki.service.WikiCollaborationService;
 import hbnu.project.zhiyanbackend.wiki.service.WikiContentVersionService;
 import hbnu.project.zhiyanbackend.wiki.service.WikiPageService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.security.Principal;
 import java.util.List;
@@ -29,7 +31,9 @@ import java.util.List;
  */
 @Slf4j
 @Controller
+@RequestMapping("/zhiyan/wiki")
 @RequiredArgsConstructor
+@Tag(name = "Wiki 协同编辑", description = "Wiki协同编辑相关接口")
 public class WikiCollaborationController {
 
     @Resource
@@ -49,9 +53,9 @@ public class WikiCollaborationController {
 
     /**
      * 用户加入编辑页面
-     * 客户端发送消息到: /app/wiki/{pageId}/join
+     * 客户端发送消息到: /zhiyan/wiki/{pageId}/join
      */
-    @MessageMapping("/wiki/{pageId}/join")
+    @MessageMapping("/{pageId}/join")
     public void joinEditing(
             @DestinationVariable Long pageId,
             Principal principal){
@@ -116,7 +120,7 @@ public class WikiCollaborationController {
      * 用户离开编辑页面
      * 客户端发送消息到: /app/wiki/{pageId}/leave
      */
-    @MessageMapping("/wiki/{pageId}/leave")
+    @MessageMapping("/{pageId}/leave")
     public void leaveEditing(
             @DestinationVariable Long pageId,
             Principal principal) {
@@ -149,7 +153,7 @@ public class WikiCollaborationController {
      * 更新光标位置
      * 客户端发送消息到: /app/wiki/{pageId}/cursor
      */
-    @MessageMapping("/wiki/{pageId}/cursor")
+    @MessageMapping("/{pageId}/cursor")
     public void updateCursor(
             @DestinationVariable Long pageId,
             @Payload WikiCollaborationDTO.CursorPosition cursorPosition,
@@ -193,7 +197,7 @@ public class WikiCollaborationController {
      * 提交内容变更
      * 客户端发送消息到: /app/wiki/{pageId}/content-change
      */
-    @MessageMapping("/wiki/{pageId}/content-change")
+    @MessageMapping("/{pageId}/content-change")
     public void handleContentChange(
             @DestinationVariable Long pageId,
             @Payload WikiCollaborationDTO.ContentChange change,
@@ -262,7 +266,7 @@ public class WikiCollaborationController {
      * 增量内容变更（用于实时同步）
      * 客户端发送消息到: /app/wiki/{pageId}/incremental-change
      */
-    @MessageMapping("/wiki/{pageId}/incremental-change")
+    @MessageMapping("/{pageId}/incremental-change")
     public void handleIncrementalChange(
             @DestinationVariable Long pageId,
             @Payload WikiCollaborationDTO.IncrementalChange change,
@@ -297,7 +301,7 @@ public class WikiCollaborationController {
      * 心跳消息（保持连接活跃）
      * 客户端发送消息到: /app/wiki/{pageId}/heartbeat
      */
-    @MessageMapping("/wiki/{pageId}/heartbeat")
+    @MessageMapping("/{pageId}/heartbeat")
     public void heartbeat(
             @DestinationVariable Long pageId,
             Principal principal) {

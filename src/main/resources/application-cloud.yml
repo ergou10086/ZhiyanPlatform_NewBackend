@@ -13,7 +13,7 @@ spring:
     # 在searchPath中包含所有schema，按优先级排序
     url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
     username: postgres
-    password: zjm10086
+    password:
     driver-class-name: org.postgresql.Driver
     # HikariCP连接池配置
     hikari:
@@ -203,7 +203,6 @@ zhiyan:
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: http://localhost:9006
     # 前端页面URL配置（根据登录状态跳转到不同页面）
-
     frontend-home-url: http://localhost:8001/home  # 主页URL（登录成功后跳转）
     frontend-supplement-url: http://localhost:8001/oauth2/supplement  # 补充信息页面URL
     frontend-bind-url: http://localhost:8001/oauth2/bind  # 绑定页面URL

@@ -17,6 +17,7 @@ import hbnu.project.zhiyanbackend.wiki.service.WikiOssService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/wiki/attachments")
 @RequiredArgsConstructor
+@Tag(name = "Wiki附件管理", description = "Wiki附件上传、下载、删除等接口")
 public class WikiAttachmentController {
 
     private final WikiOssService wikiOssService;
