@@ -78,4 +78,18 @@ public interface MessageSendService {
      * @param achievement 创建的成果
      */
     void notifyAchievementCreated(Achievement achievement);
+
+    /**
+     * 发送任务提交审核结果通知
+     * 发送给任务提交者
+     *
+     * @param task 任务实体
+     * @param submission 任务提交记录
+     * @param reviewStatus 审核状态（APPROVED或REJECTED）
+     * @param reviewerId 审核人ID
+     */
+    void notifyTaskSubmissionReviewed(hbnu.project.zhiyanbackend.tasks.model.entity.Task task,
+                                       hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission submission,
+                                       hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus reviewStatus,
+                                       Long reviewerId);
 }

@@ -12,6 +12,9 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
+import hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission;
+import hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -549,6 +552,84 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 发送任务提交审核结果通知
+     * 发送给任务提交者
+     *
+     * @param task 任务实体
+     * @param submission 任务提交记录
+     * @param reviewStatus 审核状态（APPROVED或REJECTED）
+     * @param reviewerId 审核人ID
+     */
+    @Override
+    public void notifyTaskSubmissionReviewed(Task task, TaskSubmission submission, ReviewStatus reviewStatus, Long reviewerId) {
+        if (task == null || submission == null || reviewStatus == null) {
+            log.warn("任务审核结果通知参数不完整");
+            return;
+        }
+
+        // 只处理审核通过和审核拒绝的情况
+        if (reviewStatus != ReviewStatus.APPROVED && reviewStatus != ReviewStatus.REJECTED) {
+            log.warn("任务审核结果通知只支持APPROVED和REJECTED状态，当前状态: {}", reviewStatus);
+            return;
+        }
+
+        try {
+            // 获取审核人姓名
+            String reviewerName = getOperatorName(reviewerId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(task.getProjectId())
+                    .orElse("未知项目");
+
+            // 获取提交人ID（接收者）
+            Long submitterId = submission.getSubmitterId();
+
+            // 根据审核状态构建不同的消息内容
+            String title;
+            String content;
+
+            if (reviewStatus == ReviewStatus.APPROVED) {
+                title = "任务审核通过";
+                content = String.format("您提交的任务「%s」已通过审核\n项目：%s\n审核人：%s\n审核意见：%s\n请查看任务详情",
+                        task.getTitle(),
+                        projectName,
+                        reviewerName,
+                        submission.getReviewComment() != null ? submission.getReviewComment() : "无");
+            } else { // REJECTED
+                title = "任务审核被退回";
+                content = String.format("您提交的任务「%s」审核未通过，已被退回\n项目：%s\n审核人：%s\n退回原因：%s\n请根据审核意见修改后重新提交",
+                        task.getTitle(),
+                        projectName,
+                        reviewerName,
+                        submission.getReviewComment() != null ? submission.getReviewComment() : "无");
+            }
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildTaskSubmissionReviewedExtendData(task, submission, reviewStatus, reviewerId, reviewerName, projectName);
+
+            // 发送消息
+            // 注意：InboxMessageService的sendPersonalMessage会自动根据scene设置priority
+            // TASK_REVIEW_RESULT场景对应HIGH优先级，满足审核拒绝需要最高优先级的要求
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.TASK_REVIEW_RESULT,
+                    reviewerId,
+                    submitterId,
+                    title,
+                    content,
+                    task.getId(),
+                    "TASK",
+                    extendDataJson
+            );
+
+            log.info("任务审核结果通知发送成功: taskId={}, submissionId={}, reviewStatus={}, submitterId={}",
+                    task.getId(), submission.getId(), reviewStatus, submitterId);
+        } catch (Exception e) {
+            log.error("发送任务审核结果通知失败: taskId={}, submissionId={}", task.getId(), submission.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
      * 构建文件上传扩展数据JSON
      */
     private String buildFileUploadExtendData(Achievement achievement, AchievementFile file, Long uploaderId, String uploaderName) {
@@ -662,6 +743,29 @@ public class MessageSendServiceImpl implements MessageSendService {
         extendData.put("achievementType", achievement.getType() != null ? achievement.getType().getName() : "未知类型");
         extendData.put("createdAt", achievement.getCreatedAt());
         extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建任务审核结果扩展数据JSON
+     */
+    private String buildTaskSubmissionReviewedExtendData(Task task, TaskSubmission submission,
+                                                         ReviewStatus reviewStatus, Long reviewerId,
+                                                         String reviewerName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("submissionId", submission.getId());
+        extendData.put("submissionVersion", submission.getVersion());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("reviewStatus", reviewStatus.name());
+        extendData.put("reviewStatusName", reviewStatus.getDescription());
+        extendData.put("reviewerId", reviewerId);
+        extendData.put("reviewerName", reviewerName);
+        extendData.put("reviewComment", submission.getReviewComment());
+        extendData.put("submitterId", submission.getSubmitterId());
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
         return JsonUtils.toJsonString(extendData);
     }
 

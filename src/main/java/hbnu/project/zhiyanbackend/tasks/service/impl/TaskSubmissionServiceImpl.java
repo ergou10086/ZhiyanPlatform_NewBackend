@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionDTO;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission;
@@ -50,6 +51,7 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberService projectMemberService;
     private final ObjectMapper objectMapper;
+    private final MessageSendService messageSendService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -111,6 +113,9 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         return convertToDTO(submission, task);
     }
 
+    /**
+     * 审核任务
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TaskSubmissionDTO reviewSubmission(Long submissionId, ReviewSubmissionRequest request, Long reviewerId) {
@@ -154,9 +159,20 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             log.info("任务已完成: taskId={}", task.getId());
         }
 
+        // 发送审核结果通知（审核通过或拒绝时发送）
+        try {
+            messageSendService.notifyTaskSubmissionReviewed(task, submission, request.getReviewStatus(), reviewerId);
+        } catch (Exception e) {
+            log.error("发送任务审核结果通知失败: submissionId={}, reviewStatus={}", submissionId, request.getReviewStatus(), e);
+            // 通知发送失败不影响主流程
+        }
+
         return convertToDTO(submission, task);
     }
 
+    /**
+     * 撤回审核
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TaskSubmissionDTO revokeSubmission(Long submissionId, Long userId) {
