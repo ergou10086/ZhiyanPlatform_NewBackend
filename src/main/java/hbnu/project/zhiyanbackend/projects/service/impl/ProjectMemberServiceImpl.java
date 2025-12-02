@@ -96,28 +96,6 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                     .build();
 
             projectMemberRepository.save(member);
-            
-            // 向所有项目成员发送成员加入消息
-            try {
-                Project project = projectRepository.findById(projectId).orElse(null);
-                if (project != null) {
-                    List<Long> allMemberIds = getProjectMemberUserIds(projectId);
-                    if (!allMemberIds.isEmpty()) {
-                        inboxMessageService.sendBatchPersonalMessage(
-                                MessageScene.PROJECT_MEMBER_INVITED,
-                                null, // 系统消息
-                                allMemberIds,
-                                "新成员加入项目",
-                                String.format("新成员已加入项目「%s」，角色：%s", project.getName(), role.getDescription()),
-                                projectId,
-                                "PROJECT",
-                                null
-                        );
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("发送项目成员加入消息失败: projectId={}, userId={}", projectId, userId, e);
-            }
 
             log.info("添加项目成员成功: projectId={}, userId={}, role={}", projectId, userId, role);
             return R.ok();
