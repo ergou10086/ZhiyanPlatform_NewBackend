@@ -7,10 +7,6 @@ server:
 spring:
   application:
     name: zhiyan-backend
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
   # PostgreSQL数据库配置（使用Schema进行逻辑隔离）
   datasource:
