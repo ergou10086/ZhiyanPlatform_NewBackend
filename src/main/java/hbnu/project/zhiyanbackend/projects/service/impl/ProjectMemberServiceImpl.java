@@ -51,8 +51,10 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             throw new IllegalArgumentException("用户不存在，不能被邀请");
         }
 
-        if (!projectRepository.existsById(projectId)) {
-            throw new IllegalArgumentException("项目不存在");
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
+        if (project.getStatus() == hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED) {
+            throw new IllegalStateException("项目已归档，禁止新增或修改成员");
         }
 
         if (projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
@@ -80,8 +82,13 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 return R.fail("用户不存在，不能被邀请");
             }
 
-            if (!projectRepository.existsById(projectId)) {
+            Project projectEntity = projectRepository.findById(projectId)
+                    .orElse(null);
+            if (projectEntity == null) {
                 return R.fail("项目不存在");
+            }
+            if (projectEntity.getStatus() == hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED) {
+                return R.fail("项目已归档，禁止邀请或修改成员");
             }
 
             if (projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {

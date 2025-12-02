@@ -18,6 +18,7 @@ import hbnu.project.zhiyanbackend.tasks.service.TaskService;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.projects.utils.ProjectSecurityUtils;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class TaskServiceImpl implements TaskService {
     private final ProjectMemberService projectMemberService;
     private final InboxMessageService inboxMessageService;
     private final UserRepository userRepository;
+    private final ProjectSecurityUtils projectSecurityUtils;
 
     @Override
     @Transactional
@@ -66,6 +68,9 @@ public class TaskServiceImpl implements TaskService {
         if (!projectMemberService.isMember(projectId, creatorId)) {
             return R.fail("只有项目成员才能创建任务");
         }
+
+        // 项目归档后不允许再创建任务
+        projectSecurityUtils.requireProjectNotArchived(projectId);
 
         List<Long> assigneeIds = request.getAssigneeIds();
         if (assigneeIds != null && !assigneeIds.isEmpty()) {
@@ -145,6 +150,9 @@ public class TaskServiceImpl implements TaskService {
         if (!projectMemberService.isMember(task.getProjectId(), operatorId)) {
             return R.fail("只有项目成员才能更新任务");
         }
+
+        // 项目归档后不允许修改任务
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
         boolean updated = false;
 
@@ -239,6 +247,9 @@ public class TaskServiceImpl implements TaskService {
             return R.fail("只有任务创建者或项目负责人才能删除任务");
         }
 
+        // 项目归档后不允许删除任务
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
+
         task.setIsDeleted(true);
         taskRepository.save(task);
 
@@ -260,6 +271,9 @@ public class TaskServiceImpl implements TaskService {
         if (!projectMemberService.isMember(task.getProjectId(), operatorId)) {
             return R.fail("只有项目成员才能更新任务状态");
         }
+
+        // 项目归档后不允许修改任务状态
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
         TaskStatus oldStatus = task.getStatus();
         task.setStatus(newStatus);
@@ -313,6 +327,9 @@ public class TaskServiceImpl implements TaskService {
         if (!projectMemberService.isMember(task.getProjectId(), operatorId)) {
             return R.fail("只有项目成员才能分配任务");
         }
+
+        // 项目归档后不允许分配任务
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
         if (assigneeIds == null) {
             assigneeIds = Collections.emptyList();
@@ -435,6 +452,9 @@ public class TaskServiceImpl implements TaskService {
         if (!projectMemberService.isMember(task.getProjectId(), userId)) {
             return R.fail("只有项目成员才能接取任务");
         }
+
+        // 项目归档后不允许接取任务
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
         if (taskUserRepository.isUserActiveExecutor(taskId, userId)) {
             return R.fail("您已经是该任务的执行者");
@@ -559,6 +579,9 @@ public class TaskServiceImpl implements TaskService {
         if (!Objects.equals(task.getCreatorId(), operatorId)) {
             return R.fail("只有任务创建者才能取消任务负责人");
         }
+
+        // 项目归档后不允许变更任务负责人
+        projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
         long currentExecutorCount = taskUserRepository.countActiveExecutorsByTaskId(taskId);
         if (currentExecutorCount == 0) {

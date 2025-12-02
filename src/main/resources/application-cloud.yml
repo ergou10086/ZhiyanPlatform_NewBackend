@@ -23,7 +23,7 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
-      connection-test-query: SELECT 1
+
       # PostgreSQL Schema配置，包含所有业务schema
       connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage, zhiyanwiki
 

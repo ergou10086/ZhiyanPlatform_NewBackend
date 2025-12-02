@@ -1,6 +1,5 @@
 package hbnu.project.zhiyanbackend.knowledge.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonRawValue;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
@@ -8,8 +7,10 @@ import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 成果详情表实体类
@@ -50,8 +51,8 @@ public class AchievementDetail extends BaseAuditEntity {
      * 数据集: {"description": "", "version": "", "format": "", "size": ""}
      * 模型: {"framework": "", "version": "", "purpose": ""}
      */
-    @JsonRawValue
-    @Column(name = "detail_data", nullable = false, columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "detail_data", nullable = false, columnDefinition = "jsonb")
     private String detailData;
 
     /**
