@@ -1,8 +1,11 @@
 package hbnu.project.zhiyanbackend.tasks.controller;
 
+import com.qcloud.cos.http.HttpMethodName;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.basic.utils.JwtUtils;
+import hbnu.project.zhiyanbackend.oss.config.COSProperties;
+import hbnu.project.zhiyanbackend.oss.service.COSService;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionDTO;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionFileResponse;
 import hbnu.project.zhiyanbackend.tasks.model.form.ReviewSubmissionRequest;
@@ -28,7 +31,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -50,6 +56,8 @@ public class TaskSubmissionController {
     private final TaskSubmissionService submissionService;
     private final TaskSubmissionFileService fileService;
     private final JwtUtils jwtUtils;
+    private final COSService cosService;
+    private final COSProperties cosProperties;
 
     @PostMapping("/{taskId}/submit")
     @Operation(summary = "提交任务", description = "任务执行者提交任务，等待任务创建者审核")
@@ -313,13 +321,27 @@ public class TaskSubmissionController {
         if (userId == null) {
             return R.fail("未登录或Token无效，无法获取下载链接");
         }
-        String token = jwtUtils.createToken(String.valueOf(userId), 10);
-        String encodedPath = UriUtils.encode(fileUrl, StandardCharsets.UTF_8);
-        String downloadUrl = "/zhiyan/projects/tasks/submissions/files/download?fileUrl=" + encodedPath + "&token=" + token;
-        Map<String, String> result = new HashMap<>();
-        result.put("url", downloadUrl);
-        result.put("token", token);
-        return R.ok(result);
+        try {
+            int expireMinutes = 10;
+            Date expiration = new Date(System.currentTimeMillis() + expireMinutes * 60 * 1000L);
+            URL url = cosService.generatePresignedUrl(
+                    cosProperties.getBucketName(),
+                    fileUrl,
+                    expiration,
+                    HttpMethodName.GET,
+                    null,
+                    null,
+                    false,
+                    true
+            );
+
+            Map<String, String> result = new HashMap<>();
+            result.put("url", url != null ? url.toString() : "");
+            return R.ok(result);
+        } catch (Exception e) {
+            log.error("获取任务附件预签名URL失败: fileUrl={}", fileUrl, e);
+            return R.fail("获取下载链接失败，请稍后重试");
+        }
     }
 
     @GetMapping("/files/download")
@@ -336,7 +358,33 @@ public class TaskSubmissionController {
             log.warn("下载附件失败: Token验证失败, fileUrl={}", fileUrl);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        
+
+        // 优先从 COS 生成预签名 URL 并重定向
+        try {
+            int expireMinutes = 10;
+            Date expiration = new Date(System.currentTimeMillis() + expireMinutes * 60 * 1000L);
+            URL url = cosService.generatePresignedUrl(
+                    cosProperties.getBucketName(),
+                    fileUrl,
+                    expiration,
+                    HttpMethodName.GET,
+                    null,
+                    null,
+                    false,
+                    true
+            );
+
+            if (url != null) {
+                log.info("重定向任务附件下载到COS: fileUrl={}, cosUrl={}", fileUrl, url);
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .location(URI.create(url.toString()))
+                        .build();
+            }
+        } catch (Exception e) {
+            log.error("生成COS下载链接失败，尝试本地下载: fileUrl={}", fileUrl, e);
+        }
+
+        // 兼容历史数据：回退到本地文件系统读取
         Resource resource = fileService.loadAsResource(fileUrl);
         if (resource == null || !resource.exists()) {
             log.warn("下载附件失败: 文件不存在, fileUrl={}", fileUrl);

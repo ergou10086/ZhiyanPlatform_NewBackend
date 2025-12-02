@@ -1,5 +1,8 @@
 package hbnu.project.zhiyanbackend.tasks.service.impl;
 
+import hbnu.project.zhiyanbackend.oss.config.COSProperties;
+import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
+import hbnu.project.zhiyanbackend.oss.service.COSService;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskSubmissionFileResponse;
 import hbnu.project.zhiyanbackend.tasks.service.TaskSubmissionFileService;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +23,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * 基于本地文件系统的任务提交附件存储实现
+ * 基于COS的任务提交附件存储实现
  */
 @Slf4j
 @Service
@@ -31,58 +36,45 @@ public class TaskSubmissionFileServiceImpl implements TaskSubmissionFileService 
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
+    private final COSService cosService;
+    private final COSProperties cosProperties;
+    // 仅用于兼容历史本地文件读取，不再写入新文件
     private final Path rootLocation;
     private final long maxFileSize;
 
     public TaskSubmissionFileServiceImpl(
+            COSService cosService,
+            COSProperties cosProperties,
             @Value("${task-submission.files.storage-path:uploads/task-submissions}") String storagePath,
             @Value("${task-submission.files.max-size-bytes:104857600}") long maxFileSize) throws IOException {
+        this.cosService = cosService;
+        this.cosProperties = cosProperties;
         this.rootLocation = Paths.get(storagePath).toAbsolutePath().normalize();
         this.maxFileSize = maxFileSize;
+        // 只保证目录存在，用于兼容旧有本地文件的读取
         Files.createDirectories(this.rootLocation);
-        log.info("任务附件存储目录: {}", this.rootLocation);
+        log.info("任务附件本地兼容目录(仅用于读取历史文件): {}", this.rootLocation);
     }
 
     @Override
     public TaskSubmissionFileResponse store(MultipartFile file) {
         validateFile(file);
+
         String originalFilename = StringUtils.hasText(file.getOriginalFilename())
                 ? sanitizeFilename(file.getOriginalFilename())
                 : "file-" + System.currentTimeMillis();
-        String extension = extractExtension(originalFilename);
-        String randomName = UUID.randomUUID().toString().replace("-", "");
-        String newFilename = extension.isEmpty() ? randomName : randomName + "." + extension;
 
-        String datePath = LocalDate.now().format(DATE_FORMATTER);
-        Path destinationDir = rootLocation.resolve(datePath).normalize();
         try {
-            Files.createDirectories(destinationDir);
-            Path destinationFile = destinationDir.resolve(newFilename).normalize();
-            if (!destinationFile.startsWith(rootLocation)) {
-                throw new IllegalArgumentException("非法的文件路径");
-            }
-            log.info("保存任务附件: originalFilename={}, newFilename={}, destinationFile={}, size={}",
-                    originalFilename, newFilename, destinationFile, file.getSize());
-            file.transferTo(destinationFile);
-            
-            // 验证文件是否真的被保存
-            if (!Files.exists(destinationFile)) {
-                log.error("文件保存后不存在: {}", destinationFile);
-                throw new IOException("文件保存失败，文件不存在");
-            }
-            long savedSize = Files.size(destinationFile);
-            log.info("任务附件保存成功: destinationFile={}, savedSize={}, expectedSize={}",
-                    destinationFile, savedSize, file.getSize());
-            
-            String relativePath = datePath + "/" + newFilename;
+            UploadFileResponseDTO uploadResult = cosService.uploadFileSenior(file, "task-submissions", originalFilename);
             return TaskSubmissionFileResponse.builder()
-                    .url(relativePath.replace("\\", "/"))
+                    // 这里保存 COS 对象键，后续可用于生成预签名 URL
+                    .url(uploadResult.getObjectKey())
                     .filename(originalFilename)
-                    .contentType(file.getContentType())
-                    .size(file.getSize())
+                    .contentType(uploadResult.getContentType())
+                    .size(uploadResult.getSize())
                     .build();
-        } catch (IOException e) {
-            log.error("保存任务附件失败: originalFilename={}, error={}", originalFilename, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("保存任务附件失败(上传COS): originalFilename={}, error={}", originalFilename, e.getMessage(), e);
             throw new IllegalArgumentException("保存附件失败: " + e.getMessage());
         }
     }
@@ -105,10 +97,10 @@ public class TaskSubmissionFileServiceImpl implements TaskSubmissionFileService 
             return false;
         }
         try {
-            Path filePath = resolvePath(relativePath);
-            return Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            log.warn("删除任务附件失败: {}", relativePath, e);
+            cosService.deleteObject(cosProperties.getBucketName(), relativePath);
+            return true;
+        } catch (Exception e) {
+            log.warn("删除任务附件失败(COS): {}", relativePath, e);
             return false;
         }
     }
