@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.message.controller;
 
+import cn.hutool.core.lang.Dict;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
@@ -8,6 +9,7 @@ import hbnu.project.zhiyanbackend.message.model.converter.MessageConverter;
 import hbnu.project.zhiyanbackend.message.model.dto.*;
 import hbnu.project.zhiyanbackend.message.model.entity.MessageRecipient;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
+import hbnu.project.zhiyanbackend.message.repository.MessageRecipientRepository;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
@@ -52,6 +54,8 @@ public class MessageController {
     private final ProjectMemberService projectMemberService;
 
     private final ProjectRepository projectRepository;
+
+    private final MessageRecipientRepository messageRecipientRepository;
 
     /**
      * 获取消息列表
@@ -345,6 +349,280 @@ public class MessageController {
         );
 
         return R.ok(null, "申请已发送，等待管理员处理");
+    }
+
+    /**
+     * 受邀用户同意加入项目
+     */
+    @PostMapping("/project/invite/{recipientId}/accept")
+    @Operation(summary = "同意项目邀请")
+    public R<Void> acceptProjectInvitation(@PathVariable Long recipientId) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+
+        // 校验消息归属及类型
+        MessageRecipient recipient = messageRecipientRepository
+                .findByIdAndReceiverIdAndDeletedFalse(recipientId, userId)
+                .orElseThrow(() -> new ServiceException("邀请消息不存在或已失效"));
+
+        if (!MessageScene.PROJECT_MEMBER_INVITED.name().equals(recipient.getSceneCode())) {
+            return R.fail("该消息不是项目邀请，无法执行此操作");
+        }
+
+        // 解析扩展数据
+        String extendJson = recipient.getMessageBody().getExtendData();
+        Dict extend = JsonUtils.parseMap(extendJson);
+        if (extend == null) {
+            return R.fail("邀请消息数据异常，无法加入项目");
+        }
+
+        Long projectId = extend.getLong("projectId");
+        Long inviterId = extend.getLong("inviterId");
+        String projectName = extend.containsKey("projectName") ? extend.getStr("projectName") : "未知项目";
+        String roleCode = extend.containsKey("role") ? extend.getStr("role") : ProjectMemberRole.MEMBER.name();
+
+        ProjectMemberRole role = ProjectMemberRole.MEMBER;
+        try {
+            role = ProjectMemberRole.valueOf(roleCode);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // 调用原有成员加入逻辑
+        R<Void> addResult = projectMemberService.addMember(projectId, userId, role);
+        if (!R.isSuccess(addResult) && !"该用户已经是项目成员".equals(addResult.getMsg())) {
+            return addResult;
+        }
+
+        // 将邀请消息标记为已读
+        inboxMessageService.markAsRead(userId, recipientId);
+
+        String inviteeName = userRepository.findNameById(userId).orElse("未知用户");
+
+        // 给邀请人发送“已接受”通知
+        if (inviterId != null) {
+            Map<String, Object> approvalExtend = new HashMap<>();
+            approvalExtend.put("kind", "PROJECT_INVITATION_ACCEPTED");
+            approvalExtend.put("projectId", projectId);
+            approvalExtend.put("projectName", projectName);
+            approvalExtend.put("inviterId", inviterId);
+            approvalExtend.put("inviteeId", userId);
+            approvalExtend.put("inviteeName", inviteeName);
+
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.PROJECT_MEMBER_APPROVAL,
+                    userId,
+                    inviterId,
+                    "项目邀请已被接受",
+                    String.format("%s 已接受你对项目「%s」的邀请", inviteeName, projectName),
+                    projectId,
+                    "PROJECT",
+                    JsonUtils.toJsonString(approvalExtend)
+            );
+        }
+
+        return R.ok(null, "已成功加入项目");
+    }
+
+
+    /**
+     * 受邀用户拒绝加入项目
+     */
+    @PostMapping("/project/invite/{recipientId}/reject")
+    @Operation(summary = "拒绝项目邀请")
+    public R<Void> rejectProjectInvitation(@PathVariable Long recipientId) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+
+        MessageRecipient recipient = messageRecipientRepository
+                .findByIdAndReceiverIdAndDeletedFalse(recipientId, userId)
+                .orElseThrow(() -> new ServiceException("邀请消息不存在或已失效"));
+
+        if (!MessageScene.PROJECT_MEMBER_INVITED.name().equals(recipient.getSceneCode())) {
+            return R.fail("该消息不是项目邀请，无法执行此操作");
+        }
+
+        String extendJson = recipient.getMessageBody().getExtendData();
+        Dict extend = JsonUtils.parseMap(extendJson);
+        if (extend == null) {
+            return R.fail("邀请消息数据异常，无法处理");
+        }
+
+        Long projectId = extend.getLong("projectId");
+        Long inviterId = extend.getLong("inviterId");
+        String projectName = extend.containsKey("projectName") ? extend.getStr("projectName") : "未知项目";
+        String inviterName = extend.containsKey("inviterName") ? extend.getStr("inviterName") : "邀请人";
+
+        // 标记原消息为已读
+        inboxMessageService.markAsRead(userId, recipientId);
+
+        String inviteeName = userRepository.findNameById(userId).orElse("未知用户");
+
+        if (inviterId != null) {
+            Map<String, Object> rejectExtend = new HashMap<>();
+            rejectExtend.put("kind", "PROJECT_INVITATION_REJECTED");
+            rejectExtend.put("projectId", projectId);
+            rejectExtend.put("projectName", projectName);
+            rejectExtend.put("inviterId", inviterId);
+            rejectExtend.put("inviterName", inviterName);
+            rejectExtend.put("inviteeId", userId);
+            rejectExtend.put("inviteeName", inviteeName);
+
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.PROJECT_MEMBER_APPROVAL,
+                    userId,
+                    inviterId,
+                    "项目邀请已被拒绝",
+                    String.format("%s 拒绝了你对项目「%s」的邀请", inviteeName, projectName),
+                    projectId,
+                    "PROJECT",
+                    JsonUtils.toJsonString(rejectExtend)
+            );
+        }
+
+        return R.ok(null, "已拒绝项目邀请");
+    }
+
+    /**
+     * 管理员同意项目加入申请
+     */
+    @PostMapping("/project/apply/{recipientId}/approve")
+    @Operation(summary = "同意项目加入申请")
+    public R<Void> approveProjectJoin(@PathVariable Long recipientId) {
+        Long operatorId = SecurityUtils.getUserId();
+        if (operatorId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+
+        MessageRecipient recipient = messageRecipientRepository
+                .findByIdAndReceiverIdAndDeletedFalse(recipientId, operatorId)
+                .orElseThrow(() -> new ServiceException("申请消息不存在或已失效"));
+
+        if (!MessageScene.PROJECT_MEMBER_APPLY.name().equals(recipient.getSceneCode())) {
+            return R.fail("该消息不是加入申请，无法执行此操作");
+        }
+
+        String extendJson = recipient.getMessageBody().getExtendData();
+        Dict extend = JsonUtils.parseMap(extendJson);
+        if (extend == null) {
+            return R.fail("申请消息数据异常，无法处理");
+        }
+
+        Long projectId = extend.getLong("projectId");
+        Long applicantId = extend.getLong("applicantId");
+        String projectName = extend.containsKey("projectName") ? extend.getStr("projectName") : "未知项目";
+        String defaultRole = extend.containsKey("defaultRole") ? extend.getStr("defaultRole") : ProjectMemberRole.MEMBER.name();
+
+        ProjectMemberRole role = ProjectMemberRole.MEMBER;
+        try {
+            role = ProjectMemberRole.valueOf(defaultRole);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // 管理员校验
+        if (!projectMemberService.isAdmin(projectId, operatorId)) {
+            return R.fail("只有项目管理员可以处理加入申请");
+        }
+
+        R<Void> addResult = projectMemberService.addMember(projectId, applicantId, role);
+        if (!R.isSuccess(addResult) && !"该用户已经是项目成员".equals(addResult.getMsg())) {
+            return addResult;
+        }
+
+        // 标记申请消息为已读
+        inboxMessageService.markAsRead(operatorId, recipientId);
+
+        String applicantName = extend.containsKey("applicantName") ? extend.getStr("applicantName") : "申请人";
+        String operatorName = userRepository.findNameById(operatorId).orElse("管理员");
+
+        Map<String, Object> approvalExtend = new HashMap<>();
+        approvalExtend.put("kind", "PROJECT_JOIN_APPROVED");
+        approvalExtend.put("projectId", projectId);
+        approvalExtend.put("projectName", projectName);
+        approvalExtend.put("applicantId", applicantId);
+        approvalExtend.put("applicantName", applicantName);
+        approvalExtend.put("operatorId", operatorId);
+        approvalExtend.put("operatorName", operatorName);
+
+        // 给申请人发送审批结果
+        inboxMessageService.sendPersonalMessage(
+                MessageScene.PROJECT_MEMBER_APPROVAL,
+                operatorId,
+                applicantId,
+                "项目加入申请已通过",
+                String.format("您的项目「%s」加入申请已通过，审批人：%s", projectName, operatorName),
+                projectId,
+                "PROJECT",
+                JsonUtils.toJsonString(approvalExtend)
+        );
+
+        return R.ok(null, "已同意加入申请");
+    }
+
+    /**
+     * 管理员拒绝项目加入申请
+     */
+    @PostMapping("/project/apply/{recipientId}/reject")
+    @Operation(summary = "拒绝项目加入申请")
+    public R<Void> rejectProjectJoin(@PathVariable Long recipientId) {
+        Long operatorId = SecurityUtils.getUserId();
+        if (operatorId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+
+        MessageRecipient recipient = messageRecipientRepository
+                .findByIdAndReceiverIdAndDeletedFalse(recipientId, operatorId)
+                .orElseThrow(() -> new ServiceException("申请消息不存在或已失效"));
+
+        if (!MessageScene.PROJECT_MEMBER_APPLY.name().equals(recipient.getSceneCode())) {
+            return R.fail("该消息不是加入申请，无法执行此操作");
+        }
+
+        String extendJson = recipient.getMessageBody().getExtendData();
+        Dict extend = JsonUtils.parseMap(extendJson);
+        if (extend == null) {
+            return R.fail("申请消息数据异常，无法处理");
+        }
+
+        Long projectId = extend.getLong("projectId");
+        Long applicantId = extend.getLong("applicantId");
+        String projectName = extend.containsKey("projectName") ? extend.getStr("projectName") : "未知项目";
+        String applicantName = extend.containsKey("applicantName") ? extend.getStr("applicantName") : "申请人";
+
+        // 管理员校验
+        if (!projectMemberService.isAdmin(projectId, operatorId)) {
+            return R.fail("只有项目管理员可以处理加入申请");
+        }
+
+        // 标记申请消息为已读
+        inboxMessageService.markAsRead(operatorId, recipientId);
+
+        String operatorName = userRepository.findNameById(operatorId).orElse("管理员");
+
+        Map<String, Object> rejectExtend = new HashMap<>();
+        rejectExtend.put("kind", "PROJECT_JOIN_REJECTED");
+        rejectExtend.put("projectId", projectId);
+        rejectExtend.put("projectName", projectName);
+        rejectExtend.put("applicantId", applicantId);
+        rejectExtend.put("applicantName", applicantName);
+        rejectExtend.put("operatorId", operatorId);
+        rejectExtend.put("operatorName", operatorName);
+
+        inboxMessageService.sendPersonalMessage(
+                MessageScene.PROJECT_MEMBER_APPROVAL,
+                operatorId,
+                applicantId,
+                "项目加入申请未通过",
+                String.format("您加入项目「%s」的申请已被拒绝，处理人：%s", projectName, operatorName),
+                projectId,
+                "PROJECT",
+                JsonUtils.toJsonString(rejectExtend)
+        );
+
+        return R.ok(null, "已拒绝加入申请");
     }
 
     /**

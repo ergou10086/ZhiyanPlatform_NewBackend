@@ -301,7 +301,7 @@ public class MailServiceImpl implements MailService {
      */
     private String getLogoSvgBase64() {
         try {
-            ClassPathResource resource = new ClassPathResource("public/智研Logo设计方案3.svg");
+            ClassPathResource resource = new ClassPathResource("public/Logo.svg");
             byte[] svgBytes = resource.getInputStream().readAllBytes();
             String svgContent = new String(svgBytes, StandardCharsets.UTF_8);
 
