@@ -54,6 +54,11 @@ public interface ProjectMemberService {
      */
     List<ProjectMember> getMembersByRole(Long projectId, ProjectMemberRole role);
 
+    /**
+     * 获取项目管理员 ID 列表：
+     */
+    List<Long> getProjectAdminUserIds(Long projectId);
+
     boolean isMember(Long projectId, Long userId);
 
     boolean isOwner(Long projectId, Long userId);

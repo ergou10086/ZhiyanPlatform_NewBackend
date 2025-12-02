@@ -41,6 +41,13 @@ public class ProjectMemberController {
             @RequestParam("userId") @Parameter(description = "用户ID") Long userId,
             @RequestParam("role") @Parameter(description = "成员角色", example = "MEMBER") ProjectMemberRole role
     ) {
+        Long operatorId = SecurityUtils.getUserId();
+        if (operatorId == null) {
+            return R.fail("未登录或Token无效，无法添加成员");
+        }
+        if (!projectMemberService.isAdmin(projectId, operatorId) && !operatorId.equals(userId)) {
+            return R.fail("只有项目管理员可以添加其他成员");
+        }
         return projectMemberService.addMember(projectId, userId, role);
     }
 

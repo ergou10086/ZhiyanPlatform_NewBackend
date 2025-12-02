@@ -1,6 +1,12 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.knowledge.repository.AchievementDetailRepository;
+import hbnu.project.zhiyanbackend.knowledge.repository.AchievementFileRepository;
+import hbnu.project.zhiyanbackend.knowledge.repository.AchievementRepository;
+import hbnu.project.zhiyanbackend.knowledge.service.AchievementDetailsService;
+import hbnu.project.zhiyanbackend.knowledge.service.AchievementFileService;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
@@ -14,6 +20,15 @@ import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
+import hbnu.project.zhiyanbackend.security.utils.PermissionUtils;
+import hbnu.project.zhiyanbackend.tasks.repository.TaskRepository;
+import hbnu.project.zhiyanbackend.wiki.service.WikiContentVersionService;
+import hbnu.project.zhiyanbackend.wiki.service.WikiOssService;
+import hbnu.project.zhiyanbackend.wiki.service.WikiPageService;
+import hbnu.project.zhiyanbackend.wiki.repository.WikiAttachmentRepository;
+import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
+import hbnu.project.zhiyanbackend.wiki.repository.WikiVersionHistoryRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,6 +56,19 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMemberService projectMemberService;
     private final InboxMessageService inboxMessageService;
     private final UserService userService;
+    private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
+    private final WikiPageService wikiPageService;
+    private final WikiPageRepository wikiPageRepository;
+    private final WikiVersionHistoryRepository wikiPageHistoryRepository;
+    private final WikiAttachmentRepository wikiAttachmentRepository;
+    private final WikiContentVersionService wikiContentVersionService;
+    private final WikiOssService wikiOssService;
+    private final AchievementRepository achievementRepository;
+    private final AchievementDetailRepository achievementDetailRepository;
+    private final AchievementFileRepository achievementFileRepository;
+    private final AchievementFileService achievementFileService;
+    private final AchievementDetailsService achievementDetailsService;
 
     @Override
     @Transactional
@@ -64,7 +92,9 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("未登录或令牌无效，无法创建项目");
             }
 
-            // TODO 后续接入认证模块时，可以在这里根据 creatorId 加载并校验用户信息
+            if(!userRepository.existsById(creatorId)) {
+                return R.fail("棍木不能创建项目");
+            }
 
             Project project = Project.builder()
                     .name(name)
@@ -194,17 +224,16 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("项目不存在");
             }
 
-            // 只有项目拥有者可以删除
-            if (!projectMemberService.isOwner(projectId, userId)) {
-                return R.fail("只有项目拥有者才能删除项目");
+            // 只有项目拥有者或者系统管理员可以删除
+            if (!projectMemberService.isOwner(projectId, userId) || !PermissionUtils.hasRole("DEVELOPER")) {
+                return R.fail("只有项目拥有者或者系统管理员才能删除项目");
             }
 
-            // TODO 后续接入认证/权限模块时，可在此扩展更多删除权限规则（如系统管理员强制删除）
+            // 执行级联删除
+            // TODO: 级联删除实现 performCascadeDeletion(projectId, userId);
 
             project.setIsDeleted(true);
             projectRepository.save(project);
-
-            // TODO:项目删除时候，需要级联删除项目内对应的所有内容，包括任务，知识库（记录和文件），整个的wiki文档
             
             // 发送项目删除消息给所有项目成员
             try {
@@ -368,8 +397,6 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("只有项目拥有者才能归档项目");
             }
 
-            // TODO 后续接入认证/权限模块时，可在此扩展更多归档权限规则
-
             project.setStatus(ProjectStatus.ARCHIVED);
             projectRepository.save(project);
             
@@ -481,13 +508,23 @@ public class ProjectServiceImpl implements ProjectService {
                 log.warn("查询创建者名称失败: creatorId={}", project.getCreatorId(), e);
             }
         }
-        
+
+        Long projectId = project.getId();
+
         // 查询成员数量
-        Integer memberCount = 0;
+        int memberCount = 0;
         try {
-            memberCount = (int) projectMemberRepository.countByProjectId(project.getId());
+            memberCount = (int) projectMemberRepository.countByProjectId(projectId);
         } catch (Exception e) {
             log.warn("查询项目成员数量失败: projectId={}", project.getId(), e);
+        }
+
+        // 查询任务数量
+        int taskCount = 0;
+        try{
+            taskCount = (int) taskRepository.countByProjectIdAndIsDeletedFalse(projectId);
+        }catch (Exception e){
+            log.warn("查询项目任务数量失败: projectId={}", project.getId(), e);
         }
         
         return ProjectDTO.builder()
@@ -502,7 +539,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .creatorId(String.valueOf(project.getCreatorId()))
                 .creatorName(creatorName)
                 .memberCount(memberCount)
-                .taskCount(0) // TODO: 后续接入任务模块时填充
+                .taskCount(taskCount)
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .build();
