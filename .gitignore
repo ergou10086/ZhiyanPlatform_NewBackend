@@ -30,9 +30,7 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
-
-src/main/resources/application-cloud.yml
+.vscosrc/main/resources/application-cloud.yml
 src/main/resources/application.yml
 
 *.log
