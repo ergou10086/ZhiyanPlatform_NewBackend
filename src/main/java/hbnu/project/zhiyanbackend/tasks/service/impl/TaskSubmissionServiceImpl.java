@@ -77,7 +77,9 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         String attachmentUrlsJson = null;
         if (request.getAttachmentUrls() != null && !request.getAttachmentUrls().isEmpty()) {
             try {
+                log.info("任务提交附件URL列表: taskId={}, attachmentUrls={}", taskId, request.getAttachmentUrls());
                 attachmentUrlsJson = objectMapper.writeValueAsString(request.getAttachmentUrls());
+                log.info("任务提交附件URL序列化结果: taskId={}, json={}", taskId, attachmentUrlsJson);
             } catch (JsonProcessingException e) {
                 log.error("附件URL序列化失败", e);
                 throw new IllegalArgumentException("附件URL格式错误");
