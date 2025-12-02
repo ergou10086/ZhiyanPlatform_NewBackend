@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.RememberMeToken;
@@ -16,11 +17,17 @@ import hbnu.project.zhiyanbackend.basic.constants.TokenConstants;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.JwtUtils;
+import hbnu.project.zhiyanbackend.basic.utils.ip.AddressUtils;
+import hbnu.project.zhiyanbackend.basic.utils.ip.IpLocationUtils;
+import hbnu.project.zhiyanbackend.basic.utils.ip.IpUtils;
+import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 import hbnu.project.zhiyanbackend.redis.service.RedisService;
 import hbnu.project.zhiyanbackend.security.context.LoginUserBody;
 import hbnu.project.zhiyanbackend.security.utils.PasswordUtils;
 
 import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.messaging.Message;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -79,6 +86,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final AuthUserDetailsServiceImpl authUserDetailsService;
     private final UserConverter userConverter;
+    private final MessageSendService messageSendService;
 
     // RememberMe token有效期：30天
     private static final int REMEMBER_ME_DAYS = 30;
@@ -180,18 +188,14 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 用户登录（使用 Spring Security 标准认证流程）
      * 会自动调用 AuthUserDetailsService.loadUserByUsername() 进行用户信息加载和密码验证
-     * 
-     * 优化说明：
-     * - 使用Spring Security标准认证流程，确保安全性
-     * - 支持RememberMe功能，提升用户体验
-     * - 完善的异常处理，区分不同类型的登录失败原因
      *
      * @param loginDTO 登录请求体
+     * @param request HTTP请求对象（用于获取IP地址）
      * @return 登录结果（包含用户信息和JWT令牌）
      */
     @Override
     @Transactional
-    public R<UserLoginResponseDTO> login(LoginDTO loginDTO) {
+    public R<UserLoginResponseDTO> login(LoginDTO loginDTO, HttpServletRequest request) {
         log.info("处理用户登录: 邮箱={}", loginDTO.getEmail());
 
         try {
@@ -209,6 +213,46 @@ public class AuthServiceImpl implements AuthService {
 
             // 认证成功会拿到用户详情
             LoginUserBody loginUser = (LoginUserBody) authentication.getPrincipal();
+            Long userId = loginUser.getUserId();
+
+            // 获取当前登录IP
+            String currentIp = request != null ? IpUtils.getIpAddr(request) : "unknown";
+            String currentLocation = AddressUtils.getRealAddressByIP(currentIp);
+
+            // 获取用户信息，检查是否为异地登录
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                String lastLoginIp = user.getLastLoginIp();
+
+                // 判断是否为异地登录
+                if (StrUtil.isNotBlank(lastLoginIp) &&
+                        IpLocationUtils.isDifferentIp(currentIp, lastLoginIp)) {
+
+                    // 获取上次登录位置
+                    String lastLocation = AddressUtils.getRealAddressByIP(lastLoginIp);
+
+                    // 发送账号安全通知
+                    try {
+                        messageSendService.notifyAccountSecurityAlert(
+                                userId,
+                                currentIp,
+                                currentLocation,
+                                lastLoginIp,
+                                lastLocation
+                        );
+                        log.info("检测到异地登录，已发送安全通知: userId={}, currentIp={}, lastIp={}",
+                                userId, currentIp, lastLoginIp);
+                    } catch (Exception e) {
+                        log.error("发送账号安全通知失败: userId={}", userId, e);
+                        // 通知发送失败不影响登录流程
+                    }
+                }
+
+                // 更新用户的上次登录IP
+                user.setLastLoginIp(currentIp);
+                userRepository.save(user);
+            }
 
             // 生成 JWT Token
             boolean rememberMe = loginDTO.getRememberMe() != null ? loginDTO.getRememberMe() : false;

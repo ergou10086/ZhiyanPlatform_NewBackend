@@ -112,7 +112,7 @@ public class AchievementManageController {
         log.info("更新成果状态: achievementId={}, status={}, userId={}",
                 achievementId, status, userId);
 
-        projectSecurityUtils.checkEditPermission(achievementId, userId);
+        projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
         achievementService.updateAchievementStatus(achievementId, status, userId);
 
@@ -131,7 +131,7 @@ public class AchievementManageController {
         log.info("查询成果详情: achievementId={}", achievementId);
 
         // 权限检查：必须有访问权限
-        projectSecurityUtils.requireAccess(achievementId);
+        projectSecurityUtils.requireAchievementAccess(achievementId);
 
         AchievementDetailDTO detail = achievementDetailsService.getAchievementDetail(achievementId);
 
@@ -151,7 +151,7 @@ public class AchievementManageController {
         log.info("删除成果开始: achievementId={}, userId={}", achievementId, userId);
 
         // 删除成果需要为成果创建者和管理员,和编辑是一样的
-        projectSecurityUtils.checkEditPermission(achievementId, userId);
+        projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
         // 删除成果的文件
         List<AchievementFileDTO> files = achievementFileService.getFilesByAchievementId(achievementId);
@@ -192,7 +192,7 @@ public class AchievementManageController {
                 achievementId, isPublic, userId);
 
         // 要有成果编辑的权限
-        projectSecurityUtils.checkEditPermission(achievementId, userId);
+        projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
         Achievement achievement = achievementRepository.findById(achievementId)
                 .orElseThrow(() -> new ControllerException("成果不存在"));

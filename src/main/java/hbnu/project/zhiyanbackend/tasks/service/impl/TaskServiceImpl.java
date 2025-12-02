@@ -448,8 +448,9 @@ public class TaskServiceImpl implements TaskService {
         Optional<TaskUser> existingOpt = taskUserRepository.findByTaskIdAndUserId(taskId, userId);
         Instant now = Instant.now();
 
+        TaskUser tu;
         if (existingOpt.isPresent()) {
-            TaskUser tu = existingOpt.get();
+            tu = existingOpt.get();
             tu.setIsActive(true);
             tu.setAssignedBy(userId);
             tu.setAssignedAt(now);
@@ -457,9 +458,8 @@ public class TaskServiceImpl implements TaskService {
             tu.setRemovedAt(null);
             tu.setRemovedBy(null);
             tu.setRoleType(RoleType.EXECUTOR);
-            taskUserRepository.save(tu);
         } else {
-            TaskUser tu = TaskUser.builder()
+            tu = TaskUser.builder()
                     .taskId(taskId)
                     .projectId(task.getProjectId())
                     .userId(userId)
@@ -469,8 +469,8 @@ public class TaskServiceImpl implements TaskService {
                     .isActive(true)
                     .roleType(RoleType.EXECUTOR)
                     .build();
-            taskUserRepository.save(tu);
         }
+        taskUserRepository.save(tu);
 
         if (task.getStatus() == TaskStatus.TODO) {
             task.setStatus(TaskStatus.IN_PROGRESS);

@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.auth.service;
 
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Optional;
 
@@ -28,7 +29,7 @@ public interface AuthService {
      * @param loginDTO 登录请求体
      * @return 登录结果
      */
-    R<UserLoginResponseDTO> login(LoginDTO loginDTO);
+    R<UserLoginResponseDTO> login(LoginDTO loginDTO, HttpServletRequest request);
 
     /**
      * 检查邮箱是否已存在

@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.message.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.FileUtils;
@@ -12,9 +13,15 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
+import hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission;
+import hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus;
+import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
+import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -549,6 +556,154 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 发送任务提交审核结果通知
+     * 发送给任务提交者
+     *
+     * @param task 任务实体
+     * @param submission 任务提交记录
+     * @param reviewStatus 审核状态（APPROVED或REJECTED）
+     * @param reviewerId 审核人ID
+     */
+    @Override
+    public void notifyTaskSubmissionReviewed(Task task, TaskSubmission submission, ReviewStatus reviewStatus, Long reviewerId) {
+        if (task == null || submission == null || reviewStatus == null) {
+            log.warn("任务审核结果通知参数不完整");
+            return;
+        }
+
+        // 只处理审核通过和审核拒绝的情况
+        if (reviewStatus != ReviewStatus.APPROVED && reviewStatus != ReviewStatus.REJECTED) {
+            log.warn("任务审核结果通知只支持APPROVED和REJECTED状态，当前状态: {}", reviewStatus);
+            return;
+        }
+
+        try {
+            // 获取审核人姓名
+            String reviewerName = getOperatorName(reviewerId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(task.getProjectId())
+                    .orElse("未知项目");
+
+            // 获取提交人ID（接收者）
+            Long submitterId = submission.getSubmitterId();
+
+            // 根据审核状态构建不同的消息内容
+            String title;
+            String content;
+
+            if (reviewStatus == ReviewStatus.APPROVED) {
+                title = "任务审核通过";
+                content = String.format("您提交的任务「%s」已通过审核\n项目：%s\n审核人：%s\n审核意见：%s\n请查看任务详情",
+                        task.getTitle(),
+                        projectName,
+                        reviewerName,
+                        submission.getReviewComment() != null ? submission.getReviewComment() : "无");
+            } else { // REJECTED
+                title = "任务审核被退回";
+                content = String.format("您提交的任务「%s」审核未通过，已被退回\n项目：%s\n审核人：%s\n退回原因：%s\n请根据审核意见修改后重新提交",
+                        task.getTitle(),
+                        projectName,
+                        reviewerName,
+                        submission.getReviewComment() != null ? submission.getReviewComment() : "无");
+            }
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildTaskSubmissionReviewedExtendData(task, submission, reviewStatus, reviewerId, reviewerName, projectName);
+
+            // 发送消息
+            // 注意：InboxMessageService的sendPersonalMessage会自动根据scene设置priority
+            // TASK_REVIEW_RESULT场景对应HIGH优先级，满足审核拒绝需要最高优先级的要求
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.TASK_REVIEW_RESULT,
+                    reviewerId,
+                    submitterId,
+                    title,
+                    content,
+                    task.getId(),
+                    "TASK",
+                    extendDataJson
+            );
+
+            log.info("任务审核结果通知发送成功: taskId={}, submissionId={}, reviewStatus={}, submitterId={}",
+                    task.getId(), submission.getId(), reviewStatus, submitterId);
+        } catch (Exception e) {
+            log.error("发送任务审核结果通知失败: taskId={}, submissionId={}", task.getId(), submission.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送账号异地登录安全通知
+     * 发送给用户自己
+     *
+     * @param userId 用户ID
+     * @param currentIp 当前登录IP
+     * @param currentLocation 当前登录位置
+     * @param lastIp 上次登录IP（可能为空）
+     * @param lastLocation 上次登录位置（可能为空）
+     */
+    @Override
+    public void notifyAccountSecurityAlert(Long userId, String currentIp, String currentLocation,
+                                           String lastIp, String lastLocation) {
+        if (userId == null || currentIp == null) {
+            log.warn("账号安全通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取用户姓名
+            String userName = userRepository.findNameById(userId)
+                    .orElse("用户");
+
+            // 构建消息内容
+            String title = "账号安全提醒";
+            StringBuilder content = new StringBuilder();
+            content.append("您的账号在异地登录\n");
+            content.append("当前登录IP：").append(currentIp).append("\n");
+            content.append("当前登录位置：").append(currentLocation).append("\n");
+
+            if (StrUtil.isNotBlank(lastIp)) {
+                content.append("上次登录IP：").append(lastIp).append("\n");
+            }
+            if (StrUtil.isNotBlank(lastLocation)) {
+                content.append("上次登录位置：").append(lastLocation).append("\n");
+            }
+
+            content.append("\n如果这不是您的操作且您为授权给他人，几乎可以确定你的账号被盗用，请立即修改密码并联系管理员。");
+
+            // 构建扩展数据
+            Map<String, Object> extendData = new HashMap<>();
+            extendData.put("userId", userId);
+            extendData.put("userName", userName);
+            extendData.put("currentIp", currentIp);
+            extendData.put("currentLocation", currentLocation);
+            extendData.put("lastIp", lastIp);
+            extendData.put("lastLocation", lastLocation);
+            extendData.put("redirectUrl", "/user/security");
+            String extendDataJson = JsonUtils.toJsonString(extendData);
+
+            // 发送消息给自己（senderId为null表示系统消息）
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.SYSTEM_SECURITY_ALERT,
+                    null, // 系统消息，发送者为null
+                    userId,
+                    title,
+                    content.toString(),
+                    userId,
+                    "USER",
+                    extendDataJson
+            );
+
+            log.info("账号安全通知发送成功: userId={}, currentIp={}, currentLocation={}",
+                    userId, currentIp, currentLocation);
+        } catch (Exception e) {
+            log.error("发送账号安全通知失败: userId={}, currentIp={}", userId, currentIp, e);
+            // 通知发送失败不影响登录流程
+        }
+    }
+
+    /**
      * 构建文件上传扩展数据JSON
      */
     private String buildFileUploadExtendData(Achievement achievement, AchievementFile file, Long uploaderId, String uploaderName) {
@@ -666,6 +821,29 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 构建任务审核结果扩展数据JSON
+     */
+    private String buildTaskSubmissionReviewedExtendData(Task task, TaskSubmission submission,
+                                                         ReviewStatus reviewStatus, Long reviewerId,
+                                                         String reviewerName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("submissionId", submission.getId());
+        extendData.put("submissionVersion", submission.getVersion());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("reviewStatus", reviewStatus.name());
+        extendData.put("reviewStatusName", reviewStatus.getDescription());
+        extendData.put("reviewerId", reviewerId);
+        extendData.put("reviewerName", reviewerName);
+        extendData.put("reviewComment", submission.getReviewComment());
+        extendData.put("submitterId", submission.getSubmitterId());
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
      * 获取操作者姓名
      * 如果查询失败或用户不存在，返回"未知用户"
      *
@@ -707,5 +885,282 @@ public class MessageSendServiceImpl implements MessageSendService {
             default:
                 return status.name();
         }
+    }
+
+    /**
+     * 发送Wiki页面创建通知
+     * 发送给除了创建者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param creatorId 创建者ID
+     */
+    @Override
+    public void notifyWikiPageCreated(WikiPage wikiPage, Long creatorId) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面创建通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤创建者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(creatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取创建者姓名
+            String creatorName = getOperatorName(creatorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageCreatedExtendData(wikiPage, creatorId, creatorName, projectName);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面创建";
+            String content = String.format("项目「%s」中创建了新的Wiki%s「%s」\n创建者：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    creatorName,
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_CREATED,
+                    creatorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面创建通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面创建通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送Wiki页面更新通知
+     * 发送给除了编辑者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param editorId 编辑者ID
+     * @param changeDesc 修改说明
+     */
+    @Override
+    public void notifyWikiPageUpdated(WikiPage wikiPage, Long editorId, String changeDesc) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面更新通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤编辑者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(editorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取编辑者姓名
+            String editorName = getOperatorName(editorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageUpdatedExtendData(wikiPage, editorId, editorName, projectName, changeDesc);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面更新";
+            String content = String.format("项目「%s」中的Wiki%s「%s」已更新\n编辑者：%s\n修改说明：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    editorName,
+                    StringUtils.hasText(changeDesc) ? changeDesc : "无",
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_UPDATED,
+                    editorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面更新通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面更新通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送Wiki页面删除通知
+     * 发送给除了删除者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param operatorId 操作者ID
+     */
+    @Override
+    public void notifyWikiPageDeleted(WikiPage wikiPage, Long operatorId) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面删除通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤操作者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(operatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageDeletedExtendData(wikiPage, operatorId, operatorName, projectName);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面删除";
+            String content = String.format("项目「%s」中的Wiki%s「%s」已被删除\n操作者：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    operatorName,
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_DELETED,
+                    operatorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面删除通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面删除通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 构建Wiki页面创建扩展数据JSON
+     */
+    private String buildWikiPageCreatedExtendData(WikiPage wikiPage, Long creatorId, String creatorName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("creatorId", creatorId);
+        extendData.put("creatorName", creatorName);
+        extendData.put("redirectUrl", "/wiki/page/" + wikiPage.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建Wiki页面更新扩展数据JSON
+     */
+    private String buildWikiPageUpdatedExtendData(WikiPage wikiPage, Long editorId, String editorName, String projectName, String changeDesc) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("editorId", editorId);
+        extendData.put("editorName", editorName);
+        extendData.put("changeDescription", changeDesc);
+        extendData.put("currentVersion", wikiPage.getCurrentVersion());
+        extendData.put("redirectUrl", "/wiki/page/" + wikiPage.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建Wiki页面删除扩展数据JSON
+     */
+    private String buildWikiPageDeletedExtendData(WikiPage wikiPage, Long operatorId, String operatorName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/wiki/project/" + wikiPage.getProjectId());
+        return JsonUtils.toJsonString(extendData);
     }
 }

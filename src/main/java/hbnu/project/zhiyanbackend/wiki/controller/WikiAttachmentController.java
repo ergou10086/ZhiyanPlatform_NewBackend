@@ -333,7 +333,7 @@ public class WikiAttachmentController {
 
     /**
      * 物理删除附件
-     * 权限要求：已登录 + 有删除权限（创建者或管理员）
+     * 权限要求：已登录 + 项目成员
      * 目前先直接使用这个
      */
     @DeleteMapping("/{attachmentId}/permanent")
@@ -345,17 +345,10 @@ public class WikiAttachmentController {
 
         WikiAttachmentDTO attachment = wikiOssService.getAttachment(attachmentId);
 
-        // 权限检查：必须有删除权限（管理员或创建者）
+        // 权限检查：必须是项目成员
         Long projectId = Long.parseLong(attachment.getProjectId());
         if (!projectSecurityUtils.isMember(projectId, userId)) {
             return R.fail("您不是该项目的成员，无权删除");
-        }
-
-        // 检查是否为创建者或项目管理员
-        boolean isCreator = String.valueOf(userId).equals(attachment.getUploadBy());
-        boolean isAdmin = PermissionUtils.isProjectAdmin(projectId);
-        if (!isCreator && !isAdmin) {
-            return R.fail("只有创建者或项目管理员可以物理删除附件");
         }
 
         wikiOssService.deleteAttachmentPermanently(attachmentId);

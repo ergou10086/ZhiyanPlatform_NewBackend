@@ -55,7 +55,7 @@ public class AchievementDetailController {
         log.info("更新成果详情: achievementId={}", updateDTO.getAchievementId());
 
         // 权限检查：必须有编辑权限（是项目成员且是成果创建者或项目管理员）
-        projectSecurityUtils.checkEditPermission(updateDTO.getAchievementId(), userId);
+        projectSecurityUtils.checkAchievementEditPermission(updateDTO.getAchievementId(), userId);
 
         achievementDetailsService.updateDetailData(updateDTO);
 
@@ -78,7 +78,7 @@ public class AchievementDetailController {
                 achievementId, fieldUpdates.size(), userId);
 
         // 权限检查：必须有编辑权限（项目成员且是创建者或管理员）
-        projectSecurityUtils.checkEditPermission(achievementId, userId);
+        projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
         AchievementDetailDTO result = achievementDetailsService.updateDetailFields(
                 achievementId, fieldUpdates, userId
@@ -100,7 +100,7 @@ public class AchievementDetailController {
         log.info("更新成果摘要: achievementId={}", achievementId);
 
         // 权限检查：必须有编辑权限（项目成员且是创建者或管理员）
-        projectSecurityUtils.checkEditPermission(achievementId, userId);
+        projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
         achievementDetailsService.updateAbstract(achievementId, abstractText);
 
