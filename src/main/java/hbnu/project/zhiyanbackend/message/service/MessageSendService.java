@@ -120,4 +120,16 @@ public interface MessageSendService {
      * @param operatorId 操作者ID
      */
     void notifyWikiPageDeleted(hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage wikiPage, Long operatorId);
+
+    /**
+     * 发送账号异地登录安全通知
+     * 发送给用户自己
+     *
+     * @param userId 用户ID
+     * @param currentIp 当前登录IP
+     * @param currentLocation 当前登录位置
+     * @param lastIp 上次登录IP（可能为空）
+     * @param lastLocation 上次登录位置（可能为空）
+     */
+    void notifyAccountSecurityAlert(Long userId, String currentIp, String currentLocation, String lastIp, String lastLocation);
 }

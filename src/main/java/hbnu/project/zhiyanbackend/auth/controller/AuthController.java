@@ -86,11 +86,13 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "用户登录获取访问令牌")
     public R<UserLoginResponseDTO> login(
-            @Valid @RequestBody LoginDTO loginDTO, HttpServletResponse response) {
+            @Valid @RequestBody LoginDTO loginDTO,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         log.info("用户登录API请求: 邮箱={}", loginDTO.getEmail());
 
         try{
-            R<UserLoginResponseDTO> result = authService.login(loginDTO);
+            R<UserLoginResponseDTO> result = authService.login(loginDTO, request);
 
             // 添加RemembermeToken
             if(R.isSuccess(result) && result.getData() != null && Boolean.TRUE.equals(result.getData().getRememberMe()) && result.getData().getRememberMeToken() != null){

@@ -18,7 +18,7 @@ public enum MessagePriority {
             case TASK_DEADLINE_REMIND, PROJECT_ROLE_CHANGED,
                  ACHIEVEMENT_REVIEW_REQUEST, ACHIEVEMENT_STATUS_CHANGED,
                  WIKI_PAGE_UPDATED, WIKI_PAGE_DELETED -> MEDIUM;
-            case WIKI_PAGE_CREATED -> LOW;
+            case WIKI_PAGE_CREATED, USER_CUSTOM_MESSAGE -> LOW;
             default -> LOW;
         };
     }

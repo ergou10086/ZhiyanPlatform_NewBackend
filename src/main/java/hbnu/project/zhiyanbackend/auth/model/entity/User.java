@@ -122,6 +122,12 @@ public class User extends BaseAuditEntity {
     private UserStatus status = UserStatus.ACTIVE;
 
     /**
+     * 上次登录IP地址
+     */
+    @Column(name = "last_login_ip", length = 50)
+    private String lastLoginIp;
+
+    /**
      * 用户角色关联（一对多）
      * 注意：
      * - @JsonIgnore: 避免 JSON 序列化时的循环引用

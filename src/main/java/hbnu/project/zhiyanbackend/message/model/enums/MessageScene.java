@@ -34,6 +34,7 @@ public enum MessageScene {
     WIKI_PAGE_CREATED("WIKI", "Wiki页面创建"),
     WIKI_PAGE_UPDATED("WIKI", "Wiki页面更新"),
     WIKI_PAGE_DELETED("WIKI", "Wiki页面删除"),
+    USER_CUSTOM_MESSAGE("USER", "用户自定义消息"),
     SYSTEM_SECURITY_ALERT("SYSTEM", "账号安全提醒"),
     SYSTEM_BROADCAST("SYSTEM", "平台广播");
 

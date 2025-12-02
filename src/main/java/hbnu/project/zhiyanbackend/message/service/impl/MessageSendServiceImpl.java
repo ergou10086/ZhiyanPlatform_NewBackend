@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.message.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.FileUtils;
@@ -629,6 +630,76 @@ public class MessageSendServiceImpl implements MessageSendService {
         } catch (Exception e) {
             log.error("发送任务审核结果通知失败: taskId={}, submissionId={}", task.getId(), submission.getId(), e);
             // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送账号异地登录安全通知
+     * 发送给用户自己
+     *
+     * @param userId 用户ID
+     * @param currentIp 当前登录IP
+     * @param currentLocation 当前登录位置
+     * @param lastIp 上次登录IP（可能为空）
+     * @param lastLocation 上次登录位置（可能为空）
+     */
+    @Override
+    public void notifyAccountSecurityAlert(Long userId, String currentIp, String currentLocation,
+                                           String lastIp, String lastLocation) {
+        if (userId == null || currentIp == null) {
+            log.warn("账号安全通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取用户姓名
+            String userName = userRepository.findNameById(userId)
+                    .orElse("用户");
+
+            // 构建消息内容
+            String title = "账号安全提醒";
+            StringBuilder content = new StringBuilder();
+            content.append("您的账号在异地登录\n");
+            content.append("当前登录IP：").append(currentIp).append("\n");
+            content.append("当前登录位置：").append(currentLocation).append("\n");
+
+            if (StrUtil.isNotBlank(lastIp)) {
+                content.append("上次登录IP：").append(lastIp).append("\n");
+            }
+            if (StrUtil.isNotBlank(lastLocation)) {
+                content.append("上次登录位置：").append(lastLocation).append("\n");
+            }
+
+            content.append("\n如果这不是您的操作且您为授权给他人，几乎可以确定你的账号被盗用，请立即修改密码并联系管理员。");
+
+            // 构建扩展数据
+            Map<String, Object> extendData = new HashMap<>();
+            extendData.put("userId", userId);
+            extendData.put("userName", userName);
+            extendData.put("currentIp", currentIp);
+            extendData.put("currentLocation", currentLocation);
+            extendData.put("lastIp", lastIp);
+            extendData.put("lastLocation", lastLocation);
+            extendData.put("redirectUrl", "/user/security");
+            String extendDataJson = JsonUtils.toJsonString(extendData);
+
+            // 发送消息给自己（senderId为null表示系统消息）
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.SYSTEM_SECURITY_ALERT,
+                    null, // 系统消息，发送者为null
+                    userId,
+                    title,
+                    content.toString(),
+                    userId,
+                    "USER",
+                    extendDataJson
+            );
+
+            log.info("账号安全通知发送成功: userId={}, currentIp={}, currentLocation={}",
+                    userId, currentIp, currentLocation);
+        } catch (Exception e) {
+            log.error("发送账号安全通知失败: userId={}, currentIp={}", userId, currentIp, e);
+            // 通知发送失败不影响登录流程
         }
     }
 
