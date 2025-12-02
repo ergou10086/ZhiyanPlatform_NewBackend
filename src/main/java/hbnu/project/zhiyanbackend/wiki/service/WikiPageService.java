@@ -68,8 +68,9 @@ public interface WikiPageService {
      * 递归删除目录及其所有子页面
      *
      * @param pageId 页面ID
+     * @param operatorId 操作者ID
      */
-    void deletePageRecursively(Long pageId);
+    void deletePageRecursively(Long pageId, Long operatorId);
 
     /**
      * 获取项目的Wiki树状结构

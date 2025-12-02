@@ -56,7 +56,9 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
 
     @Query("SELECT s FROM TaskSubmission s JOIN Task t ON s.taskId = t.id " +
             "WHERE t.creatorId = :taskCreatorId AND s.reviewStatus = :reviewStatus " +
-            "AND s.isDeleted = false AND t.isDeleted = false ORDER BY s.submissionTime DESC")
+            "AND s.isDeleted = false AND t.isDeleted = false " +
+            "AND s.version = (SELECT MAX(s2.version) FROM TaskSubmission s2 WHERE s2.taskId = s.taskId AND s2.isDeleted = false) " +
+            "ORDER BY s.submissionTime DESC")
     Page<TaskSubmission> findPendingSubmissionsForReviewer(
             @Param("taskCreatorId") Long taskCreatorId,
             @Param("reviewStatus") ReviewStatus reviewStatus,

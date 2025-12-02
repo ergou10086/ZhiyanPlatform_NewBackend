@@ -92,4 +92,32 @@ public interface MessageSendService {
                                        hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission submission,
                                        hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus reviewStatus,
                                        Long reviewerId);
+
+    /**
+     * 发送Wiki页面创建通知
+     * 发送给除了创建者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param creatorId 创建者ID
+     */
+    void notifyWikiPageCreated(hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage wikiPage, Long creatorId);
+
+    /**
+     * 发送Wiki页面更新通知
+     * 发送给除了编辑者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param editorId 编辑者ID
+     * @param changeDesc 修改说明
+     */
+    void notifyWikiPageUpdated(hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage wikiPage, Long editorId, String changeDesc);
+
+    /**
+     * 发送Wiki页面删除通知
+     * 发送给除了删除者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param operatorId 操作者ID
+     */
+    void notifyWikiPageDeleted(hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage wikiPage, Long operatorId);
 }

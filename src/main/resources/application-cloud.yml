@@ -13,7 +13,7 @@ spring:
     # 在searchPath中包含所有schema，按优先级排序
     url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
     username: postgres
-    password:
+    password: zjm10086
     driver-class-name: org.postgresql.Driver
     # HikariCP连接池配置
     hikari:

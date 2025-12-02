@@ -146,7 +146,7 @@ public class WikiPageController {
             return R.fail("您没有删除该Wiki页面的权限");
         }
 
-        wikiPageService.deletePageRecursively(pageId);
+        wikiPageService.deletePageRecursively(pageId, userId);
 
         return R.ok(null, "Wiki页面及子页面删除成功");
     }

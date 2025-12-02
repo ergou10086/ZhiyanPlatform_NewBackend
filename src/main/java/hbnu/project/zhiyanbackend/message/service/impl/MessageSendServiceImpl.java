@@ -15,9 +15,12 @@ import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission;
 import hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus;
+import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
+import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -811,5 +814,282 @@ public class MessageSendServiceImpl implements MessageSendService {
             default:
                 return status.name();
         }
+    }
+
+    /**
+     * 发送Wiki页面创建通知
+     * 发送给除了创建者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param creatorId 创建者ID
+     */
+    @Override
+    public void notifyWikiPageCreated(WikiPage wikiPage, Long creatorId) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面创建通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤创建者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(creatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取创建者姓名
+            String creatorName = getOperatorName(creatorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageCreatedExtendData(wikiPage, creatorId, creatorName, projectName);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面创建";
+            String content = String.format("项目「%s」中创建了新的Wiki%s「%s」\n创建者：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    creatorName,
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_CREATED,
+                    creatorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面创建通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面创建通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送Wiki页面更新通知
+     * 发送给除了编辑者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param editorId 编辑者ID
+     * @param changeDesc 修改说明
+     */
+    @Override
+    public void notifyWikiPageUpdated(WikiPage wikiPage, Long editorId, String changeDesc) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面更新通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤编辑者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(editorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取编辑者姓名
+            String editorName = getOperatorName(editorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageUpdatedExtendData(wikiPage, editorId, editorName, projectName, changeDesc);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面更新";
+            String content = String.format("项目「%s」中的Wiki%s「%s」已更新\n编辑者：%s\n修改说明：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    editorName,
+                    StringUtils.hasText(changeDesc) ? changeDesc : "无",
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_UPDATED,
+                    editorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面更新通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面更新通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送Wiki页面删除通知
+     * 发送给除了删除者的所有项目成员
+     *
+     * @param wikiPage Wiki页面实体
+     * @param operatorId 操作者ID
+     */
+    @Override
+    public void notifyWikiPageDeleted(WikiPage wikiPage, Long operatorId) {
+        if (wikiPage == null) {
+            log.warn("Wiki页面删除通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(wikiPage.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", wikiPage.getProjectId());
+                return;
+            }
+
+            // 过滤操作者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(operatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(wikiPage.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildWikiPageDeletedExtendData(wikiPage, operatorId, operatorName, projectName);
+
+            // 构建消息内容
+            String pageTypeName = wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档";
+            String title = "Wiki页面删除";
+            String content = String.format("项目「%s」中的Wiki%s「%s」已被删除\n操作者：%s\n路径：%s\n请及时查看",
+                    projectName,
+                    pageTypeName,
+                    wikiPage.getTitle(),
+                    operatorName,
+                    wikiPage.getPath());
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.WIKI_PAGE_DELETED,
+                    operatorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    wikiPage.getId(),
+                    "WIKI",
+                    extendDataJson
+            );
+
+            log.info("Wiki页面删除通知发送成功: wikiPageId={}, pageType={}, receivers={}",
+                    wikiPage.getId(), wikiPage.getPageType(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送Wiki页面删除通知失败: wikiPageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 构建Wiki页面创建扩展数据JSON
+     */
+    private String buildWikiPageCreatedExtendData(WikiPage wikiPage, Long creatorId, String creatorName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("creatorId", creatorId);
+        extendData.put("creatorName", creatorName);
+        extendData.put("redirectUrl", "/wiki/page/" + wikiPage.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建Wiki页面更新扩展数据JSON
+     */
+    private String buildWikiPageUpdatedExtendData(WikiPage wikiPage, Long editorId, String editorName, String projectName, String changeDesc) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("editorId", editorId);
+        extendData.put("editorName", editorName);
+        extendData.put("changeDescription", changeDesc);
+        extendData.put("currentVersion", wikiPage.getCurrentVersion());
+        extendData.put("redirectUrl", "/wiki/page/" + wikiPage.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建Wiki页面删除扩展数据JSON
+     */
+    private String buildWikiPageDeletedExtendData(WikiPage wikiPage, Long operatorId, String operatorName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("wikiPageId", wikiPage.getId());
+        extendData.put("wikiPageTitle", wikiPage.getTitle());
+        extendData.put("pageType", wikiPage.getPageType().name());
+        extendData.put("pageTypeName", wikiPage.getPageType() == PageType.DIRECTORY ? "目录" : "文档");
+        extendData.put("path", wikiPage.getPath());
+        extendData.put("projectId", wikiPage.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/wiki/project/" + wikiPage.getProjectId());
+        return JsonUtils.toJsonString(extendData);
     }
 }

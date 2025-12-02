@@ -10,6 +10,7 @@ import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
 import hbnu.project.zhiyanbackend.wiki.repository.WikiVersionHistoryRepository;
 import hbnu.project.zhiyanbackend.wiki.service.WikiPageService;
 import hbnu.project.zhiyanbackend.wiki.utils.WikiDiffUtils;
+import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -55,6 +56,9 @@ public class WikiPageServiceImpl implements WikiPageService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Resource
+    private MessageSendService messageSendService;
 
     /**
      * 创建 Wiki 页面
@@ -128,6 +132,14 @@ public class WikiPageServiceImpl implements WikiPageService {
 
         page = wikiPageRepository.save(page);
         log.info("创建Wiki页面成功: id={}, title={}, type={}", page.getId(), page.getTitle(), page.getPageType());
+
+        // 发送Wiki页面创建通知
+        try {
+            messageSendService.notifyWikiPageCreated(page, dto.getCreatorId());
+        } catch (Exception e) {
+            log.error("发送Wiki页面创建通知失败: pageId={}", page.getId(), e);
+            // 通知发送失败不影响主流程
+        }
 
         return page;
     }
@@ -213,6 +225,16 @@ public class WikiPageServiceImpl implements WikiPageService {
 
         log.info("更新Wiki页面成功: id={}, title={}", wikiPage.getId(), wikiPage.getTitle());
 
+        // 发送Wiki页面更新通知（仅在内容有变化时发送）
+        if (saved.getPageType() == PageType.DOCUMENT && content != null) {
+            try {
+                messageSendService.notifyWikiPageUpdated(saved, editorId, changeDesc);
+            } catch (Exception e) {
+                log.error("发送Wiki页面更新通知失败: pageId={}", saved.getId(), e);
+                // 通知发送失败不影响主流程
+            }
+        }
+
         return saved;
     }
 
@@ -284,6 +306,14 @@ public class WikiPageServiceImpl implements WikiPageService {
         // 删除其版本历史
         versionHistoryRepository.deleteByWikiPageId(pageId);
 
+        // 发送Wiki页面删除通知（在删除前发送，因为删除后无法获取页面信息）
+        try {
+            messageSendService.notifyWikiPageDeleted(wikiPage, operatorId);
+        } catch (Exception e) {
+            log.error("发送Wiki页面删除通知失败: pageId={}", wikiPage.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+
         // 删除元数据
         wikiPageRepository.delete(wikiPage);
         log.info("删除Wiki页面成功: id={}, title={}", wikiPage.getId(), wikiPage.getTitle());
@@ -293,9 +323,10 @@ public class WikiPageServiceImpl implements WikiPageService {
      * 递归删除目录及其所有子页面
      *
      * @param pageId 页面ID
+     * @param operatorId 操作者ID
      */
     @Override
-    public void deletePageRecursively(Long pageId) {
+    public void deletePageRecursively(Long pageId, Long operatorId) {
         WikiPage wikiPage = wikiPageRepository.findById(pageId).orElseThrow(() -> new ServiceException("Wiki页面不存在"));
 
         // 如果是目录，递归删除所有子页面
@@ -303,12 +334,23 @@ public class WikiPageServiceImpl implements WikiPageService {
             List<WikiPage> childrenPage = wikiPageRepository.findChildPages(wikiPage.getProjectId(), pageId);
             for (WikiPage child : childrenPage) {
                 // 通过代理对象调用自身，也就是通过容器获取代理对象，再调用方法
-                applicationContext.getBean(WikiPageService.class).deletePageRecursively(child.getId());
+                applicationContext.getBean(WikiPageService.class).deletePageRecursively(child.getId(), operatorId);
             }
         }
 
         // 删除对应的页面的版面历史
         versionHistoryRepository.deleteByWikiPageId(pageId);
+
+        // 发送Wiki页面删除通知（在删除前发送，因为删除后无法获取页面信息）
+        // 只在最顶层页面发送一次通知，避免递归删除时发送过多通知
+        if (operatorId != null) {
+            try {
+                messageSendService.notifyWikiPageDeleted(wikiPage, operatorId);
+            } catch (Exception e) {
+                log.error("发送Wiki页面删除通知失败: pageId={}", wikiPage.getId(), e);
+                // 通知发送失败不影响主流程
+            }
+        }
 
         // 删除当前页面
         wikiPageRepository.delete(wikiPage);
