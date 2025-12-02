@@ -2,6 +2,10 @@ package hbnu.project.zhiyanbackend.tasks.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
+import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
@@ -25,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -50,6 +55,8 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberService projectMemberService;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
+    private final UserConverter userConverter;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -61,6 +68,16 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
 
         if (Boolean.TRUE.equals(task.getIsDeleted())) {
             throw new IllegalArgumentException("任务已删除，无法提交");
+        }
+
+        // 检查任务是否已逾期
+        if (task.getDueDate() != null) {
+            LocalDate today = LocalDate.now();
+            log.info("检查任务逾期: taskId={}, dueDate={}, today={}, isOverdue={}", 
+                    taskId, task.getDueDate(), today, task.getDueDate().isBefore(today));
+            if (task.getDueDate().isBefore(today)) {
+                throw new IllegalArgumentException("任务已逾期，无法提交");
+            }
         }
 
         boolean isAssignee = taskUserRepository.isUserActiveExecutor(taskId, userId);
@@ -358,6 +375,28 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             log.warn("获取项目名称失败，projectId: {}", submission.getProjectId(), e);
         }
 
+        // 查询提交人信息
+        UserDTO submitter = null;
+        try {
+            if (submission.getSubmitterId() != null) {
+                Optional<User> userOpt = userRepository.findById(submission.getSubmitterId());
+                submitter = userOpt.map(userConverter::toDTO).orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("获取提交人信息失败，submitterId: {}", submission.getSubmitterId(), e);
+        }
+
+        // 查询审核人信息
+        UserDTO reviewer = null;
+        try {
+            if (submission.getReviewerId() != null) {
+                Optional<User> userOpt = userRepository.findById(submission.getReviewerId());
+                reviewer = userOpt.map(userConverter::toDTO).orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("获取审核人信息失败，reviewerId: {}", submission.getReviewerId(), e);
+        }
+
         return TaskSubmissionDTO.builder()
                 .id(String.valueOf(submission.getId()))
                 .taskId(String.valueOf(submission.getTaskId()))
@@ -366,11 +405,13 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .projectId(String.valueOf(submission.getProjectId()))
                 .projectName(projectName)
                 .submitterId(String.valueOf(submission.getSubmitterId()))
+                .submitter(submitter)
                 .submissionContent(submission.getSubmissionContent())
                 .attachmentUrls(attachmentUrls)
                 .submissionTime(instantToLocalDateTime(submission.getSubmissionTime()))
                 .reviewStatus(submission.getReviewStatus())
                 .reviewerId(submission.getReviewerId() != null ? String.valueOf(submission.getReviewerId()) : null)
+                .reviewer(reviewer)
                 .reviewComment(submission.getReviewComment())
                 .reviewTime(instantToLocalDateTime(submission.getReviewTime()))
                 .actualWorktime(submission.getActualWorktime())
