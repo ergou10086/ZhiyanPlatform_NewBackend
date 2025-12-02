@@ -24,8 +24,6 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
 
     Optional<TaskSubmission> findFirstByTaskIdAndIsDeletedFalseOrderByVersionDesc(Long taskId);
 
-    Optional<TaskSubmission> findByTaskIdAndIsFinalTrueAndIsDeletedFalse(Long taskId);
-
     Page<TaskSubmission> findByReviewStatusAndIsDeletedFalseOrderBySubmissionTimeDesc(
             ReviewStatus reviewStatus, Pageable pageable);
 
@@ -110,11 +108,4 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
             @Param("taskCreatorId") Long taskCreatorId,
             @Param("reviewStatus") ReviewStatus reviewStatus);
 
-    @Query("SELECT s FROM TaskSubmission s WHERE s.taskId = :taskId AND s.isFinal = true " +
-            "AND s.isDeleted = false ORDER BY s.version DESC")
-    List<TaskSubmission> findFinalSubmissionsByTaskId(@Param("taskId") Long taskId);
-
-    @Query("SELECT s FROM TaskSubmission s WHERE s.taskId = :taskId AND s.isFinal = true " +
-            "AND s.reviewStatus = 'APPROVED' AND s.isDeleted = false")
-    List<TaskSubmission> findApprovedFinalSubmissionsByTaskId(@Param("taskId") Long taskId);
 }

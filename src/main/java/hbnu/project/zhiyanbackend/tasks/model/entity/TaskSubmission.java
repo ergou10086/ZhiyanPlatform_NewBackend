@@ -4,6 +4,8 @@ import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import hbnu.project.zhiyanbackend.tasks.model.enums.ReviewStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -67,7 +69,8 @@ public class TaskSubmission {
     /**
      * 附件URL列表（可选，JSON数组格式）
      */
-    @Column(name = "attachment_urls", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attachment_urls", columnDefinition = "jsonb")
     private String attachmentUrls;
 
     /**
@@ -115,13 +118,6 @@ public class TaskSubmission {
     @Builder.Default
     @Column(name = "version", nullable = false)
     private Integer version = 1;
-
-    /**
-     * 是否为最终提交（TRUE-任务完成的最终提交）
-     */
-    @Builder.Default
-    @Column(name = "is_final", nullable = false)
-    private Boolean isFinal = false;
 
     /**
      * 记录创建时间

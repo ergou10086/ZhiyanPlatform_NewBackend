@@ -68,15 +68,8 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             throw new IllegalArgumentException("只有任务执行者才能提交任务");
         }
 
-        if (Boolean.TRUE.equals(request.getIsFinal())) {
-            boolean hasApprovedSubmission = checkIfTaskHasApprovedSubmission(taskId);
-            if (hasApprovedSubmission) {
-                throw new IllegalArgumentException("任务已有执行者提交通过审核，无法再次提交最终版本");
-            }
-
-            if (task.getStatus() == TaskStatus.DONE) {
-                throw new IllegalArgumentException("任务已完成，无法重复提交");
-            }
+        if (task.getStatus() == TaskStatus.DONE) {
+            throw new IllegalArgumentException("任务已完成，无法重复提交");
         }
 
         Integer nextVersion = submissionRepository.getNextVersionNumber(taskId);
@@ -99,16 +92,15 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .attachmentUrls(attachmentUrlsJson)
                 .actualWorktime(request.getActualWorktime())
                 .version(nextVersion)
-                .isFinal(request.getIsFinal())
                 .reviewStatus(ReviewStatus.PENDING)
                 .isDeleted(false)
                 .build();
 
         submission = submissionRepository.save(submission);
-        log.info("任务提交成功: submissionId={}, version={}, isFinal={}",
-                submission.getId(), nextVersion, request.getIsFinal());
+        log.info("任务提交成功: submissionId={}, version={}",
+                submission.getId(), nextVersion);
 
-        if (Boolean.TRUE.equals(request.getIsFinal())) {
+        if (task.getStatus() != TaskStatus.DONE) {
             task.setStatus(TaskStatus.PENDING_REVIEW);
             taskRepository.save(task);
             log.info("任务状态已更新为待审核: taskId={}", taskId);
@@ -153,13 +145,11 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         submission = submissionRepository.save(submission);
         log.info("提交记录审核完成: submissionId={}, status={}", submissionId, request.getReviewStatus());
 
-        if (request.getReviewStatus() == ReviewStatus.APPROVED && Boolean.TRUE.equals(submission.getIsFinal())) {
-            boolean hasApprovedSubmission = checkIfTaskHasApprovedSubmission(task.getId());
-            if (!hasApprovedSubmission) {
-                task.setStatus(TaskStatus.DONE);
-                taskRepository.save(task);
-                log.info("任务已完成: taskId={}", task.getId());
-            }
+        if (request.getReviewStatus() == ReviewStatus.APPROVED
+                && task.getStatus() != TaskStatus.DONE) {
+            task.setStatus(TaskStatus.DONE);
+            taskRepository.save(task);
+            log.info("任务已完成: taskId={}", task.getId());
         }
 
         return convertToDTO(submission, task);
@@ -228,14 +218,18 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Override
     @Transactional(readOnly = true)
     public TaskSubmissionDTO getLatestSubmission(Long taskId) {
-        TaskSubmission submission = submissionRepository
-                .findFirstByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("该任务暂无提交记录"));
+        // 如果没有提交记录，返回null而不是抛出异常
+        Optional<TaskSubmission> submissionOpt = submissionRepository
+                .findFirstByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId);
+        
+        if (submissionOpt.isEmpty()) {
+            return null;
+        }
 
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在"));
 
-        return convertToDTO(submission, task);
+        return convertToDTO(submissionOpt.get(), task);
     }
 
     @Override
@@ -320,14 +314,20 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
 
         List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(taskId);
         stats.put("totalExecutors", executors.size());
+        
+        // 所有提交（按版本倒序）
+        List<TaskSubmission> allSubmissions = submissionRepository
+                .findByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId);
+        stats.put("totalSubmissions", allSubmissions.size());
 
-        List<TaskSubmission> finalSubmissions = submissionRepository.findFinalSubmissionsByTaskId(taskId);
-        stats.put("totalFinalSubmissions", finalSubmissions.size());
+        // 审核通过的提交
+        List<TaskSubmission> approvedSubmissions = allSubmissions.stream()
+                .filter(s -> s.getReviewStatus() == ReviewStatus.APPROVED)
+                .toList();
+        stats.put("approvedSubmissions", approvedSubmissions.size());
 
-        List<TaskSubmission> approvedSubmissions = submissionRepository.findApprovedFinalSubmissionsByTaskId(taskId);
-        stats.put("approvedFinalSubmissions", approvedSubmissions.size());
-
-        Map<Long, List<TaskSubmission>> submissionsByExecutor = finalSubmissions.stream()
+        // 按执行者分组统计提交
+        Map<Long, List<TaskSubmission>> submissionsByExecutor = allSubmissions.stream()
                 .collect(Collectors.groupingBy(TaskSubmission::getSubmitterId));
 
         stats.put("submissionsByExecutor", submissionsByExecutor);
@@ -375,7 +375,6 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .reviewTime(instantToLocalDateTime(submission.getReviewTime()))
                 .actualWorktime(submission.getActualWorktime())
                 .version(submission.getVersion())
-                .isFinal(submission.getIsFinal())
                 .createdAt(instantToLocalDateTime(submission.getCreatedAt()))
                 .updatedAt(instantToLocalDateTime(submission.getUpdatedAt()))
                 .build();
@@ -388,26 +387,5 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
 
     private LocalDateTime instantToLocalDateTime(Instant instant) {
         return instant != null ? LocalDateTime.ofInstant(instant, ZoneId.systemDefault()) : null;
-    }
-
-    private boolean checkIfTaskHasApprovedSubmission(Long taskId) {
-        List<TaskSubmission> finalSubmissions = submissionRepository
-                .findByTaskIdAndIsDeletedFalseOrderByVersionDesc(taskId)
-                .stream()
-                .filter(submission -> Boolean.TRUE.equals(submission.getIsFinal()))
-                .toList();
-
-        return finalSubmissions.stream()
-                .anyMatch(submission -> submission.getReviewStatus() == ReviewStatus.APPROVED);
-    }
-
-    @SuppressWarnings("unused")
-    private boolean canMarkTaskAsDone(Long taskId) {
-        List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(taskId);
-        if (executors.isEmpty()) {
-            return false;
-        }
-        List<TaskSubmission> approvedSubmissions = submissionRepository.findApprovedFinalSubmissionsByTaskId(taskId);
-        return !approvedSubmissions.isEmpty();
     }
 }

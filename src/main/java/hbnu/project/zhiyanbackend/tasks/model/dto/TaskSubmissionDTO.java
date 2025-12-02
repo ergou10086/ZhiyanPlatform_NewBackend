@@ -79,9 +79,6 @@ public class TaskSubmissionDTO {
     @Schema(description = "提交版本号")
     private Integer version;
 
-    @Schema(description = "是否为最终提交")
-    private Boolean isFinal;
-
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 

@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.tasks.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
+import hbnu.project.zhiyanbackend.tasks.model.dto.TaskDetailDTO;
 import hbnu.project.zhiyanbackend.tasks.model.dto.UserTaskStatisticsDTO;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 import hbnu.project.zhiyanbackend.tasks.model.enums.TaskPriority;
@@ -108,12 +109,12 @@ public class TaskController {
     }
 
     @GetMapping("/projects/{projectId}")
-    @Operation(summary = "分页获取项目任务列表")
-    public R<Page<Task>> getProjectTasks(@PathVariable("projectId") Long projectId,
+    @Operation(summary = "分页获取项目任务列表（包含执行者信息）")
+    public R<Page<TaskDetailDTO>> getProjectTasks(@PathVariable("projectId") Long projectId,
                                          @RequestParam(defaultValue = "0") int page,
                                          @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return taskService.getProjectTasks(projectId, pageable);
+        return taskService.getProjectTasksWithAssignees(projectId, pageable);
     }
 
     @GetMapping("/projects/{projectId}/status/{status}")
