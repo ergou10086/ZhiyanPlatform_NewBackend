@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 项目成员服务实现（精简版）
@@ -40,11 +42,14 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     private final ProjectRepository projectRepository;
     private final InboxMessageService inboxMessageService;
     private final UserService userService;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
-        // TODO 后续接入认证模块时，可在此校验 userId 是否为有效用户
+        if(!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("用户不存在，不能被邀请");
+        }
 
         if (!projectRepository.existsById(projectId)) {
             throw new IllegalArgumentException("项目不存在");
@@ -71,7 +76,9 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     @Transactional
     public R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role) {
         try {
-            // TODO 后续接入认证模块时，可在此校验 userId 是否存在 / 是否允许被邀请
+            if(!userRepository.existsById(userId)) {
+                return R.fail("用户不存在，不能被邀请");
+            }
 
             if (!projectRepository.existsById(projectId)) {
                 return R.fail("项目不存在");
@@ -118,6 +125,25 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             log.error("添加项目成员失败: projectId={}, userId={}, role={}", projectId, userId, role, e);
             return R.fail("添加成员失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 获取项目管理员 ID 列表：
+     * 申请时就可以一次性拿到需要抄送的管理员列表
+     *
+     * @param projectId 项目id
+     */
+    @Override
+    public List<Long> getProjectAdminUserIds(Long projectId) {
+        List<ProjectMember> owners = projectMemberRepository
+                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.OWNER);
+        List<ProjectMember> admins = projectMemberRepository
+                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.ADMIN);
+
+        return Stream.concat(owners.stream(), admins.stream())
+                .map(ProjectMember::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -240,8 +266,6 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             if (member.getProjectRole() == ProjectMemberRole.OWNER && newRole != ProjectMemberRole.OWNER) {
                 return R.fail("不能修改项目拥有者的角色");
             }
-
-            // TODO 后续接入认证/权限模块时，可在此扩展更细粒度的角色变更规则
 
             ProjectMemberRole oldRole = member.getProjectRole();
             member.setProjectRole(newRole);
@@ -451,7 +475,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 .projectRole(member.getProjectRole())
                 .roleName(member.getProjectRole() != null ? member.getProjectRole().getDescription() : "")
                 .joinedAt(member.getJoinedAt())
-                .isCurrentUser(false) // TODO: 根据当前登录用户判断
+                .isCurrentUser(false)
                 .build();
     }
 }

@@ -5,12 +5,11 @@ import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
 import hbnu.project.zhiyanbackend.message.model.converter.MessageConverter;
-import hbnu.project.zhiyanbackend.message.model.dto.MessageListDTO;
-import hbnu.project.zhiyanbackend.message.model.dto.SendCustomMessageToProjectDTO;
-import hbnu.project.zhiyanbackend.message.model.dto.SendCustomMessageToUserDTO;
+import hbnu.project.zhiyanbackend.message.model.dto.*;
 import hbnu.project.zhiyanbackend.message.model.entity.MessageRecipient;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
+import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
@@ -24,11 +23,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -239,6 +240,111 @@ public class MessageController {
             log.error("群发消息异常", e);
             return R.fail("发送消息失败");
         }
+    }
+
+    /**
+     * 邀请用户加入项目
+     * @param dto ProjectInviteMessageDTO
+     * @return 发送结果
+     */
+    @PostMapping("/project/invite")
+    @Operation(summary = "邀请用户加入项目")
+    public R<Void> inviteUserToProject(@RequestBody @Valid ProjectInviteMessageDTO dto) {
+        Long inviterId = SecurityUtils.getUserId();
+        if (inviterId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+        if (!projectMemberService.isAdmin(dto.getProjectId(), inviterId)) {
+            return R.fail("只有项目管理员可以邀请成员");
+        }
+        if (projectMemberService.isMember(dto.getProjectId(), dto.getTargetUserId())) {
+            return R.fail("该用户已是项目成员");
+        }
+
+        String inviterName = userRepository.findNameById(inviterId).orElse("未知用户");
+        String receiverName = userRepository.findNameById(dto.getTargetUserId()).orElse("未知用户");
+        String projectName = projectRepository.findProjectNameById(dto.getProjectId())
+                .orElseThrow(() -> new ServiceException("项目不存在"));
+
+        Map<String, Object> extend = new HashMap<>();
+        extend.put("kind", "PROJECT_INVITATION");
+        extend.put("projectId", dto.getProjectId());
+        extend.put("projectName", projectName);
+        extend.put("role", dto.getRole().name());
+        extend.put("roleLabel", dto.getRole().getDescription());
+        extend.put("inviterId", inviterId);
+        extend.put("inviterName", inviterName);
+        extend.put("targetUserId", dto.getTargetUserId());
+
+        String content = Optional.ofNullable(dto.getMessage())
+                .filter(StringUtils::hasText)
+                .orElse(String.format("%s 邀请你作为「%s」加入项目「%s」",
+                        inviterName, dto.getRole().getDescription(), projectName));
+
+        inboxMessageService.sendPersonalMessage(
+                MessageScene.PROJECT_MEMBER_INVITED,
+                inviterId,
+                dto.getTargetUserId(),
+                "项目邀请：" + projectName,
+                content,
+                dto.getProjectId(),
+                "PROJECT",
+                JsonUtils.toJsonString(extend)
+        );
+
+        return R.ok(null, "邀请消息已发送");
+    }
+
+    /**
+     * 用户申请加入项目
+     * @param dto ProjectJoinApplyDTO
+     * @return 申请发送结果
+     */
+    @PostMapping("/project/apply")
+    @Operation(summary = "申请加入项目")
+    public R<Void> applyToJoinProject(@RequestBody @Valid ProjectJoinApplyDTO dto) {
+        Long applicantId = SecurityUtils.getUserId();
+        if (applicantId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+        if (projectMemberService.isMember(dto.getProjectId(), applicantId)) {
+            return R.fail("您已经是项目成员");
+        }
+
+        List<Long> adminIds = projectMemberService.getProjectAdminUserIds(dto.getProjectId());
+        if (adminIds.isEmpty()) {
+            return R.fail("项目暂未设置管理员，无法提交申请，理论上这种情况不能发生");
+        }
+
+        String applicantName = userRepository.findNameById(applicantId).orElse("未知用户");
+        String projectName = projectRepository.findProjectNameById(dto.getProjectId())
+                .orElseThrow(() -> new ServiceException("项目不存在"));
+
+        Map<String, Object> extend = new HashMap<>();
+        extend.put("kind", "PROJECT_JOIN_APPLY");
+        extend.put("projectId", dto.getProjectId());
+        extend.put("projectName", projectName);
+        extend.put("applicantId", applicantId);
+        extend.put("applicantName", applicantName);
+        extend.put("reason", dto.getReason());
+        extend.put("defaultRole", ProjectMemberRole.MEMBER.name());
+
+        String content = (StringUtils.hasText(dto.getReason()))
+                ? String.format("%s 申请加入项目「%s」：%s", applicantName, projectName, dto.getReason())
+                : String.format("%s 申请加入项目「%s」", applicantName, projectName);
+
+        inboxMessageService.sendBatchPersonalMessage(
+                MessageScene.PROJECT_MEMBER_APPLY,
+                applicantId,
+                adminIds,
+                "新的项目加入申请",
+                content,
+                dto.getProjectId(),
+                "PROJECT",
+                JsonUtils.toJsonString(extend)
+        );
+
+        return R.ok(null, "申请已发送，等待管理员处理");
     }
 
     /**

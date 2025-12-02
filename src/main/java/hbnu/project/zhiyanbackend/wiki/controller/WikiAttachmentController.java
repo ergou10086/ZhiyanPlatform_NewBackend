@@ -165,7 +165,7 @@ public class WikiAttachmentController {
     }
 
     /**
-     * 获取一个项目中wiki所有的附件
+     * 获取一个项目中所有wiki页面的附件
      * 分页
      * 权限要求：已登录 + 有访问权限
      * 前端可以切换查看该页面和整个项目的wiki附件桶

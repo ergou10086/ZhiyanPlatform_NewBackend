@@ -95,4 +95,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
       AND (t.isDeleted = false OR t.isDeleted IS NULL)
     """)
     List<Task> findByIdsWithExecutors(@Param("taskIds") Collection<Long> taskIds);
+
+    long countByProjectIdAndIsDeletedFalse(Long projectId);
 }
