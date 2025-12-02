@@ -116,7 +116,7 @@ public class DifyStreamEmitter {
      * @param textChunk 文本块
      */
     public static void sendChunk(String conversationId, String textChunk) {
-        sendMessage(conversationId, textChunk, "chunk");
+        sendMessage(conversationId, textChunk, "message");
     }
 
 

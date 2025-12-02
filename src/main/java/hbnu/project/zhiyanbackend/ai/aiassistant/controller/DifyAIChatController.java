@@ -67,7 +67,8 @@ public class DifyAIChatController {
     public SseEmitter chatStream(@RequestParam String query,
                                  @RequestParam(required = false) String conversationId,
                                  @RequestParam(required = false, name = "difyFileIds") List<String> difyFileIds,
-                                 @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds) {
+                                 @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds,
+                                 @RequestParam(required = false, name = "localFiles") List<MultipartFile> localFiles) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             throw new IllegalStateException("未登录，无法进行 AI 对话");
@@ -81,7 +82,11 @@ public class DifyAIChatController {
 
         Map<String, Object> body = new HashMap<>();
         body.put("query", query);
-        body.put("conversation_id", convId);
+        if (conversationId != null && !conversationId.isBlank()) {
+            body.put("conversation_id", conversationId);
+        } else {
+            body.put("conversation_id", "");
+        }
         body.put("user", String.valueOf(userId));
         body.put("inputs", new HashMap<>());
 
@@ -100,6 +105,22 @@ public class DifyAIChatController {
                 }
             }
         }
+
+        // 处理本地上传文件（通过 multipart/form-data 传入）
+        if (localFiles != null && !localFiles.isEmpty()) {
+            log.info("[Dify 对话] 附带本地上传文件, count={}", localFiles.size());
+            List<DifyFileUploadResponse> uploadResponses = difyFileService.uploadFiles(localFiles, userId);
+            for (DifyFileUploadResponse resp : uploadResponses) {
+                if (resp != null && resp.getFileId() != null) {
+                    allDifyFileIds.add(resp.getFileId());
+                }
+            }
+        }
+        log.info("[Dify Config] apiUrl={}, apiKeyPrefix={}",
+         difyProperties.getApiUrl(),
+         difyProperties.getApiKey() != null
+             ? difyProperties.getApiKey().substring(0, 12)
+             : "null");
 
         if (!allDifyFileIds.isEmpty()) {
             List<Map<String, Object>> files = new ArrayList<>();

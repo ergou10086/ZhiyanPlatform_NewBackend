@@ -257,7 +257,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                         // 这样可以避免异步请求时的二次权限检查导致的 AccessDeniedException
                         .requestMatchers("/api/coze/**").permitAll()
 
-                        .requestMatchers("/api/coze/**").permitAll()
+                        .requestMatchers("/zhiyan/ai/dify/**").permitAll()
 
                         // 其他所有接口需要认证，具体权限由 @PreAuthorize 注解控制
                         .anyRequest().authenticated()

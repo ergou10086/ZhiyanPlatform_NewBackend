@@ -166,7 +166,7 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
                     .map(SystemPermission::getCode)
                     .collect(Collectors.toSet());
 
-            log.debug("用户[ID: {}]权限加载完成（基于SysRole枚举），共{}个权限", userId, permissionCodes.size());
+            log.info("用户[ID: {}]权限加载完成（基于SysRole枚举），共{}个权限", userId, permissionCodes.size());
             return permissionCodes;
 
         } catch (Exception e) {
@@ -200,7 +200,7 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
                     .distinct()
                     .collect(Collectors.toList());
 
-            log.debug("用户[ID: {}]角色加载完成: {}", userId, roles);
+            log.info("用户[ID: {}]角色加载完成: {}", userId, roles);
             return roles;
 
         } catch (Exception e) {

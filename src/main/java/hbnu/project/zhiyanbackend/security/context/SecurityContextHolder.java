@@ -138,7 +138,7 @@ public class SecurityContextHolder {
                 set(SecurityConstants.LOGIN_USER_PERMISSIONS, String.join(",", loginUserBody.getPermissions()));
             }
 
-            log.debug("设置用户上下文 - 用户ID: {}, 用户名: {}", loginUserBody.getUserId(), loginUserBody.getName());
+            log.info("设置用户上下文 - 用户ID: {}, 用户名: {}", loginUserBody.getUserId(), loginUserBody.getName());
         }
     }
 

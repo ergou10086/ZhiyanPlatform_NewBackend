@@ -181,7 +181,7 @@ sse:
 # Dify流式配置
 dify:
   apiUrl: https://dify.aipfuture.com/v1
-  apiKey: app-Z0Uo6XAytf94sGkSO7oYMQV5
+  api-key: app-Z0Uo6XAytf94sGkSO7oYMQV5
   timeout: 60000
   maxTokens: 4096
   temperature: 0.7

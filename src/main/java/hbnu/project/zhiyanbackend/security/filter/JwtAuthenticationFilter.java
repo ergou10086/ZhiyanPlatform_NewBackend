@@ -153,7 +153,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 setAuthenticationContext(loginUser, request);
                                 
                                 authenticated = true;
-                                log.debug("JWT认证成功 - 用户ID: {}, 邮箱: {}, 角色数: {}", 
+                                log.info("JWT认证成功 - 用户ID: {}, 邮箱: {}, 角色数: {}",
                                         userId, email, loginUser.getRoles() != null ? loginUser.getRoles().size() : 0);
                             } else {
                                 log.warn("加载的用户详情不是LoginUserBody类型 - userId: {}", userId);
