@@ -9,6 +9,13 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
+/**
+ * ConversationDTO类，用于表示对话的数据传输对象
+ * 使用了Lombok注解简化了getter/setter、构造函数等的编写
+ * 同时包含了JSON序列化相关的配置
+ *
+ * @author Tokito
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,6 +23,10 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ConversationDTO {
 
+    /**
+     * 对话的唯一标识符
+     * 对应JSON字段中的"id"
+     */
     @JsonProperty("id")
     private String id;
 

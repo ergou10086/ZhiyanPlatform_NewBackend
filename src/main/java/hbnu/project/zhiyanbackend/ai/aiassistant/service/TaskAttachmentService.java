@@ -18,6 +18,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 任务附件服务类
+ * 提供附件下载和上传功能
+ *
+ * @author Tokito
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,33 +31,57 @@ public class TaskAttachmentService {
 
     private final DifyFileService difyFileService;
 
+    /**
+     * 下载并上传附件
+     * @param attachmentUrls 附件URL列表
+     * @param userId 用户ID
+     * @return 上传成功后的文件ID列表
+     */
     public List<String> downloadAndUploadAttachments(List<String> attachmentUrls, Long userId) {
+        // 如果附件列表为空，直接返回空列表
         if (attachmentUrls == null || attachmentUrls.isEmpty()) {
             return Collections.emptyList();
         }
 
+        // 存储上传成功的文件ID
         List<String> difyFileIds = new ArrayList<>();
+        // 遍历所有附件URL进行处理
         for (String url : attachmentUrls) {
             try {
+                // 将URL下载为MultipartFile对象
                 MultipartFile multipartFile = downloadAsMultipart(url);
+                // 上传文件到Dify服务
                 DifyFileUploadResponse response = difyFileService.uploadFile(multipartFile, userId);
+                // 如果上传成功，记录文件ID
                 if (response != null && response.getFileId() != null) {
                     difyFileIds.add(response.getFileId());
                 }
             } catch (Exception e) {
+                // 记录处理附件失败日志
                 log.error("处理附件失败, url={}", url, e);
             }
         }
         return difyFileIds;
     }
 
+    /**
+     * 从URL下载文件并转换为MultipartFile对象
+     * @param fileUrl 文件URL
+     * @return MultipartFile对象
+     * @throws IOException IO异常
+     * @throws URISyntaxException URI语法异常
+     */
     private MultipartFile downloadAsMultipart(String fileUrl) throws IOException, URISyntaxException {
+        // 解析URL
         URI uri = new URI(fileUrl);
         URL url = uri.toURL();
+        // 从URL读取文件内容
         try (InputStream inputStream = url.openStream()) {
             byte[] bytes = inputStream.readAllBytes();
+            // 从URL中提取文件名
             String fileName = extractFileNameFromUrl(fileUrl);
 
+            // 创建并返回MultipartFile对象
             return new MultipartFile() {
                 @Override
                 public String getName() {
@@ -65,6 +95,7 @@ public class TaskAttachmentService {
 
                 @Override
                 public String getContentType() {
+                    // 从文件扩展名确定内容类型
                     String extension = fileName.contains(".")
                             ? fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase()
                             : "";
@@ -107,6 +138,11 @@ public class TaskAttachmentService {
         }
     }
 
+    /**
+     * 从URL中提取文件名
+     * @param url 文件URL
+     * @return 文件名
+     */
     private String extractFileNameFromUrl(String url) {
         int idx = url.lastIndexOf('/');
         if (idx >= 0 && idx < url.length() - 1) {

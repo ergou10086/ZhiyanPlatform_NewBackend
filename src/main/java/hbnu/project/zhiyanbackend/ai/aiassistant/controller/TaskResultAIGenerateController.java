@@ -34,6 +34,11 @@ import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.*;
 
+/**
+ * 任务成果AI生成控制器
+ * 提供AI生成任务成果草稿的相关接口，包括生成、查询、取消、保存等功能
+ * @author Tokito
+ */
 @Slf4j
 @RestController
 @RequestMapping("/zhiyan/ai/achievement/generate")
@@ -41,12 +46,20 @@ import java.util.*;
 @Tag(name = "任务成果AI生成", description = "AI生成任务成果草稿相关接口")
 public class TaskResultAIGenerateController {
 
-    private final TaskResultAIGenerateService aiGenerateService;
-    private final TaskSubmissionService taskSubmissionService;
-    private final AchievementDetailsService achievementDetailsService;
-    private final AchievementTaskService achievementTaskService;
-    private final AchievementFileService achievementFileService;
 
+
+    // 注入相关服务
+    private final TaskResultAIGenerateService aiGenerateService;  // AI生成服务
+    private final TaskSubmissionService taskSubmissionService;    // 任务提交服务
+    private final AchievementDetailsService achievementDetailsService;  // 成果详情服务
+    private final AchievementTaskService achievementTaskService;  // 成果任务服务
+    private final AchievementFileService achievementFileService;  // 成果文件服务
+
+    /**
+     * 生成任务成果草稿
+     * @param request 生成请求参数
+     * @return 返回包含任务ID的响应
+     */
     @PostMapping("/draft")
     @Operation(summary = "生成任务成果草稿", description = "根据任务信息生成任务成果草稿，异步任务")
     public R<TaskResultGenerateResponse> generateDraft(
@@ -56,8 +69,9 @@ public class TaskResultAIGenerateController {
             return R.fail("未登录，无法生成任务成果草稿");
         }
         request.setUserId(userId);
-        String jobId = aiGenerateService.generateTaskResultDraft(request);
+        String jobId = aiGenerateService.generateTaskResultDraft(request);  // 调用服务生成草稿
 
+        // 构建响应对象
         TaskResultGenerateResponse response = TaskResultGenerateResponse.builder()
                 .jobId(jobId)
                 .status("PENDING")
@@ -69,6 +83,11 @@ public class TaskResultAIGenerateController {
         return R.ok(response, "生成任务已提交，请稍后查询状态");
     }
 
+    /**
+     * 查询生成状态
+     * @param jobId 生成任务ID
+     * @return 返回生成状态和结果
+     */
     @GetMapping("/status/{jobId}")
     @Operation(summary = "查询生成状态", description = "查询AI生成任务的状态和结果")
     public R<TaskResultGenerateResponse> getStatus(
@@ -81,6 +100,11 @@ public class TaskResultAIGenerateController {
         return R.ok(response);
     }
 
+    /**
+     * 取消生成任务
+     * @param jobId 生成任务ID
+     * @return 操作结果
+     */
     @DeleteMapping("/cancel/{jobId}")
     @Operation(summary = "取消生成", description = "取消正在进行的AI生成任务")
     public R<Void> cancelGenerate(
@@ -93,6 +117,10 @@ public class TaskResultAIGenerateController {
         return R.ok(null, "已取消生成");
     }
 
+    /**
+     * 获取AI草稿列表
+     * @return 当前用户的所有AI生成草稿列表
+     */
     @GetMapping("/drafts")
     @Operation(summary = "获取AI草稿列表", description = "获取当前用户的所有AI生成草稿")
     public R<List<TaskResultGenerateResponse>> getAIDrafts() {
@@ -123,6 +151,11 @@ public class TaskResultAIGenerateController {
     public R<List<TaskResultContextDTO>> getTasksResultContext(
             @Parameter(description = "任务ID列表") @RequestParam("taskIds") List<Long> taskIds) {
         return R.ok(taskIds.stream()
+    /**
+     * 获取多个任务成果上下文
+     * @param taskIds 任务ID列表
+     * @return 多个任务对应的上下文列表
+     */
                 .map(id -> getTaskResultContext(id).getData())
                 .toList());
     }
@@ -132,6 +165,11 @@ public class TaskResultAIGenerateController {
     public R<AchievementDTO> saveAIDraftAsAchievement(
             @Parameter(description = "生成任务ID") @PathVariable String jobId) {
         Long userId = SecurityUtils.getUserId();
+    /**
+     * 保存AI任务成果为知识库成果
+     * @param jobId 生成任务ID
+     * @return 创建的成果信息
+     */
         if (userId == null) {
             return R.fail("未登录，无法保存AI成果");
         }
@@ -147,11 +185,13 @@ public class TaskResultAIGenerateController {
         }
 
         Long projectId = generateResponse.getProjectId();
+        // 检查草稿内容
         if (projectId == null) {
             return R.fail("生成记录缺少项目ID，无法创建成果");
         }
 
         List<Long> taskIds = generateResponse.getTaskIds();
+        // 获取必要信息
 
         String markdown = String.valueOf(draftContent.get("markdown"));
 
@@ -159,6 +199,7 @@ public class TaskResultAIGenerateController {
         if (title == null || title.isBlank()) {
             title = "任务成果-" + LocalDateTime.now();
         }
+        // 处理内容
 
         String abstractText = markdown.length() > 200 ? markdown.substring(0, 200) : markdown;
 
@@ -168,6 +209,7 @@ public class TaskResultAIGenerateController {
         detailData.put("jobId", jobId);
         if (taskIds != null) {
             detailData.put("taskIds", taskIds);
+        // 构建成果详情数据
         }
 
         CreateAchievementDTO createDTO = CreateAchievementDTO.builder()
@@ -176,6 +218,7 @@ public class TaskResultAIGenerateController {
                 .type(AchievementType.TASK_RESULT)
                 .status(AchievementStatus.draft)
                 .isPublic(false)
+        // 创建成果
                 .abstractText(abstractText)
                 .linkedTaskIds(taskIds)
                 .detailData(detailData)
@@ -190,6 +233,7 @@ public class TaskResultAIGenerateController {
                 achievementTaskService.linkTasksToAchievement(achievementId, taskIds, userId);
 
                 // 同步将相关任务的最终版附件上传为该成果的文件
+        // 关联任务和文件
                 uploadTaskAttachmentsAsAchievementFiles(achievementId, taskIds, userId);
             } catch (NumberFormatException ignored) {
                 // 如果ID无法解析为Long，跳过关联，但不影响成果创建
@@ -205,6 +249,12 @@ public class TaskResultAIGenerateController {
         }
 
         Set<String> attachmentUrls = new LinkedHashSet<>();
+    /**
+     * 上传任务附件作为成果文件
+     * @param achievementId 成果ID
+     * @param taskIds 任务ID列表
+     * @param userId 用户ID
+     */
 
         for (Long taskId : taskIds) {
             try {
@@ -212,6 +262,7 @@ public class TaskResultAIGenerateController {
                 TaskSubmissionDTO finalApproved = findFinalApprovedSubmission(submissions);
                 TaskSubmissionDTO latest = findLatestSubmission(submissions);
                 TaskSubmissionDTO source = finalApproved != null ? finalApproved : latest;
+        // 收集所有附件URL
 
                 if (source != null && source.getAttachmentUrls() != null) {
                     attachmentUrls.addAll(source.getAttachmentUrls());
@@ -231,6 +282,7 @@ public class TaskResultAIGenerateController {
             }
             try {
                 MultipartFile file = downloadAsMultipart(url);
+        // 上传附件
                 UploadFileDTO uploadDTO = UploadFileDTO.builder()
                         .achievementId(achievementId)
                         .uploadBy(userId)
@@ -247,6 +299,11 @@ public class TaskResultAIGenerateController {
             return null;
         }
         return submissions.stream()
+    /**
+     * 查找最新的提交记录
+     * @param submissions 提交记录列表
+     * @return 最新的提交记录
+     */
                 .max(Comparator.comparing(TaskSubmissionDTO::getSubmissionTime, Comparator.nullsFirst(Comparator.naturalOrder())))
                 .orElse(null);
     }
@@ -256,6 +313,11 @@ public class TaskResultAIGenerateController {
             return null;
         }
         return submissions.stream()
+    /**
+     * 查找最终批准的提交记录
+     * @param submissions 提交记录列表
+     * @return 最终批准的提交记录
+     */
                 .filter(s -> s.getReviewStatus() == ReviewStatus.APPROVED)
                 .findFirst()
                 .orElse(null);
@@ -266,6 +328,12 @@ public class TaskResultAIGenerateController {
         try (InputStream inputStream = url.openStream()) {
             byte[] bytes = inputStream.readAllBytes();
             String fileName = extractFileNameFromUrl(fileUrl);
+    /**
+     * 将URL文件转换为MultipartFile
+     * @param fileUrl 文件URL
+     * @return MultipartFile对象
+     * @throws IOException IO异常
+     */
 
             return new MultipartFile() {
                 @Override
@@ -316,6 +384,11 @@ public class TaskResultAIGenerateController {
         if (idx >= 0 && idx < url.length() - 1) {
             return url.substring(idx + 1);
         }
+    /**
+     * 从URL中提取文件名
+     * @param url 文件URL
+     * @return 文件名
+     */
         return "file";
     }
 }
