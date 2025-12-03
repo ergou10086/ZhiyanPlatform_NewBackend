@@ -21,6 +21,7 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import hbnu.project.zhiyanbackend.security.utils.PermissionUtils;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.tasks.repository.TaskRepository;
 import hbnu.project.zhiyanbackend.wiki.service.WikiContentVersionService;
 import hbnu.project.zhiyanbackend.wiki.service.WikiOssService;
@@ -334,7 +335,8 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public R<Page<Project>> getPublicActiveProjects(Pageable pageable) {
         try {
-            Page<Project> projects = projectRepository.findPublicActiveProjects(pageable);
+            Long currentUserId = SecurityUtils.getUserId();
+            Page<Project> projects = projectRepository.findPublicActiveProjects(currentUserId, pageable);
             return R.ok(projects);
         } catch (Exception e) {
             log.error("获取公开活跃项目失败", e);
@@ -476,7 +478,8 @@ public class ProjectServiceImpl implements ProjectService {
      */
     public R<Page<ProjectDTO>> getPublicActiveProjectsDTO(Pageable pageable) {
         try {
-            Page<Project> projects = projectRepository.findPublicActiveProjects(pageable);
+            Long currentUserId = SecurityUtils.getUserId();
+            Page<Project> projects = projectRepository.findPublicActiveProjects(currentUserId, pageable);
             List<ProjectDTO> dtoList = convertToDTOList(projects.getContent());
             Page<ProjectDTO> dtoPage = new PageImpl<>(dtoList, pageable, projects.getTotalElements());
             return R.ok(dtoPage);

@@ -49,7 +49,7 @@ spring:
         order_inserts: true
         order_updates: true
     show-sql: true
-    open-in-view: false
+    open-in-view: true
 
   # 邮件配置 - 网易163邮箱
   mail:
