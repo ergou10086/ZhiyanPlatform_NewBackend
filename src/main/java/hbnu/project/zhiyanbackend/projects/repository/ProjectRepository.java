@@ -3,6 +3,7 @@ package hbnu.project.zhiyanbackend.projects.repository;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -65,8 +66,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                                          Pageable pageable);
 
     @Query("""
-        SELECT p FROM Project p
-        LEFT JOIN ProjectMember pm ON p.id = pm.projectId
+        SELECT DISTINCT p FROM Project p
+        LEFT JOIN ProjectMember pm ON p.id = pm.projectId AND pm.userId = :userId
         WHERE p.isDeleted = false
           AND p.status <> hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED
           AND (

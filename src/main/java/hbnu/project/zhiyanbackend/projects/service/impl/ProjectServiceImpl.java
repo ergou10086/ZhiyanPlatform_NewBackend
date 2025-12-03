@@ -226,7 +226,9 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             // 只有项目拥有者或者系统管理员可以删除
-            if (!projectMemberService.isOwner(projectId, userId) || !PermissionUtils.hasRole("DEVELOPER")) {
+            boolean isOwner = projectMemberService.isOwner(projectId, userId);
+            boolean isSystemAdmin = PermissionUtils.hasRole("DEVELOPER");
+            if (!(isOwner || isSystemAdmin)) {
                 return R.fail("只有项目拥有者或者系统管理员才能删除项目");
             }
 
@@ -480,7 +482,7 @@ public class ProjectServiceImpl implements ProjectService {
         try {
             Long currentUserId = SecurityUtils.getUserId();
             Page<Project> projects = projectRepository.findPublicActiveProjects(currentUserId, pageable);
-            List<ProjectDTO> dtoList = convertToDTOList(projects.getContent());
+            List<ProjectDTO> dtoList = convertToDTOList(projects.getContent(), currentUserId);
             Page<ProjectDTO> dtoPage = new PageImpl<>(dtoList, pageable, projects.getTotalElements());
             return R.ok(dtoPage);
         } catch (Exception e) {
@@ -492,9 +494,10 @@ public class ProjectServiceImpl implements ProjectService {
     /**
      * 将Project实体转换为ProjectDTO，并填充创建者名称
      * @param project 项目实体
+     * @param currentUserId 当前登录用户ID
      * @return ProjectDTO
      */
-    private ProjectDTO convertToDTO(Project project) {
+    private ProjectDTO convertToDTO(Project project, Long currentUserId) {
         if (project == null) {
             return null;
         }
@@ -530,6 +533,11 @@ public class ProjectServiceImpl implements ProjectService {
             log.warn("查询项目任务数量失败: projectId={}", project.getId(), e);
         }
         
+        String accessibleUserId = null;
+        if (project.getVisibility() == ProjectVisibility.PRIVATE && currentUserId != null) {
+            accessibleUserId = String.valueOf(currentUserId);
+        }
+
         return ProjectDTO.builder()
                 .id(String.valueOf(project.getId()))
                 .name(project.getName())
@@ -545,20 +553,22 @@ public class ProjectServiceImpl implements ProjectService {
                 .taskCount(taskCount)
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
+                .accessibleUserId(accessibleUserId)
                 .build();
     }
     
     /**
      * 批量转换Project列表为ProjectDTO列表
      * @param projects 项目列表
+     * @param currentUserId 当前登录用户ID
      * @return ProjectDTO列表
      */
-    private List<ProjectDTO> convertToDTOList(List<Project> projects) {
+    private List<ProjectDTO> convertToDTOList(List<Project> projects, Long currentUserId) {
         if (projects == null || projects.isEmpty()) {
             return List.of();
         }
         return projects.stream()
-                .map(this::convertToDTO)
+                .map(project -> convertToDTO(project, currentUserId))
                 .toList();
     }
 }
