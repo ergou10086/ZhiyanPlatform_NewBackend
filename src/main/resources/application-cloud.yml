@@ -70,6 +70,11 @@ spring:
             port: 465
     default-encoding: UTF-8
 
+  servlet:
+    multipart:
+      max-file-size: 512MB
+      max-request-size: 512MB
+
   # Jackson配置
   jackson:
     time-zone: Asia/Shanghai
