@@ -295,4 +295,17 @@ public class UserInformationController {
         log.info("用户[{}]更新研究方向标签: {}", userId, uniqueTags);
         return R.ok(uniqueTags, "更新成功");
     }
+
+    /**
+     * 获取指定用户的研究方向标签
+     * 路径: GET /zhiyan/auth/users/{userId}/research-tags
+     * 用于他人主页查看研究方向（公开信息）
+     */
+    @GetMapping("/users/{userId}/research-tags")
+    @Operation(summary = "查询用户研究方向标签", description = "根据用户ID查询其研究方向标签列表")
+    public R<List<String>> getUserResearchTags(
+            @Parameter(description = "用户ID", required = true)
+            @PathVariable Long userId) {
+        return userInformationService.getUserResearchTags(userId);
+    }
 }
