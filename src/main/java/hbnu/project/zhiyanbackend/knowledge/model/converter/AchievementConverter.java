@@ -14,6 +14,7 @@ import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
 import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
 
+import org.hibernate.Hibernate;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -110,6 +111,10 @@ public interface AchievementConverter {
     @Named("getFileCount")
     default Integer getFileCount(Achievement achievement) {
         if (achievement == null || achievement.getFiles() == null) {
+            return 0;
+        }
+        // 避免在懒加载集合未初始化时触发 LazyInitializationException
+        if (!Hibernate.isInitialized(achievement.getFiles())) {
             return 0;
         }
         return achievement.getFiles().size();
