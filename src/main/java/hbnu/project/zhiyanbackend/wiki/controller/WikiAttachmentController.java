@@ -41,7 +41,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/wiki/attachments")
+@RequestMapping("/zhiyan/wiki/attachments")
 @RequiredArgsConstructor
 @Tag(name = "Wiki附件管理", description = "Wiki附件上传、下载、删除等接口")
 public class WikiAttachmentController {
