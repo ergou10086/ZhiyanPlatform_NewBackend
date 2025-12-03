@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -115,5 +116,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u.name FROM User u WHERE u.id = :userId AND u.isDeleted = false")
     Optional<String> findNameById(@Param("userId") Long userId);
+
+
+    /**
+     * 修改用户个人简介
+     *
+     * @param userId 用户id
+     * @param description 个人简介
+     * @return 修改状态
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.description = :description WHERE u.id = :userId AND u.isDeleted = false")
+    int updateDescription(@Param("userId") Long userId, @Param("description") String description);
 }
 

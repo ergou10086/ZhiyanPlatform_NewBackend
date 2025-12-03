@@ -64,5 +64,8 @@ public class ProjectDTO {
 
     @Schema(description = "最后更新时间", example = "2025-10-31T15:30:00")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "标识当前登录用户是否可以访问该项目（仅私有项目时返回当前用户ID）", example = "1977989681735929856")
+    private String accessibleUserId;
 }
 

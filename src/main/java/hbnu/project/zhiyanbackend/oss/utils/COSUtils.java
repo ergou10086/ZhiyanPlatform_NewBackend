@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.oss.utils;
 
+import hbnu.project.zhiyanbackend.basic.utils.FileNameTransliterator;
 import hbnu.project.zhiyanbackend.oss.config.COSProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -145,10 +146,8 @@ public class COSUtils {
      * 清理文件名中的非法字符。
      */
     private String sanitizeFileName(String fileName) {
-        if (StringUtils.isBlank(fileName)) {
-            return "unnamed";
-        }
+        String asciiName = FileNameTransliterator.toAsciiFileName(fileName);
         // 替换Windows文件系统中的九大非法字符：\ / : * ? " < > |
-        return fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+        return asciiName.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
 }

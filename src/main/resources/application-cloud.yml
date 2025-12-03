@@ -49,7 +49,7 @@ spring:
         order_inserts: true
         order_updates: true
     show-sql: true
-    open-in-view: false
+    open-in-view: true
 
   # 邮件配置 - 网易163邮箱
   mail:
@@ -69,6 +69,11 @@ spring:
             class: javax.net.ssl.SSLSocketFactory
             port: 465
     default-encoding: UTF-8
+
+  servlet:
+    multipart:
+      max-file-size: 512MB
+      max-request-size: 512MB
 
   # Jackson配置
   jackson:

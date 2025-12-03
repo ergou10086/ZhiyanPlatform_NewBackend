@@ -3,6 +3,7 @@ package hbnu.project.zhiyanbackend.projects.repository;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -70,8 +71,19 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                                          @Param("endTime") LocalDateTime endTime,
                                          Pageable pageable);
 
-    @Query("SELECT p FROM Project p WHERE p.visibility = 'PUBLIC' AND p.status != 'ARCHIVED' AND p.isDeleted = false")
-    Page<Project> findPublicActiveProjects(Pageable pageable);
+    @Query("""
+        SELECT DISTINCT p FROM Project p
+        LEFT JOIN ProjectMember pm ON p.id = pm.projectId AND pm.userId = :userId
+        WHERE p.isDeleted = false
+          AND p.status <> hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED
+          AND (
+                p.visibility = hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility.PUBLIC
+             OR (:userId IS NOT NULL
+                 AND p.visibility = hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility.PRIVATE
+                 AND (p.creatorId = :userId OR pm.userId = :userId))
+          )
+        """)
+    Page<Project> findPublicActiveProjects(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT p FROM Project p WHERE p.isDeleted = false")
     Page<Project> findAllActive(Pageable pageable);

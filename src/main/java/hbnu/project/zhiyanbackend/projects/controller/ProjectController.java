@@ -10,6 +10,7 @@ import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectStatusRequest;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
+import hbnu.project.zhiyanbackend.projects.service.impl.ProjectServiceImpl;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,7 +35,6 @@ import java.util.Map;
  *
  * @author Tokito
  */
-
 @RestController
 @RequestMapping("/zhiyan/projects")
 @Tag(name = "项目管理", description = "项目增删改查接口（精简版）")
@@ -153,8 +153,7 @@ public class ProjectController {
                                                     @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
         // 使用ProjectServiceImpl的getPublicActiveProjectsDTO方法，返回包含创建者名称的DTO
-        return ((hbnu.project.zhiyanbackend.projects.service.impl.ProjectServiceImpl) projectService)
-                .getPublicActiveProjectsDTO(pageable);
+        return ((ProjectServiceImpl) projectService).getPublicActiveProjectsDTO(pageable);
     }
 
     @PatchMapping("/{projectId}/status")
