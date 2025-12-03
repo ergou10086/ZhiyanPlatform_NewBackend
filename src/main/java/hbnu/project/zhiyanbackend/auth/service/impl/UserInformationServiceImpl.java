@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.model.dto.AvatarDTO;
 import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
@@ -7,6 +8,7 @@ import hbnu.project.zhiyanbackend.auth.model.entity.UserAchievement;
 import hbnu.project.zhiyanbackend.auth.repository.UserAchievementRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -382,6 +384,27 @@ public class UserInformationServiceImpl implements UserInformationService {
             return R.ok(dtoList);
         } catch (Exception e) {
             log.error("查询用户关联成果失败 - userId: {}", userId, e);
+            return R.fail("查询失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public R<List<String>> getUserResearchTags(Long userId) {
+        try {
+            log.info("查询用户[{}]的研究方向标签", userId);
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ControllerException("用户不存在"));
+
+            List<String> tags = user.getResearchTagList();
+            if (tags == null) {
+                tags = new ArrayList<>();
+            }
+
+            return R.ok(tags);
+        } catch (Exception e) {
+            log.error("查询用户研究方向标签失败 - userId: {}", userId, e);
             return R.fail("查询失败: " + e.getMessage());
         }
     }
