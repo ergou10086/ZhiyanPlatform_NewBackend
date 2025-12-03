@@ -59,6 +59,12 @@ public class User extends BaseAuditEntity {
     private String name;
 
     /**
+     * 个人简介
+     */
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    /**
      * 头像二进制数据（PostgreSQL BYTEA类型）
      * 直接存储在数据库中，不使用对象存储
      */
