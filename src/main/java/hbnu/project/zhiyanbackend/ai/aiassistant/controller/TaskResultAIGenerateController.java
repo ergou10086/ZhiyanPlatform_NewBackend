@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -163,7 +164,8 @@ public class TaskResultAIGenerateController {
     @PostMapping("/{jobId}/save")
     @Operation(summary = "保存AI任务成果为知识库成果", description = "将已完成的AI任务成果草稿保存为知识库中的任务成果(TASK_RESULT)，并建立与任务的关联")
     public R<AchievementDTO> saveAIDraftAsAchievement(
-            @Parameter(description = "生成任务ID") @PathVariable String jobId) {
+            @Parameter(description = "生成任务ID") @PathVariable String jobId,
+            @RequestBody(required = false) Map<String, Object> body) {
         Long userId = SecurityUtils.getUserId();
     /**
      * 保存AI任务成果为知识库成果
@@ -193,9 +195,19 @@ public class TaskResultAIGenerateController {
         List<Long> taskIds = generateResponse.getTaskIds();
         // 获取必要信息
 
-        String markdown = String.valueOf(draftContent.get("markdown"));
+        String markdown;
+        if (body != null && body.get("markdown") != null) {
+            markdown = String.valueOf(body.get("markdown"));
+        } else {
+            markdown = String.valueOf(draftContent.get("markdown"));
+        }
 
-        String title = generateResponse.getAchievementTitle();
+        String title;
+        if (body != null && body.get("title") != null) {
+            title = String.valueOf(body.get("title"));
+        } else {
+            title = generateResponse.getAchievementTitle();
+        }
         if (title == null || title.isBlank()) {
             title = "任务成果-" + LocalDateTime.now();
         }
@@ -240,7 +252,67 @@ public class TaskResultAIGenerateController {
             }
         }
 
+        try {
+            Long achievementId = Long.parseLong(achievementDTO.getId());
+            MultipartFile markdownFile = buildMarkdownFile(title, markdown);
+            UploadFileDTO uploadDTO = UploadFileDTO.builder()
+                    .achievementId(achievementId)
+                    .uploadBy(userId)
+                    .build();
+            achievementFileService.uploadFile(markdownFile, uploadDTO);
+        } catch (Exception e) {
+            log.error("保存任务成果Markdown文件失败", e);
+        }
+
         return R.ok(achievementDTO, "AI任务成果已保存为知识库成果");
+    }
+
+    private MultipartFile buildMarkdownFile(String title, String content) {
+        byte[] bytes = content != null ? content.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        String safeTitle = (title == null || title.isBlank()) ? "task-result" : title.trim();
+        String fileName = safeTitle + ".md";
+
+        return new MultipartFile() {
+            @Override
+            public String getName() {
+                return "file";
+            }
+
+            @Override
+            public String getOriginalFilename() {
+                return fileName;
+            }
+
+            @Override
+            public String getContentType() {
+                return "text/markdown";
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return bytes.length == 0;
+            }
+
+            @Override
+            public long getSize() {
+                return bytes.length;
+            }
+
+            @Override
+            public byte[] getBytes() {
+                return bytes;
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return new ByteArrayInputStream(bytes);
+            }
+
+            @Override
+            public void transferTo(File dest) throws IOException {
+                Files.write(dest.toPath(), bytes);
+            }
+        };
     }
 
     private void uploadTaskAttachmentsAsAchievementFiles(Long achievementId, List<Long> taskIds, Long userId) {
