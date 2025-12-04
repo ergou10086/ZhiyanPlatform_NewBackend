@@ -1,5 +1,9 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogContext;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
@@ -43,37 +47,47 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final ProjectImageService projectImageService;
+    private final OperationLogHelper operationLogHelper;
 
     @PostMapping
     @Operation(summary = "创建项目")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "CREATE", description = "创建项目")
     public R<Project> createProject(@RequestBody CreateProjectRequest request) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             return R.fail("未登录或Token无效，无法创建项目");
         }
 
-        ProjectVisibility visibility = request.getVisibility();
-        LocalDate startDate = request.getStartDate();
-        LocalDate endDate = request.getEndDate();
-        // 当前版本不处理图片，imageUrl 传 null
-        return projectService.createProject(request.getName(),
+        R<Project> result = projectService.createProject(
+                request.getName(),
                 request.getDescription(),
-                visibility,
-                startDate,
-                endDate,
+                request.getVisibility(),
+                request.getStartDate(),
+                request.getEndDate(),
                 null,
-                userId);
+                userId
+        );
+
+        // 如果创建成功，使用 OperationLogHelper 记录日志
+        if (R.isSuccess(result) && result.getData() != null) {
+            Project project = result.getData();
+            operationLogHelper.logProjectCreate(project.getId(), project.getName());
+        }
+
+        return result;
     }
 
     @PutMapping("/{projectId}")
     @Operation(summary = "更新项目信息")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "UPDATE", description = "更新项目")
     public R<Project> updateProject(@PathVariable("projectId") Long projectId,
                                     @RequestBody UpdateProjectRequest request) {
         ProjectVisibility visibility = request.getVisibility();
         ProjectStatus status = request.getStatus();
         LocalDate startDate = request.getStartDate();
         LocalDate endDate = request.getEndDate();
-        return projectService.updateProject(projectId,
+
+        R<Project> result = projectService.updateProject(projectId,
                 request.getName(),
                 request.getDescription(),
                 visibility,
@@ -81,16 +95,41 @@ public class ProjectController {
                 startDate,
                 endDate,
                 null);
+
+        // 如果更新成功，使用 OperationLogHelper 记录日志
+        if (R.isSuccess(result) && result.getData() != null) {
+            Project project = result.getData();
+            operationLogHelper.logProjectUpdate(project.getId(), project.getName());
+        }
+
+        return result;
     }
 
     @DeleteMapping("/{projectId}")
     @Operation(summary = "删除项目（软删除）")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "DELETE", description = "删除项目")
     public R<Void> deleteProject(@PathVariable("projectId") Long projectId) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             return R.fail("未登录或Token无效，无法删除项目");
         }
-        return projectService.deleteProject(projectId, userId);
+
+        // 先获取项目信息（用于日志）
+        R<Project> projectR = projectService.getProjectById(projectId);
+        String projectName = null;
+        if (R.isSuccess(projectR) && projectR.getData() != null) {
+            projectName = projectR.getData().getName();
+        }
+
+        // 执行删除
+        R<Void> result = projectService.deleteProject(projectId, userId);
+
+        // 删除成功后使用 OperationLogHelper 记录日志
+        if (R.isSuccess(result)) {
+            operationLogHelper.logProjectDelete(projectId, projectName);
+        }
+
+        return result;
     }
 
     @GetMapping("/{projectId}")
@@ -158,9 +197,22 @@ public class ProjectController {
 
     @PatchMapping("/{projectId}/status")
     @Operation(summary = "更新项目状态")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "STATUS_CHANGE", description = "更新项目状态")
     public R<Project> updateProjectStatus(@PathVariable("projectId") Long projectId,
                                           @RequestBody UpdateProjectStatusRequest request) {
-        return projectService.updateProjectStatus(projectId, request.getStatus());
+        R<Project> result = projectService.updateProjectStatus(projectId, request.getStatus());
+
+        // 如果更新成功，使用 OperationLogHelper 记录日志
+        if (R.isSuccess(result) && result.getData() != null) {
+            Project project = result.getData();
+            operationLogHelper.logProjectStatusChange(
+                    project.getId(),
+                    project.getName(),
+                    project.getStatus()
+            );
+        }
+
+        return result;
     }
 
     @PostMapping(path = "/{projectId}/image", consumes = "multipart/form-data")

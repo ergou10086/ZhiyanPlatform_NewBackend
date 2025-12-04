@@ -1,9 +1,13 @@
 package hbnu.project.zhiyanbackend.knowledge.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementDetailDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementTemplateDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.UpdateDetailDataDTO;
+import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementRepository;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementDetailsService;
@@ -42,6 +46,8 @@ public class AchievementDetailController {
 
     private final ProjectSecurityUtils  projectSecurityUtils;
 
+    private final OperationLogHelper operationLogHelper;
+
 
     /**
      * 更新成果详情数据
@@ -49,6 +55,7 @@ public class AchievementDetailController {
      */
     @PutMapping("/details")
     @Operation(summary = "更新成果详情", description = "更新成果的详细信息JSON和摘要")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "UPDATE_DETAIL", description = "更新成果详情")
     public R<Void> updateAchievementDetails(
             @Valid @RequestBody UpdateDetailDataDTO updateDTO){
         Long userId = SecurityUtils.getUserId();
@@ -57,7 +64,20 @@ public class AchievementDetailController {
         // 权限检查：必须有编辑权限（是项目成员且是成果创建者或项目管理员）
         projectSecurityUtils.checkAchievementEditPermission(updateDTO.getAchievementId(), userId);
 
+        // 获取成果信息（用于日志）
+        Achievement achievement = achievementRepository.findById(updateDTO.getAchievementId()).orElse(null);
+
+        // 执行更新操作
         achievementDetailsService.updateDetailData(updateDTO);
+
+        // 操作成功后记录日志
+        if (achievement != null) {
+            operationLogHelper.logAchievementDetailUpdate(
+                    achievement.getProjectId(),
+                    updateDTO.getAchievementId(),
+                    achievement.getTitle()
+            );
+        }
 
         log.info("成果详情更新成功: achievementId={}", updateDTO.getAchievementId());
         return R.ok(null, "成果详情更新成功");
@@ -69,6 +89,7 @@ public class AchievementDetailController {
      */
     @PatchMapping("/{achievementId}/fields")
     @Operation(summary = "批量更新详情字段", description = "部分更新成果的详情字段")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "UPDATE_DETAIL", description = "批量更新详情字段")
     public R<AchievementDetailDTO> updateDetailFields(
             @Parameter(description = "成果ID") @PathVariable Long achievementId,
             @RequestBody Map<String, Object> fieldUpdates) {
@@ -80,9 +101,22 @@ public class AchievementDetailController {
         // 权限检查：必须有编辑权限（项目成员且是创建者或管理员）
         projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
+        // 获取成果信息（用于日志）
+        Achievement achievement = achievementRepository.findById(achievementId).orElse(null);
+
+        // 执行更新操作
         AchievementDetailDTO result = achievementDetailsService.updateDetailFields(
                 achievementId, fieldUpdates, userId
         );
+
+        // 操作成功后记录日志
+        if (achievement != null) {
+            operationLogHelper.logAchievementDetailUpdate(
+                    achievement.getProjectId(),
+                    achievementId,
+                    achievement.getTitle()
+            );
+        }
 
         return R.ok(result, "字段更新成功");
     }

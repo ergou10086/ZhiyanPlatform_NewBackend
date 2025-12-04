@@ -23,20 +23,17 @@ public interface ProjectOperationLogRepository extends JpaRepository<ProjectOper
 
     /**
      * 根据项目ID查询
-     * 使用索引：idx_project_time
      */
     Page<ProjectOperationLog> findByProjectIdOrderByOperationTimeDesc(Long projectId, Pageable pageable);
 
     /**
      * 根据项目ID和时间范围查询
-     * 使用索引：idx_project_time
      */
     Page<ProjectOperationLog> findByProjectIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * 根据项目ID和用户ID查询
-     * 使用索引：idx_project_user_time
      */
     Page<ProjectOperationLog> findByProjectIdAndUserIdOrderByOperationTimeDesc(
             Long projectId, Long userId, Pageable pageable);
@@ -49,7 +46,6 @@ public interface ProjectOperationLogRepository extends JpaRepository<ProjectOper
 
     /**
      * 组合查询：项目+用户+时间范围
-     * 使用索引：idx_project_user_time
      */
     Page<ProjectOperationLog> findByProjectIdAndUserIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);

@@ -17,12 +17,12 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "project_operation_log", schema = "zhiyanactivelog"
         , indexes = {
-            @Index(name = "idx_project_id", columnList = "project_id"),
-            @Index(name = "idx_user_id", columnList = "user_id"),
-            @Index(name = "idx_operation_type", columnList = "operation_type"),
-            @Index(name = "idx_operation_time", columnList = "operation_time"),
-            @Index(name = "idx_project_user_time", columnList = "project_id, user_id, operation_time"),
-            @Index(name = "idx_project_time", columnList = "project_id, operation_time")
+            @Index(name = "idx_project_operation_log_project_id", columnList = "project_id"),
+            @Index(name = "idx_project_operation_log_user_id", columnList = "user_id"),
+            @Index(name = "idx_project_operation_log_operation_type", columnList = "operation_type"),
+            @Index(name = "idx_project_operation_log_operation_time", columnList = "operation_time"),
+            @Index(name = "idx_project_operation_log_project_user_time", columnList = "project_id, user_id, operation_time"),
+            @Index(name = "idx_project_operation_log_project_time", columnList = "project_id, operation_time")
         }
 )
 @Getter

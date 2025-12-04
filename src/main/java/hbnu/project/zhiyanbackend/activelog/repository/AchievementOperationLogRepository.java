@@ -33,14 +33,12 @@ public interface AchievementOperationLogRepository extends JpaRepository<Achieve
 
     /**
      * 根据项目ID和成果ID查询
-     * 使用索引：idx_project_achievement_time
      */
     Page<AchievementOperationLog> findByProjectIdAndAchievementIdOrderByOperationTimeDesc(
             Long projectId, Long achievementId, Pageable pageable);
 
     /**
      * 根据项目ID和用户ID查询
-     * 使用索引：idx_project_user_time
      */
     Page<AchievementOperationLog> findByProjectIdAndUserIdOrderByOperationTimeDesc(
             Long projectId, Long userId, Pageable pageable);
@@ -53,14 +51,12 @@ public interface AchievementOperationLogRepository extends JpaRepository<Achieve
 
     /**
      * 组合查询：项目+成果+时间范围
-     * 使用索引：idx_project_achievement_time
      */
     Page<AchievementOperationLog> findByProjectIdAndAchievementIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long achievementId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * 组合查询：项目+用户+时间范围
-     * 使用索引：idx_project_user_time
      */
     Page<AchievementOperationLog> findByProjectIdAndUserIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);

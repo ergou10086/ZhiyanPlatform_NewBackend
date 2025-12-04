@@ -1,9 +1,13 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,10 +20,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 项目成员控制器
- * 项目成员采用直接邀请方式，无需申请审批流程
  *
  * @author Tokito
  */
@@ -31,11 +35,16 @@ public class ProjectMemberController {
 
     private final ProjectMemberService projectMemberService;
 
+    private final ProjectMemberRepository projectMemberRepository;
+
+    private final OperationLogHelper operationLogHelper;
+
     /**
      * 邀请/添加成员到项目（简化版：直接传 userId 和 role）
      */
     @PostMapping("/{projectId}/members")
     @Operation(summary = "添加项目成员", description = "直接为项目添加成员，不做权限和外部用户校验")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "MEMBER_ADD", description = "添加成员")
     public R<Void> addMember(
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @RequestParam("userId") @Parameter(description = "用户ID") Long userId,
@@ -48,7 +57,16 @@ public class ProjectMemberController {
         if (!projectMemberService.isAdmin(projectId, operatorId) && !operatorId.equals(userId)) {
             return R.fail("只有项目管理员可以添加其他成员");
         }
-        return projectMemberService.addMember(projectId, userId, role);
+
+        // 执行添加成员操作
+        R<Void> result = projectMemberService.addMember(projectId, userId, role);
+
+        // 操作成功后记录日志
+        if (R.isSuccess(result)) {
+            operationLogHelper.logMemberAdd(projectId, userId, role);
+        }
+
+        return result;
     }
 
     /**
@@ -64,7 +82,15 @@ public class ProjectMemberController {
         if (operatorId == null) {
             return R.fail("未登录或Token无效，无法移除成员");
         }
-        return projectMemberService.removeMember(projectId, userId, operatorId);
+        // 执行移除成员操作
+        R<Void> result = projectMemberService.removeMember(projectId, userId, operatorId);
+
+        // 操作成功后记录日志
+        if (R.isSuccess(result)) {
+            operationLogHelper.logMemberRemove(projectId, userId);
+        }
+
+        return result;
     }
 
     /**
@@ -81,7 +107,23 @@ public class ProjectMemberController {
         if (operatorId == null) {
             return R.fail("未登录或Token无效，无法更新成员角色");
         }
-        return projectMemberService.updateMemberRole(projectId, userId, newRole, operatorId);
+
+        // 获取旧角色（用于日志记录）
+        ProjectMemberRole oldRole = null;
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, userId);
+        if (memberOpt.isPresent()) {
+            oldRole = memberOpt.get().getProjectRole();
+        }
+
+        // 执行角色更新操作
+        R<Void> result = projectMemberService.updateMemberRole(projectId, userId, newRole, operatorId);
+
+        // 操作成功后记录日志
+        if (R.isSuccess(result)) {
+            operationLogHelper.logRoleChange(projectId, userId, oldRole, newRole);
+        }
+
+        return result;
     }
 
     /**

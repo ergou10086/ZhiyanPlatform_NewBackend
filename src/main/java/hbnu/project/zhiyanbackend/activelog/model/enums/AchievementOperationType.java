@@ -18,9 +18,14 @@ public enum AchievementOperationType {
     CREATE("CREATE", "创建成果"),
 
     /**
-     * 更新成果
+     * 更新成果状态
      */
-    UPDATE("UPDATE", "更新成果"),
+    UPDATE_STATUS("UPDATE_STATUS", "更新成果状态"),
+
+    /**
+     * 更新成果详情
+     */
+    UPDATE_DETAIL("UPDATE_DETAIL", "更新成果详情"),
 
     /**
      * 删除成果

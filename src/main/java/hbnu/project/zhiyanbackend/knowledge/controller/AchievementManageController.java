@@ -1,5 +1,8 @@
 package hbnu.project.zhiyanbackend.knowledge.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
@@ -51,12 +54,15 @@ public class AchievementManageController {
 
     private final ProjectSecurityUtils projectSecurityUtils;
 
+    private final OperationLogHelper operationLogHelper;
+
     /**
      * 创建成果
      * 创建一个新的成果，包含基本信息和详情数据
      */
     @PostMapping("/create")
     @Operation(summary = "创建成果", description = "为指定项目创建新的成果记录")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "CREATE", description = "创建成果")
     public R<AchievementDTO> createAchievement(
             @Valid @RequestBody CreateAchievementDTO createDTO){
         log.info("创建成果请求: projectId={}, title={}, type={}",
@@ -94,6 +100,15 @@ public class AchievementManageController {
             achievementTaskService.linkTasksToAchievement(achievementId, createDTO.getLinkedTaskIds(), userId);
         }
 
+        // 创建成果成功后记录创建成果操作日志
+        if (result != null && achievementId != null) {
+            operationLogHelper.logAchievementCreate(
+                    createDTO.getProjectId(),
+                    achievementId,
+                    createDTO.getTitle()
+            );
+        }
+
         log.info("成果创建成功: achievementId={}", result != null ? result.getId() : null);
         return R.ok(result, "成果创建成功");
     }
@@ -104,6 +119,7 @@ public class AchievementManageController {
      */
     @PatchMapping("/{achievementId}/status")
     @Operation(summary = "更新成果状态", description = "修改成果的发布状态")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "UPDATE_STATUS", description = "更新成果状态")
     public R<Void> updateAchievementStatus(
             @Parameter(description = "成果ID") @PathVariable Long achievementId,
             @Parameter(description = "新状态") @RequestParam AchievementStatus status){
@@ -112,9 +128,22 @@ public class AchievementManageController {
         log.info("更新成果状态: achievementId={}, status={}, userId={}",
                 achievementId, status, userId);
 
+        // 权限检查
         projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
 
+        // 获取成果信息（用于日志）
+        Achievement achievement = achievementRepository.findById(achievementId).orElseThrow(() -> new ControllerException("成果不存在"));
+
+        // 执行状态更新
         achievementService.updateAchievementStatus(achievementId, status, userId);
+
+        // 操作成功后记录日志
+        operationLogHelper.logAchievementStatusUpdate(
+                achievement.getProjectId(),
+                achievementId,
+                achievement.getTitle(),
+                status.getChineseName()
+        );
 
         log.info("成果状态更新成功: achievementId={}, newStatus={}", achievementId, status);
         return R.ok(null, "状态更新成功");
@@ -144,6 +173,7 @@ public class AchievementManageController {
      */
     @DeleteMapping("/{achievementId}")
     @Operation(summary = "删除成果", description = "删除指定成果及其关联数据")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "DELETE", description = "删除成果")
     public R<Void> deleteAchievement(
             @Parameter(description = "成果ID") @PathVariable Long achievementId){
         // 从安全上下文获取当前登录用户ID
@@ -152,6 +182,11 @@ public class AchievementManageController {
 
         // 删除成果需要为成果创建者和管理员,和编辑是一样的
         projectSecurityUtils.checkAchievementEditPermission(achievementId, userId);
+
+        // 获取成果信息（用于日志）
+        Achievement achievement = achievementRepository.findById(achievementId).orElseThrow(() -> new ControllerException("成果不存在"));
+        Long projectId = achievement.getProjectId();
+        String achievementTitle = achievement.getTitle();
 
         // 删除成果的文件
         List<AchievementFileDTO> files = achievementFileService.getFilesByAchievementId(achievementId);
@@ -173,6 +208,9 @@ public class AchievementManageController {
         log.info("开始删除成果主表记录: achievementId={}", achievementId);
         achievementRepository.deleteById(achievementId);
         log.info("成果主表记录删除完成: achievementId={}", achievementId);
+
+        // 操作成功后记录日志
+        operationLogHelper.logAchievementDelete(projectId, achievementId, achievementTitle);
 
         log.info("成果删除全部完成: achievementId={}", achievementId);
         return R.ok(null, "成果删除成功");
