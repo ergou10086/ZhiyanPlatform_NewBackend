@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -189,6 +190,9 @@ public class ProjectController {
         HttpHeaders headers = new HttpHeaders();
         // 目前未在数据库中保存具体类型，这里暂时使用通用二进制类型
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        // 允许浏览器对项目封面图片做长期缓存，依靠URL中的时间戳参数进行缓存失效控制
+        headers.setCacheControl(CacheControl.maxAge(30, java.util.concurrent.TimeUnit.DAYS).cachePublic());
+        headers.setPragma(null);
         return new ResponseEntity<>(result.getData(), headers, HttpStatus.OK);
     }
 
