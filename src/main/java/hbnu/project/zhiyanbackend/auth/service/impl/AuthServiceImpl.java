@@ -833,9 +833,10 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 修改用户邮箱（改绑邮箱）
-     * 验证新邮箱的验证码和当前密码后，更新用户邮箱地址
+     * 仅验证新邮箱的验证码（发送到新邮箱），不再强制校验当前密码，
+     * 方便用户在原邮箱失效或忘记密码但仍持有登录态时完成改绑。
      *
-     * @param changeEmailDTO 修改邮箱表单数据（包含当前密码、新邮箱、验证码）
+     * @param changeEmailDTO 修改邮箱表单数据（包含新邮箱、验证码）
      * @return 成功返回更新后的用户信息；失败返回错误信息（如验证码无效、邮箱已被使用等）
      */
     @Override
@@ -852,19 +853,13 @@ public class AuthServiceImpl implements AuthService {
             }
             User user = userOpt.get();
 
-            // 2. 验证当前密码
-            if (changeEmailDTO.getCurrentPassword() != null &&
-                !passwordEncoder.matches(changeEmailDTO.getCurrentPassword(), user.getPasswordHash())) {
-                return R.fail("当前密码错误");
-            }
-
-            // 3. 检查新邮箱是否已被使用
+            // 2. 检查新邮箱是否已被使用
             Optional<User> existingUser = userRepository.findByEmail(changeEmailDTO.getNewEmail());
             if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
                 return R.fail("该邮箱已被使用");
             }
 
-            // 4. 校验新邮箱的验证码
+            // 3. 校验新邮箱的验证码
             R<Boolean> validResult = verificationCodeService.validateCode(
                     changeEmailDTO.getNewEmail(),
                     changeEmailDTO.getVerificationCode(),
@@ -874,7 +869,7 @@ public class AuthServiceImpl implements AuthService {
                 return R.fail("验证码错误或已过期");
             }
 
-            // 5. 更新用户邮箱
+            // 4. 更新用户邮箱
             String oldEmail = user.getEmail();
             user.setEmail(changeEmailDTO.getNewEmail());
             userRepository.save(user);
