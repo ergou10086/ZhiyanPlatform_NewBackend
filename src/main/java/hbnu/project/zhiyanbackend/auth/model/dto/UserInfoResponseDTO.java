@@ -60,6 +60,12 @@ public class UserInfoResponseDTO {
     private String institution;
 
     /**
+     * 个人简介
+     */
+    @Schema(description = "个人简介", example = "这是我的个人简介...")
+    private String description;
+
+    /**
      * 用户状态
      */
     @Schema(description = "用户状态", example = "ACTIVE", allowableValues = {"ACTIVE", "LOCKED"})

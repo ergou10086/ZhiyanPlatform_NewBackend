@@ -23,6 +23,12 @@ import java.util.Optional;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
+/**
+ * 根据项目名称查找项目的方法
+ *
+ * @param name 要查找的项目名称
+ * @return Optional<Project> 包含查找结果的Optional对象，如果未找到则返回空的Optional
+ */
     Optional<Project> findByName(String name);
 
     Page<Project> findByCreatorIdAndIsDeleted(Long creatorId, Boolean isDeleted, Pageable pageable);

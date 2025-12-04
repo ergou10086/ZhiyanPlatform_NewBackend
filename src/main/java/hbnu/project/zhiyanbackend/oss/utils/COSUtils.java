@@ -34,17 +34,22 @@ public class COSUtils {
         // 针对单桶策略，优先按照业务类型映射到配置的目录
         String safeDir = resolveBusinessDirectory(directory);
 
-        // 处理原始文件名：清理非法字符并提取文件后缀
-        String normalizedOriginal = sanitizeFileName(originalFilename);
-        String suffix = "";
-        if (normalizedOriginal.contains(".")) {
-            suffix = normalizedOriginal.substring(normalizedOriginal.lastIndexOf('.'));
-        }
+        String targetFileName;
 
-        // 确定目标文件名：优先使用自定义文件名，否则使用UUID
-        String targetFileName = StringUtils.isNotBlank(overrideFileName)
-                ? sanitizeFileName(overrideFileName)
-                : UUID.randomUUID().toString().replace("-", "") + suffix;
+        if (StringUtils.isNotBlank(overrideFileName)) {
+            // 已提供自定义文件名时，完全使用该文件名，不再依赖原始文件名，避免不必要的拼音转换
+            targetFileName = sanitizeFileName(overrideFileName);
+        } else {
+            // 未提供自定义文件名时，才根据原始文件名提取后缀，构造一个安全的 UUID 文件名
+            String suffix = "";
+            if (StringUtils.isNotBlank(originalFilename)) {
+                String normalizedOriginal = sanitizeFileName(originalFilename);
+                if (normalizedOriginal.contains(".")) {
+                    suffix = normalizedOriginal.substring(normalizedOriginal.lastIndexOf('.'));
+                }
+            }
+            targetFileName = UUID.randomUUID().toString().replace("-", "") + suffix;
+        }
 
         // 生成日期路径段并组合完整对象键
         String dateSegment = DATE_FORMATTER.format(LocalDate.now());

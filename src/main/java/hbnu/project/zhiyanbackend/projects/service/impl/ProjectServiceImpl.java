@@ -43,7 +43,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 项目服务实现
+ * 项目服务实现类
+ * 提供项目的创建、更新、删除、查询等核心业务功能
+ * 包括项目管理、成员管理、权限控制等相关功能
  *
  * @author Tokito
  */
@@ -52,25 +54,90 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
 
+    /**
+     * 项目数据访问层
+     */
     private final ProjectRepository projectRepository;
+    /**
+     * 项目成员数据访问层
+     */
     private final ProjectMemberRepository projectMemberRepository;
+    /**
+     * 项目成员服务层
+     */
     private final ProjectMemberService projectMemberService;
+    /**
+     * 消息服务层
+     */
     private final InboxMessageService inboxMessageService;
+    /**
+     * 用户服务层
+     */
     private final UserService userService;
+    /**
+     * 用户数据访问层
+     */
     private final UserRepository userRepository;
+    /**
+     * 任务数据访问层
+     */
     private final TaskRepository taskRepository;
+    /**
+     * 维基页面服务层
+     */
     private final WikiPageService wikiPageService;
+    /**
+     * 维基页面数据访问层
+     */
     private final WikiPageRepository wikiPageRepository;
+    /**
+     * 维基版本历史数据访问层
+     */
     private final WikiVersionHistoryRepository wikiPageHistoryRepository;
+    /**
+     * 维基附件数据访问层
+     */
     private final WikiAttachmentRepository wikiAttachmentRepository;
+    /**
+     * 维基内容版本服务层
+     */
     private final WikiContentVersionService wikiContentVersionService;
+    /**
+     * 维基OSS服务层
+     */
     private final WikiOssService wikiOssService;
+    /**
+     * 成就数据访问层
+     */
     private final AchievementRepository achievementRepository;
+    /**
+     * 成就详情数据访问层
+     */
     private final AchievementDetailRepository achievementDetailRepository;
+    /**
+     * 成就文件数据访问层
+     */
     private final AchievementFileRepository achievementFileRepository;
+    /**
+     * 成就文件服务层
+     */
     private final AchievementFileService achievementFileService;
+    /**
+     * 成就详情服务层
+     */
     private final AchievementDetailsService achievementDetailsService;
 
+    /**
+     * 创建新项目
+     * @param name 项目名称
+     * @param description 项目描述
+     * @param visibility 项目可见性
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param imageUrl 项目图片URL
+     * @param creatorId 创建者ID
+     * @return 创建结果，包含项目信息
+     */
     @Override
     @Transactional
     public R<Project> createProject(String name,
@@ -81,14 +148,17 @@ public class ProjectServiceImpl implements ProjectService {
                                     String imageUrl,
                                     Long creatorId) {
         try {
+            // 验证项目名称非空
             if (!StringUtils.hasText(name)) {
                 return R.fail("项目名称不能为空");
             }
 
+            // 验证项目名称唯一性
             if (projectRepository.existsByNameAndIsDeletedFalse(name)) {
                 return R.fail("项目名称已存在: " + name);
             }
 
+            // 验证创建者存在
             if (creatorId == null) {
                 return R.fail("未登录或令牌无效，无法创建项目");
             }
@@ -97,6 +167,7 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("棍木不能创建项目");
             }
 
+            // 构建项目实体
             Project project = Project.builder()
                     .name(name)
                     .description(description)
@@ -111,6 +182,7 @@ public class ProjectServiceImpl implements ProjectService {
             // 显式设置审计创建人，避免约束问题
             project.setCreatedBy(creatorId);
 
+            // 保存项目信息
             project = projectRepository.save(project);
             
             // 创建者作为项目拥有者加入成员表
@@ -140,6 +212,18 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    /**
+     * 更新项目信息
+     * @param projectId 项目ID
+     * @param name 项目名称
+     * @param description 项目描述
+     * @param visibility 项目可见性
+     * @param status 项目状态
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param imageUrl 项目图片URL
+     * @return 更新结果，包含更新后的项目信息
+     */
     @Override
     @Transactional
     public R<Project> updateProject(Long projectId,
@@ -151,11 +235,13 @@ public class ProjectServiceImpl implements ProjectService {
                                     LocalDate endDate,
                                     String imageUrl) {
         try {
+            // 查找项目
             Project project = projectRepository.findById(projectId).orElse(null);
             if (project == null) {
                 return R.fail("项目不存在");
             }
 
+            // 更新项目名称（如果提供且与原名称不同）
             if (StringUtils.hasText(name) && !name.equals(project.getName())) {
                 if (projectRepository.existsByNameAndIdNotAndIsDeleted(name, projectId, false)) {
                     return R.fail("项目名称已存在: " + name);
@@ -163,27 +249,33 @@ public class ProjectServiceImpl implements ProjectService {
                 project.setName(name);
             }
 
+            // 更新项目描述
             if (StringUtils.hasText(description)) {
                 project.setDescription(description);
             }
 
+            // 更新项目可见性
             if (visibility != null) {
                 project.setVisibility(visibility);
             }
 
+            // 更新项目状态
             ProjectStatus oldStatus = project.getStatus();
             if (status != null && status != oldStatus) {
                 project.setStatus(status);
             }
 
+            // 更新开始日期
             if (startDate != null) {
                 project.setStartDate(startDate);
             }
 
+            // 更新结束日期
             if (endDate != null) {
                 project.setEndDate(endDate);
             }
 
+            // 保存更新后的项目信息
             project = projectRepository.save(project);
             
             // 如果项目状态发生变更，发送状态变更消息给所有项目成员
@@ -216,10 +308,17 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    /**
+     * 删除项目
+     * @param projectId 项目ID
+     * @param userId 用户ID
+     * @return 删除结果
+     */
     @Override
     @Transactional
     public R<Void> deleteProject(Long projectId, Long userId) {
         try {
+            // 查找项目
             Project project = projectRepository.findById(projectId).orElse(null);
             if (project == null) {
                 return R.fail("项目不存在");

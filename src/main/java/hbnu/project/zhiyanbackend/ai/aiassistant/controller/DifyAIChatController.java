@@ -20,16 +20,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * DifyAIChatController
+ * 处理与Dify AI相关的HTTP请求，包括文件上传和流式对话等功能
+ *
+ * @author Tokito
+ */
 @Slf4j
 @RestController
 @RequestMapping("/zhiyan/ai/dify")
 @RequiredArgsConstructor
 public class DifyAIChatController {
 
+
     private final DifyFileService difyFileService;
+
     private final DifyStreamService difyStreamService;
+
     private final DifyProperties difyProperties;
 
+    /**
+     * 处理单个文件上传请求
+     * @param file 上传的文件
+     * @return 返回上传结果，包含文件ID等信息
+     */
     @PostMapping("/files/upload")
     public R<DifyFileUploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
         Long userId = SecurityUtils.getUserId();
@@ -41,6 +55,11 @@ public class DifyAIChatController {
         return R.ok(response, "文件上传成功");
     }
 
+    /**
+     * 处理批量文件上传请求
+     * @param files 要上传的文件列表
+     * @return 返回上传结果列表，包含每个文件的ID等信息
+     */
     @PostMapping("/files/upload/batch")
     public R<List<DifyFileUploadResponse>> uploadFiles(@RequestParam("files") List<MultipartFile> files) {
         Long userId = SecurityUtils.getUserId();
@@ -54,6 +73,11 @@ public class DifyAIChatController {
 
     @PostMapping("/files/upload/knowledge")
     public R<List<DifyFileUploadResponse>> uploadKnowledgeFiles(@RequestBody List<Long> fileIds) {
+    /**
+     * 处理知识库文件上传请求
+     * @param fileIds 已上传文件ID列表
+     * @return 返回上传结果列表
+     */
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             return R.fail("未登录，无法上传文件");
@@ -67,6 +91,15 @@ public class DifyAIChatController {
     public SseEmitter chatStream(@RequestParam String query,
                                  @RequestParam(required = false) String conversationId,
                                  @RequestParam(required = false, name = "difyFileIds") List<String> difyFileIds,
+    /**
+     * 处理流式对话请求
+     * @param query 用户输入的查询内容
+     * @param conversationId 会话ID（可选）
+     * @param difyFileIds Dify平台文件ID列表（可选）
+     * @param knowledgeFileIds 知识库文件ID列表（可选）
+     * @param localFiles 本地文件列表（可选）
+     * @return 返回SSE流式响应
+     */
                                  @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds,
                                  @RequestParam(required = false, name = "localFiles") List<MultipartFile> localFiles) {
         Long userId = SecurityUtils.getUserId();

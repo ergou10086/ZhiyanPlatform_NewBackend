@@ -31,6 +31,9 @@ import java.util.stream.Stream;
 /**
  * 项目成员服务实现（精简版）
  *
+ * 本类实现了项目成员相关的业务逻辑，包括添加、移除、更新成员角色等功能，
+ * 并提供了查询项目成员信息、判断成员权限等方法。
+ *
  * @author Tokito
  */
 @Slf4j
@@ -38,30 +41,46 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ProjectMemberServiceImpl implements ProjectMemberService {
 
+    // 依赖注入的仓储和服务
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
     private final InboxMessageService inboxMessageService;
     private final UserService userService;
     private final UserRepository userRepository;
 
+    /**
+     * 内部添加项目成员
+     *
+     * @param projectId 项目ID
+     * @param userId 用户ID
+     * @param role 成员角色
+     * @return 新建的项目成员实体
+     * @throws IllegalArgumentException 当用户或项目不存在时抛出
+     * @throws IllegalStateException 当项目已归档时抛出
+     */
     @Override
     @Transactional
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
+        // 检查用户是否存在
         if(!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("用户不存在，不能被邀请");
         }
 
+        // 检查项目是否存在，获取项目实体
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
+        // 检查项目状态，已归档项目不能添加成员
         if (project.getStatus() == hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED) {
             throw new IllegalStateException("项目已归档，禁止新增或修改成员");
         }
 
+        // 检查用户是否已是项目成员
         if (projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
             log.warn("用户[{}]已经是项目[{}]成员", userId, projectId);
             return projectMemberRepository.findByProjectIdAndUserId(projectId, userId).orElse(null);
         }
 
+        // 创建新成员实体
         ProjectMember member = ProjectMember.builder()
                 .projectId(projectId)
                 .userId(userId)
@@ -69,32 +88,46 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 .joinedAt(LocalDateTime.now())
                 .build();
 
+        // 保存成员信息
         ProjectMember saved = projectMemberRepository.save(member);
         log.info("内部添加项目成员成功: projectId={}, userId={}, role={}", projectId, userId, role);
         return saved;
     }
 
+    /**
+     * 添加项目成员对外接口
+     *
+     * @param projectId 项目ID
+     * @param userId 用户ID
+     * @param role 成员角色
+     * @return 操作结果
+     */
     @Override
     @Transactional
     public R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role) {
         try {
+            // 检查用户是否存在
             if(!userRepository.existsById(userId)) {
                 return R.fail("用户不存在，不能被邀请");
             }
 
+            // 检查项目是否存在
             Project projectEntity = projectRepository.findById(projectId)
                     .orElse(null);
             if (projectEntity == null) {
                 return R.fail("项目不存在");
             }
+            // 检查项目状态
             if (projectEntity.getStatus() == hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus.ARCHIVED) {
                 return R.fail("项目已归档，禁止邀请或修改成员");
             }
 
+            // 检查用户是否已是项目成员
             if (projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)) {
                 return R.fail("该用户已经是项目成员");
             }
 
+            // 创建新成员实体
             ProjectMember member = ProjectMember.builder()
                     .projectId(projectId)
                     .userId(userId)
@@ -102,6 +135,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                     .joinedAt(LocalDateTime.now())
                     .build();
 
+            // 保存成员信息
             projectMemberRepository.save(member);
 
             log.info("添加项目成员成功: projectId={}, userId={}, role={}", projectId, userId, role);
@@ -117,24 +151,36 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      * 申请时就可以一次性拿到需要抄送的管理员列表
      *
      * @param projectId 项目id
+     * @return 项目管理员ID列表
      */
     @Override
     public List<Long> getProjectAdminUserIds(Long projectId) {
+        // 查找项目负责人
         List<ProjectMember> owners = projectMemberRepository
                 .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.OWNER);
+        // 查找项目管理员
         List<ProjectMember> admins = projectMemberRepository
                 .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.ADMIN);
 
+        // 合并并去重
         return Stream.concat(owners.stream(), admins.stream())
                 .map(ProjectMember::getUserId)
                 .distinct()
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 移除项目成员
+     *
+     * @param projectId 项目ID
+     * @param userId 要移除的用户ID
+     * @return 操作结果
+     */
     @Override
     @Transactional
     public R<Void> removeMember(Long projectId, Long userId) {
         try {
+            // 查找要移除的成员
             ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                     .orElse(null);
             if (member == null) {
@@ -146,6 +192,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             // 在删除前获取所有成员ID（包括即将被移除的成员）
             List<Long> allMemberIds = getProjectMemberUserIds(projectId);
             
+            // 删除成员
             projectMemberRepository.delete(member);
             
             // 向所有项目成员发送成员移除消息
@@ -175,32 +222,47 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         }
     }
 
+    /**
+     * 移除项目成员（带操作者信息）
+     *
+     * @param projectId 项目ID
+     * @param userId 要移除的用户ID
+     * @param operatorId 操作者ID
+     * @return 操作结果
+     */
     @Override
     @Transactional
     public R<Void> removeMember(Long projectId, Long userId, Long operatorId) {
         try {
+            // 检查项目是否存在
             Project project = projectRepository.findById(projectId)
                     .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
 
+            // 检查操作者是否有权限
             if (!isAdmin(projectId, operatorId)) {
                 return R.fail("只有项目管理员可以移除成员");
             }
 
+            // 防止移除自己
             if (userId.equals(operatorId)) {
                 return R.fail("不能移除自己，如需退出项目请使用退出功能");
             }
 
+            // 查找要移除的成员
             ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                     .orElse(null);
             if (member == null) {
                 return R.fail("该用户不是项目成员");
             }
 
+            // 不能移除项目负责人
             if (member.getProjectRole() == ProjectMemberRole.OWNER) {
                 return R.fail("不能移除项目负责人");
             }
 
+            // 获取操作者角色
             ProjectMemberRole operatorRole = getUserRole(projectId, operatorId);
+            // 管理员不能移除其他管理员
             if (operatorRole == ProjectMemberRole.ADMIN && member.getProjectRole() == ProjectMemberRole.ADMIN) {
                 return R.fail("管理员不能移除其他管理员，只有项目负责人可以");
             }
@@ -208,6 +270,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             // 在删除前获取所有成员ID（包括即将被移除的成员）
             List<Long> allMemberIds = getProjectMemberUserIds(projectId);
             
+            // 删除成员
             projectMemberRepository.delete(member);
             
             // 向所有项目成员发送成员移除消息
@@ -236,6 +299,14 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         }
     }
 
+    /**
+     * 更新成员角色
+     *
+     * @param projectId 项目ID
+     * @param userId 用户ID
+     * @param newRole 新角色
+     * @return 操作结果
+     */
     @Override
     @Transactional
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole) {

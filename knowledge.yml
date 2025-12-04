@@ -1,0 +1,1349 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: knowledge
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/siliconflow:0.0.8@217f973bd7ced1b099c2f0c669f1356bdf4cc38b8372fd58d7874f9940b95de3
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/azure_openai:0.0.12@a8d5448083aededa394d5940f878f6151f4a472e77766222e654840c74d10287
+kind: app
+version: 0.4.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - document
+      allowed_file_upload_methods:
+      - remote_url
+      - local_file
+      enabled: true
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: 你好！我是你的科研助手，我具有以下功能
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 知识库问答
+    - 绘制思维导图
+    - 查询相关文献
+    - 论文编写建议
+    suggested_questions_after_answer:
+      enabled: true
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: 1763606437212-source-1763608037210-target
+      selected: false
+      source: '1763606437212'
+      sourceHandle: source
+      target: '1763608037210'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1763608037210-source-answer-target
+      selected: false
+      source: '1763608037210'
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: question-classifier
+      id: 1763606423213-source-1763610253048-target
+      selected: false
+      source: '1763606423213'
+      sourceHandle: source
+      target: '1763610253048'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+      id: 1763610253048-1-1763606437212-target
+      selected: false
+      source: '1763610253048'
+      sourceHandle: '1'
+      target: '1763606437212'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: document-extractor
+      id: 1763610253048-2-1763610300917-target
+      selected: false
+      source: '1763610253048'
+      sourceHandle: '2'
+      target: '1763610300917'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: template-transform
+      id: 1763610300917-source-1763610337982-target
+      selected: false
+      source: '1763610300917'
+      sourceHandle: source
+      target: '1763610337982'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: template-transform
+        targetType: llm
+      id: 1763610337982-source-1763610350289-target
+      selected: false
+      source: '1763610337982'
+      sourceHandle: source
+      target: '1763610350289'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: http-request
+      id: 1763610350289-source-1763610390145-target
+      selected: false
+      source: '1763610350289'
+      sourceHandle: source
+      target: '1763610390145'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: llm
+      id: 1763610390145-source-1763610475015-target
+      selected: false
+      source: '1763610390145'
+      sourceHandle: source
+      target: '1763610475015'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1763610475015-source-1763610499190-target
+      selected: false
+      source: '1763610475015'
+      sourceHandle: source
+      target: '1763610499190'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: if-else
+      id: 1763610253048-1763967529497-1763970215345-target
+      selected: false
+      source: '1763610253048'
+      sourceHandle: '1763967529497'
+      target: '1763970215345'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: document-extractor
+      id: 1763970215345-true-1763970244813-target
+      selected: false
+      source: '1763970215345'
+      sourceHandle: 'true'
+      target: '1763970244813'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: template-transform
+      id: 1763970244813-source-1763972211939-target
+      selected: false
+      source: '1763970244813'
+      sourceHandle: source
+      target: '1763972211939'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: template-transform
+        targetType: llm
+      id: 1763972211939-source-1763972219765-target
+      selected: false
+      source: '1763972211939'
+      sourceHandle: source
+      target: '1763972219765'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: question-classifier
+      id: 1763972219765-source-1763972359481-target
+      selected: false
+      source: '1763972219765'
+      sourceHandle: source
+      target: '1763972359481'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: llm
+      id: 1763972359481-2-1763972866017-target
+      source: '1763972359481'
+      sourceHandle: '2'
+      target: '1763972866017'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1763972866017-source-1763972974019-target
+      source: '1763972866017'
+      sourceHandle: source
+      target: '1763972974019'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: question-classifier
+      id: 1763970215345-false-17639730162320-target
+      source: '1763970215345'
+      sourceHandle: 'false'
+      target: '17639730162320'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: llm
+      id: 17639730162320-2-17639731629870-target
+      source: '17639730162320'
+      sourceHandle: '2'
+      target: '17639731629870'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 17639731629870-source-1763973183964-target
+      source: '17639731629870'
+      sourceHandle: source
+      target: '1763973183964'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: http-request
+      id: 17639730162320-1-17639731257300-target
+      source: '17639730162320'
+      sourceHandle: '1'
+      target: '17639731257300'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: llm
+      id: 17639731257300-source-1763974862785-target
+      source: '17639731257300'
+      sourceHandle: source
+      target: '1763974862785'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1763974862785-source-1763974990301-target
+      source: '1763974862785'
+      sourceHandle: source
+      target: '1763974990301'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: llm
+      id: 1763972518501-source-1764031432391-target
+      source: '1763972518501'
+      sourceHandle: source
+      target: '1764031432391'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1764031432391-source-1763972747521-target
+      source: '1764031432391'
+      sourceHandle: source
+      target: '1763972747521'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: http-request
+      id: 1763972359481-1-1763972518501-target
+      source: '1763972359481'
+      sourceHandle: '1'
+      target: '1763972518501'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - image
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          label: files
+          max_length: 5
+          options: []
+          required: false
+          type: file-list
+          variable: files
+      height: 89
+      id: '1763606423213'
+      position:
+        x: -243.88681553241193
+        y: 515.7607142550203
+      positionAbsolute:
+        x: -243.88681553241193
+        y: 515.7607142550203
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1763608037210.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 104
+      id: answer
+      position:
+        x: 1227.4532614506704
+        y: 195.89787916591905
+      positionAbsolute:
+        x: 1227.4532614506704
+        y: 195.89787916591905
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        dataset_ids:
+        - +n4TuS93ld4ww4FO3uM6OpCm2tStdBcX9yasQ77MCitg1RA2mUWwLJ+vvo12g747
+        desc: ''
+        multiple_retrieval_config:
+          reranking_enable: false
+          reranking_mode: reranking_model
+          reranking_model:
+            model: netease-youdao/bce-reranker-base_v1
+            provider: langgenius/siliconflow/siliconflow
+          top_k: 4
+        query_variable_selector:
+        - '1763606423213'
+        - sys.query
+        retrieval_mode: multiple
+        selected: false
+        title: 知识检索
+        type: knowledge-retrieval
+      height: 53
+      id: '1763606437212'
+      position:
+        x: 516.6724291569482
+        y: 195.89787916591905
+      positionAbsolute:
+        x: 516.6724291569482
+        y: 195.89787916591905
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763606437212'
+          - result
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763606437212.result#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: f2ac6324-52d3-4bf6-9cc1-713e3d53f709
+          role: system
+          text: '使用以下上下文作为你所学习的知识，放在<context></context> XML标签内。
+
+            <context>
+
+            {{#context#}}
+
+            </context>
+
+            当回答用户时：
+
+            如果你不知道，就说你不知道。如果你不确定时不知道，寻求澄清。
+
+            避免提及你从上下文中获取的信息。
+
+            并根据用户问题的语言进行回答。'
+        selected: false
+        title: LLM
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763608037210'
+      position:
+        x: 878.1864004378582
+        y: 195.89787916591905
+      positionAbsolute:
+        x: 878.1864004378582
+        y: 195.89787916591905
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        classes:
+        - id: '1'
+          name: 询问知识库内容时
+        - id: '2'
+          name: 用户上传文件，并要求生成思维导图时
+        - id: '1763967529497'
+          name: 进行论文查询或者编写，如提供思路等相关辅助时
+        desc: ''
+        instructions: ''
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        query_variable_selector:
+        - '1763606423213'
+        - sys.query
+        selected: false
+        title: 问题分类器
+        topics: []
+        type: question-classifier
+        vision:
+          enabled: false
+      height: 225
+      id: '1763610253048'
+      position:
+        x: 74.07816491656183
+        y: 515.7607142550203
+      positionAbsolute:
+        x: 74.07816491656183
+        y: 515.7607142550203
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        is_array_file: true
+        selected: false
+        title: 文档提取器
+        type: document-extractor
+        variable_selector:
+        - '1763606423213'
+        - files
+      height: 93
+      id: '1763610300917'
+      position:
+        x: 500.95159522332665
+        y: 414.710021131967
+      positionAbsolute:
+        x: 500.95159522332665
+        y: 414.710021131967
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        selected: false
+        template: '{{ arg1 }}'
+        title: 模板转换
+        type: template-transform
+        variables:
+        - value_selector:
+          - '1763610300917'
+          - text
+          value_type: array[string]
+          variable: arg1
+      height: 53
+      id: '1763610337982'
+      position:
+        x: 511.20209404702643
+        y: 562.2202044920975
+      positionAbsolute:
+        x: 511.20209404702643
+        y: 562.2202044920975
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763610337982'
+          - output
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763610337982.output#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            frequency_penalty: 0.5
+            max_tokens: 2000
+            presence_penalty: 0.5
+            temperature: 0.2
+            top_p: 0.75
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: f6e6d392-ea29-4d30-862e-1dbce929d9ae
+          role: system
+          text: 将文本{{#1763610337982.output#}}转化成连续的文本，不要出现：\r,\n,\等符号，使整个文本完整的传输到下个节点
+        selected: false
+        title: LLM 2
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763610350289'
+      position:
+        x: 878.1864004378582
+        y: 414.710021131967
+      positionAbsolute:
+        x: 878.1864004378582
+        y: 414.710021131967
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        authorization:
+          config:
+            api_key: Bearer pat_Fguz3xyuzpUtT1UzbDnLrFDinE0KCS2hOqLrEAu21B4qLe1I6Zr8WyTx6kLUHwQ2
+            header: Authorization
+            type: custom
+          type: api-key
+        body:
+          data:
+          - id: key-value-273
+            key: ''
+            type: text
+            value: "{\n \"workflow_id\": \"7573867025530683428\",\n  \"parameters\"\
+              : {\n    \"input\": {{#1763610350289.text#}}\"\n  }\n  }"
+          type: json
+        desc: ''
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求
+        type: http-request
+        url: https://api.coze.cn/v1/workflow/stream_run
+        variables: []
+      height: 138
+      id: '1763610390145'
+      position:
+        x: 878.1864004378582
+        y: 545.4552441185496
+      positionAbsolute:
+        x: 878.1864004378582
+        y: 545.4552441185496
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763610390145'
+          - body
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763610390145.body#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: cb8872be-0b03-445b-8673-54fbbf08bad6
+          role: system
+          text: 提取出output部分http那部分的网址，输出格式应为https://static.shutu.cn/shutu/jpeg/open3d/2025/11/20/2c14c6db9098c3e17fc916c4eb55bded.jpeg
+        selected: false
+        title: LLM 3
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763610475015'
+      position:
+        x: 1227.4532614506704
+        y: 414.710021131967
+      positionAbsolute:
+        x: 1227.4532614506704
+        y: 414.710021131967
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1763610475015.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 2
+        type: answer
+        variables: []
+      height: 104
+      id: '1763610499190'
+      position:
+        x: 1238.3939316705141
+        y: 545.4552441185496
+      positionAbsolute:
+        x: 1238.3939316705141
+        y: 545.4552441185496
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: 8975aea1-fce4-4b78-b688-90484b1e6dc1
+            value: ''
+            varType: array[file]
+            variable_selector:
+            - '1763606423213'
+            - files
+          id: 'true'
+          logical_operator: and
+        desc: ''
+        selected: false
+        title: 条件分支
+        type: if-else
+      height: 125
+      id: '1763970215345'
+      position:
+        x: 455.8484630975372
+        y: 870.0509424438354
+      positionAbsolute:
+        x: 455.8484630975372
+        y: 870.0509424438354
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        is_array_file: true
+        selected: false
+        title: 文档提取器 2
+        type: document-extractor
+        variable_selector:
+        - '1763606423213'
+        - files
+      height: 93
+      id: '1763970244813'
+      position:
+        x: 834.5161533404312
+        y: 838.9349009217287
+      positionAbsolute:
+        x: 834.5161533404312
+        y: 838.9349009217287
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        selected: false
+        template: '{{ arg1 }}'
+        title: 模板转换 2
+        type: template-transform
+        variables:
+        - value_selector:
+          - '1763970244813'
+          - text
+          value_type: array[string]
+          variable: arg1
+      height: 53
+      id: '1763972211939'
+      position:
+        x: 1170.052132732212
+        y: 838.9349009217287
+      positionAbsolute:
+        x: 1170.052132732212
+        y: 838.9349009217287
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763972211939'
+          - output
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763972211939.output#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: be095240-6ac6-49af-98d9-e46ef07e5c7f
+          role: system
+          text: 将文本{{#1763972211939.output#}}转化成连续的文本，准确查询\r,\n,\等符号，删掉，不要出现：\r,\n,\等符号，使整个文本完整的传输到下个节点
+        selected: false
+        title: LLM 4
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763972219765'
+      position:
+        x: 1507.2645813716224
+        y: 838.9349009217287
+      positionAbsolute:
+        x: 1507.2645813716224
+        y: 838.9349009217287
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        classes:
+        - id: '1'
+          name: 用户需要查询相关主题的论文
+        - id: '2'
+          name: 用户需要论文辅助编写时，如为论文提供思路，建议等
+        desc: ''
+        instructions: ''
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        query_variable_selector:
+        - '1763606423213'
+        - sys.query
+        selected: false
+        title: 问题分类器 2
+        topics: []
+        type: question-classifier
+        vision:
+          enabled: false
+      height: 187
+      id: '1763972359481'
+      position:
+        x: 1822.4742595864077
+        y: 838.9349009217287
+      positionAbsolute:
+        x: 1822.4742595864077
+        y: 838.9349009217287
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        authorization:
+          config:
+            api_key: Bearer pat_Fguz3xyuzpUtT1UzbDnLrFDinE0KCS2hOqLrEAu21B4qLe1I6Zr8WyTx6kLUHwQ2
+            header: Authorization
+            type: custom
+          type: api-key
+        body:
+          data:
+          - id: key-value-906
+            key: ''
+            type: text
+            value: "{\n \"workflow_id\": \"7576196591893659686\",\n  \"parameters\"\
+              : {\n    \"input\": {{#1763972219765.text#}}\"\n  }\n  }"
+          type: json
+        desc: ''
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求 2
+        type: http-request
+        url: https://api.coze.cn/v1/workflow/stream_run
+        variables: []
+      height: 138
+      id: '1763972518501'
+      position:
+        x: 2176.7361848362852
+        y: 661.6644873020798
+      positionAbsolute:
+        x: 2176.7361848362852
+        y: 661.6644873020798
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1764031432391.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 3
+        type: answer
+        variables: []
+      height: 104
+      id: '1763972747521'
+      position:
+        x: 2931.967273944453
+        y: 661.6644873020798
+      positionAbsolute:
+        x: 2931.967273944453
+        y: 661.6644873020798
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763972219765'
+          - text
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763972219765.text#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: a1d8deda-a230-4bb3-8a0d-d58cb646ed91
+          role: system
+          text: "# 角色\n你是论文智助，一个专业的论文创作助手，能够根据{{#1763972219765.text#}}内容为用户在论文创作的各个环节提供全面且有效的帮助。\n\
+            \n## 技能\n### 技能 1: 提供创作思路\n- 当用户需要创作思路时，先询问论文的主题、研究方向、字数要求等关键信息。\n- 根据用户提供的信息，结合知识库和工具，为用户梳理出清晰的论文结构和创作要点，如引言部分如何引出问题、正文部分的章节安排、结论部分的总结方向等。回复示例：\n\
+            ```\n1. 引言：通过[具体现象或研究背景]引出[论文主题]，强调研究的重要性和必要性。\n2. 正文：\n    - 第一章：[章节标题\
+            \ 1]，主要探讨[具体内容 1]。\n    - 第二章：[章节标题 2]，深入分析[具体内容 2]。\n    - ……\n3. 结论：总结研究成果，提出[研究的意义和价值]，并对未来研究方向进行展望。\n\
+            ```\n\n### 技能 2: 撰写高质量的文献综述\n- 当用户需要文献综述时，先了解论文的主题和研究方向，以及用户对文献综述的字数、重点内容等要求。\n\
+            - 使用工具搜索与主题相关的大量学术文献，对文献进行筛选、整理和分析。\n- 按照一定的逻辑结构（如按照时间顺序、研究方法、研究主题等）撰写文献综述，总结前人的研究成果、指出研究的不足之处，并为用户的研究提供理论基础和研究方向。回复示例：\n\
+            ```\n在[论文主题]领域，前人的研究主要集中在以下几个方面：\n1. [研究方向 1]：[总结该方向的主要研究成果和观点]。\n2. [研究方向\
+            \ 2]：[总结该方向的主要研究成果和观点]。"
+        selected: false
+        title: LLM 6
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763972866017'
+      position:
+        x: 2176.7361848362852
+        y: 1025.1437246744763
+      positionAbsolute:
+        x: 2176.7361848362852
+        y: 1025.1437246744763
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1763972866017.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 4
+        type: answer
+        variables: []
+      height: 104
+      id: '1763972974019'
+      position:
+        x: 2547.0662706020676
+        y: 1016.9404656913571
+      positionAbsolute:
+        x: 2547.0662706020676
+        y: 1016.9404656913571
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        classes:
+        - id: '1'
+          name: 用户需要相关主题的论文
+        - id: '2'
+          name: 用户需要论文辅助编写时，如为论文提供思路等
+        desc: ''
+        instructions: ''
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        query_variable_selector:
+        - '1763606423213'
+        - sys.query
+        selected: false
+        title: 问题分类器 3
+        topics: []
+        type: question-classifier
+        vision:
+          enabled: false
+      height: 187
+      id: '17639730162320'
+      position:
+        x: 851.8934537135956
+        y: 1372.236935246162
+      positionAbsolute:
+        x: 851.8934537135956
+        y: 1372.236935246162
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        authorization:
+          config:
+            api_key: Bearer pat_Fguz3xyuzpUtT1UzbDnLrFDinE0KCS2hOqLrEAu21B4qLe1I6Zr8WyTx6kLUHwQ2
+            header: Authorization
+            type: custom
+          type: api-key
+        body:
+          data:
+          - id: key-value-906
+            key: ''
+            type: text
+            value: "{\n \"workflow_id\": \"7576196591893659686\",\n  \"parameters\"\
+              : {\n    \"input\": {{#sys.query#}}\"\n  }\n  }"
+          type: json
+        desc: ''
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求 2 (1)
+        type: http-request
+        url: https://api.coze.cn/v1/workflow/stream_run
+        variables: []
+      height: 138
+      id: '17639731257300'
+      position:
+        x: 1238.3939316705141
+        y: 1218.5386912336398
+      positionAbsolute:
+        x: 1238.3939316705141
+        y: 1218.5386912336398
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - sys
+          - query
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+            '
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: a1d8deda-a230-4bb3-8a0d-d58cb646ed91
+          role: system
+          text: 根据文本信息{{#sys.query#}}，综合性回答用户的问题，将文本转化成连续的文本，不要出现：\r,\n,\等符号，作为专业的论文创作助手，在用户进行论文创作时提供全面且清晰的思路，能精准提供参考文献、高质量完成文献综述，并给予多种论文创作方面的有效帮助。使整个文本完整的传输到下个节点
+        selected: false
+        title: LLM 6 (1)
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '17639731629870'
+      position:
+        x: 1248.2012898096107
+        y: 1612.8050102989382
+      positionAbsolute:
+        x: 1248.2012898096107
+        y: 1612.8050102989382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#17639731629870.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 6
+        type: answer
+        variables: []
+      height: 104
+      id: '1763973183964'
+      position:
+        x: 1630.1085789254328
+        y: 1612.8050102989382
+      positionAbsolute:
+        x: 1630.1085789254328
+        y: 1612.8050102989382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '17639731257300'
+          - body
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#17639731257300.body#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: 2400d0f5-2c17-42e0-aa93-b7190580c103
+          role: system
+          text: 只输出{{#17639731257300.body#}}中“authors”“source”"title"部分，并将输出美观化一点
+        selected: false
+        title: LLM 8
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1763974862785'
+      position:
+        x: 1619.3079820066062
+        y: 1218.5386912336398
+      positionAbsolute:
+        x: 1619.3079820066062
+        y: 1218.5386912336398
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1763974862785.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 6
+        type: answer
+        variables: []
+      height: 104
+      id: '1763974990301'
+      position:
+        x: 1992.8346026488373
+        y: 1218.5386912336398
+      positionAbsolute:
+        x: 1992.8346026488373
+        y: 1218.5386912336398
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - '1763972518501'
+          - body
+        desc: ''
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#1763972518501.body#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/azure_openai/azure_openai
+        prompt_template:
+        - id: 06b9031f-291f-49d2-b846-06df8317dea8
+          role: system
+          text: 只输出{{#1763972518501.body#}}中“authors”“source”"title"部分，并将输出美观化一点
+        selected: false
+        title: LLM 9
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1764031432391'
+      position:
+        x: 2553.42314114367
+        y: 661.6644873020798
+      positionAbsolute:
+        x: 2553.42314114367
+        y: 661.6644873020798
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 169.55987051756108
+      y: 105.49569488831187
+      zoom: 0.2916322630673564
