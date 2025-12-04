@@ -58,6 +58,11 @@ public class UserDTO {
     private String institution;
 
     /**
+     * 个人简介
+     */
+    private String description;
+
+    /**
      * 账号是否锁定
      */
     private Boolean isLocked;

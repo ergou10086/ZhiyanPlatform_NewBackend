@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
+import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -294,5 +296,37 @@ public class UserInformationController {
 
         log.info("用户[{}]更新研究方向标签: {}", userId, uniqueTags);
         return R.ok(uniqueTags, "更新成功");
+    }
+
+    /**
+     * 获取指定用户的研究方向标签
+     * 路径: GET /zhiyan/auth/users/{userId}/research-tags
+     * 用于他人主页查看研究方向（公开信息）
+     */
+    @GetMapping("/users/{userId}/research-tags")
+    @Operation(summary = "查询用户研究方向标签", description = "根据用户ID查询其研究方向标签列表")
+    public R<List<String>> getUserResearchTags(
+            @Parameter(description = "用户ID", required = true)
+            @PathVariable Long userId) {
+        return userInformationService.getUserResearchTags(userId);
+    }
+
+
+    /**
+     * 修改个人简介
+     *
+     * @param payload 载荷
+     * @return 修改结果
+     */
+    @PatchMapping("/users/me/profile/description")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "更新个人简介", description = "更新当前登录用户的个人简介")
+    public R<Void> updateMyBio(@RequestBody Map<String, String> payload) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录");
+        }
+        String description = payload.getOrDefault("description", "");
+        return userInformationService.updateUserDescription(userId, description);
     }
 }

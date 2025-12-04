@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.model.dto.AvatarDTO;
 import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
@@ -7,7 +8,10 @@ import hbnu.project.zhiyanbackend.auth.model.entity.UserAchievement;
 import hbnu.project.zhiyanbackend.auth.repository.UserAchievementRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
+import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -386,6 +390,27 @@ public class UserInformationServiceImpl implements UserInformationService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public R<List<String>> getUserResearchTags(Long userId) {
+        try {
+            log.info("查询用户[{}]的研究方向标签", userId);
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ControllerException("用户不存在"));
+
+            List<String> tags = user.getResearchTagList();
+            if (tags == null) {
+                tags = new ArrayList<>();
+            }
+
+            return R.ok(tags);
+        } catch (Exception e) {
+            log.error("查询用户研究方向标签失败 - userId: {}", userId, e);
+            return R.fail("查询失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 私有辅助方法 ====================
 
     /**
@@ -438,5 +463,24 @@ public class UserInformationServiceImpl implements UserInformationService {
         }
 
         return dto;
+    }
+
+
+    @Override
+    @Transactional
+    public R<Void> updateUserDescription(Long userId, String description){
+        try{
+            ValidationUtils.requireNonNull(userId, "用户id不能为空");
+
+            int affected = userRepository.updateDescription(userId, description);
+            if (affected == 0) {
+                return R.fail("用户不存在或已被删除");
+            }
+
+            return R.ok(null, "个人简介更新成功");
+        }catch (ServiceException e){
+            log.error("更新个人简介失败 - userId: {}, error: {}", userId, e.getMessage(), e);
+            return R.fail("更新个人简介失败");
+        }
     }
 }
