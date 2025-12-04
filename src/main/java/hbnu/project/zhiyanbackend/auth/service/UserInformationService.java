@@ -88,4 +88,13 @@ public interface UserInformationService {
      * @return 研究方向标签字符串列表
      */
     R<List<String>> getUserResearchTags(Long userId);
+
+    /**
+     * 修改用户个人简介
+     *
+     * @param userId 用户id
+     * @param description 个人简介
+     * @return 修改状态
+     */
+    R<Void> updateUserDescription(Long userId, String description);
 }

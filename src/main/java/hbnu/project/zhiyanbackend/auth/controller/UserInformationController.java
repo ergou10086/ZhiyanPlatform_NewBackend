@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
+import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -307,5 +309,23 @@ public class UserInformationController {
             @Parameter(description = "用户ID", required = true)
             @PathVariable Long userId) {
         return userInformationService.getUserResearchTags(userId);
+    }
+
+
+    /**
+     * 修改个人简介
+     *
+     * @param payload 载荷
+     * @return 修改结果
+     */
+    @PatchMapping("/me/profile/description")
+    @Operation(summary = "更新个人简介")
+    public R<Void> updateMyBio(@RequestBody Map<String, String> payload) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录");
+        }
+        String description = payload.getOrDefault("description", "");
+        return userInformationService.updateUserDescription(userId, description);
     }
 }

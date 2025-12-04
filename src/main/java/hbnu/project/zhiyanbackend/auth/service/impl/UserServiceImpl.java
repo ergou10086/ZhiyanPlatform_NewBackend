@@ -540,22 +540,4 @@ public class UserServiceImpl implements UserService {
             return R.fail("搜索用户失败");
         }
     }
-
-    @Override
-    @Transactional
-    public R<Void> updateUserDescription(Long userId, String description){
-        try{
-            ValidationUtils.requireNonNull(userId, "用户id不能为空");
-
-            int affected = userRepository.updateDescription(userId, description);
-            if (affected == 0) {
-                return R.fail("用户不存在或已被删除");
-            }
-
-            return R.ok(null, "个人简介更新成功");
-        }catch (ServiceException e){
-            log.error("更新个人简介失败 - userId: {}, error: {}", userId, e.getMessage(), e);
-            return R.fail("更新个人简介失败");
-        }
-    }
 }

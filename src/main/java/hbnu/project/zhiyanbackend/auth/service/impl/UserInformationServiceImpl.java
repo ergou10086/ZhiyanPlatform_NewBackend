@@ -10,6 +10,8 @@ import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
+import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -461,5 +463,24 @@ public class UserInformationServiceImpl implements UserInformationService {
         }
 
         return dto;
+    }
+
+
+    @Override
+    @Transactional
+    public R<Void> updateUserDescription(Long userId, String description){
+        try{
+            ValidationUtils.requireNonNull(userId, "用户id不能为空");
+
+            int affected = userRepository.updateDescription(userId, description);
+            if (affected == 0) {
+                return R.fail("用户不存在或已被删除");
+            }
+
+            return R.ok(null, "个人简介更新成功");
+        }catch (ServiceException e){
+            log.error("更新个人简介失败 - userId: {}, error: {}", userId, e.getMessage(), e);
+            return R.fail("更新个人简介失败");
+        }
     }
 }

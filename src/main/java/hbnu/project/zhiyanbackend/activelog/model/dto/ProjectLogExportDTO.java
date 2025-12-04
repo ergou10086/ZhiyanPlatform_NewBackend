@@ -1,9 +1,5 @@
 package hbnu.project.zhiyanbackend.activelog.model.dto;
 
-import cn.idev.excel.annotation.ExcelProperty;
-import hbnu.project.zhiyanactivelog.model.enums.OperationResult;
-import hbnu.project.zhiyanactivelog.model.enums.ProjectOperationType;
-import hbnu.project.zhiyancommonexcel.annotation.ExcelEnumFormat;
 import lombok.Data;
 
 import java.time.LocalDateTime;

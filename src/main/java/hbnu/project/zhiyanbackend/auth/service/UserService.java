@@ -142,14 +142,5 @@ public interface UserService {
      * @return 用户列表
      */
     R<Page<UserDTO>> searchUsers(String keyword, Pageable pageable);
-
-    /**
-     * 修改用户个人简介
-     *
-     * @param userId 用户id
-     * @param description 个人简介
-     * @return 修改状态
-     */
-    R<Void> updateUserDescription(Long userId, String description);
 }
 

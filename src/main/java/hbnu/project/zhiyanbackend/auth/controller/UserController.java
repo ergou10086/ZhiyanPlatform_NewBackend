@@ -340,21 +340,4 @@ public class UserController {
             return R.fail("角色检查失败");
         }
     }
-
-    /**
-     * 修改个人简介
-     *
-     * @param payload 载荷
-     * @return 修改结果
-     */
-    @PatchMapping("/me/profile/description")
-    @Operation(summary = "更新个人简介")
-    public R<Void> updateMyBio(@RequestBody Map<String, String> payload) {
-        Long userId = SecurityUtils.getUserId();
-        if (userId == null) {
-            return R.fail("未登录");
-        }
-        String description = payload.getOrDefault("description", "");
-        return userService.updateUserDescription(userId, description);
-    }
 }
