@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -63,16 +64,7 @@ public class StreamUtils {
         return collection.stream().filter(function).findAny();
     }
 
-    /**
-     * 将collection拼接
-     *
-     * @param collection 需要转化的集合
-     * @param function   拼接方法
-     * @return 拼接后的list
-     */
-    public static <E> String join(Collection<E> collection, Function<E, String> function) {
-        return join(collection, function, StringUtils.COMMA);
-    }
+
 
     /**
      * 将collection拼接

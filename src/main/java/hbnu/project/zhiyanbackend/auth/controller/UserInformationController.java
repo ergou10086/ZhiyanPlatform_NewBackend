@@ -318,8 +318,9 @@ public class UserInformationController {
      * @param payload 载荷
      * @return 修改结果
      */
-    @PatchMapping("/me/profile/description")
-    @Operation(summary = "更新个人简介")
+    @PatchMapping("/users/me/profile/description")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "更新个人简介", description = "更新当前登录用户的个人简介")
     public R<Void> updateMyBio(@RequestBody Map<String, String> payload) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
