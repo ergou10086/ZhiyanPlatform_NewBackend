@@ -1,10 +1,14 @@
 package hbnu.project.zhiyanbackend.knowledge.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementFileDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.FileContextDTO;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.UploadFileDTO;
+import hbnu.project.zhiyanbackend.knowledge.repository.AchievementRepository;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementFileService;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 成果文件上传接口
@@ -35,6 +40,12 @@ public class AchievementFileController {
     @Resource
     private AchievementFileService achievementFileService;
 
+    @Resource
+    private AchievementRepository achievementRepository;
+
+    @Resource
+    private OperationLogHelper operationLogHelper;
+
 
     /**
      * 上传成果文件
@@ -43,6 +54,7 @@ public class AchievementFileController {
      */
     @PostMapping("/upload")
     @Operation(summary = "上传成果文件", description = "为指定成果上传单个文件")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "FILE_UPLOAD", description = "上传文件")
     public R<AchievementFileDTO> uploadFile(
             @Parameter(description = "文件") @RequestParam("file") MultipartFile file,
             @Parameter(description = "成果ID") @RequestParam("achievementId") Long achievementId){
@@ -57,9 +69,21 @@ public class AchievementFileController {
                 .uploadBy(userId)
                 .build();
 
+        // 执行文件上传
         AchievementFileDTO fileDTO = achievementFileService.uploadFile(file, uploadDTO);
 
-        log.info("文件上传成功: fileId={}, url={}", fileDTO.getId(), fileDTO.getFileUrl());
+        // 操作成功后记录日志
+        if (fileDTO != null) {
+            achievementRepository.findById(achievementId).ifPresent(achievement -> operationLogHelper.logAchievementFileUpload(
+                    achievement.getProjectId(),
+                    achievementId,
+                    achievement.getTitle(),
+                    file.getOriginalFilename(),
+                    file.getSize()
+            ));
+        }
+
+        log.info("文件上传成功: fileId={}, url={}", Objects.requireNonNull(fileDTO).getId(), fileDTO.getFileUrl());
         return R.ok(fileDTO, "文件上传成功");
     }
 
@@ -70,6 +94,7 @@ public class AchievementFileController {
      */
     @PostMapping("/upload/batch")
     @Operation(summary = "批量上传成果文件", description = "为指定成果批量上传多个文件，使用COS批量上传功能")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "FILE_UPLOAD", description = "批量上传文件")
     public R<List<AchievementFileDTO>> uploadFilesBatch(
             @Parameter(description = "文件列表") @RequestParam("files") MultipartFile[] files,
             @Parameter(description = "成果ID") @RequestParam("achievementId") Long achievementId){
@@ -78,15 +103,25 @@ public class AchievementFileController {
         Long userId = SecurityUtils.getUserId();
         log.info("批量上传成果文件: achievementId={}, fileCount={}, userId={}", 
                 achievementId, files != null ? files.length : 0, userId);
-
         if (files == null || files.length == 0) {
             return R.fail("文件列表不能为空");
         }
 
+        // 执行批量上传
         List<AchievementFileDTO> fileDTOs = achievementFileService.uploadFilesBatch(files, achievementId, userId);
 
+        // 操作成功后记录日志
+        if (fileDTOs != null && !fileDTOs.isEmpty()) {
+            achievementRepository.findById(achievementId).ifPresent(achievement -> operationLogHelper.logAchievementBatchFileUpload(
+                    achievement.getProjectId(),
+                    achievementId,
+                    achievement.getTitle(),
+                    fileDTOs.size()
+            ));
+        }
+
         log.info("批量上传成果文件成功: achievementId={}, 成功上传 {} 个文件", 
-                achievementId, fileDTOs.size());
+                achievementId, Objects.requireNonNull(fileDTOs).size());
         return R.ok(fileDTOs, String.format("成功上传 %d 个文件", fileDTOs.size()));
     }
 
@@ -112,13 +147,27 @@ public class AchievementFileController {
      */
     @DeleteMapping("/{fileId}")
     @Operation(summary = "删除成果文件", description = "删除指定的成果文件")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "FILE_DELETE", description = "删除文件")
     public R<Void> deleteAchievementFile(
             @Parameter(description = "文件ID")  @PathVariable Long fileId){
         // 从安全上下文获取当前登录用户ID
         Long userId = SecurityUtils.getUserId();
         log.info("删除成果文件: fileId={}, userId={}", fileId, userId);
 
+        // 获取文件信息（用于日志）
+        AchievementFileDTO fileDTO = achievementFileService.getFileById(fileId);
+        Long achievementId = fileDTO.getAchievementId();
+        String fileName = fileDTO.getFileName();
+
         achievementFileService.deleteFile(fileId, userId);
+
+        // 操作成功后记录日志
+        achievementRepository.findById(achievementId).ifPresent(achievement -> operationLogHelper.logAchievementFileDelete(
+                achievement.getProjectId(),
+                achievementId,
+                achievement.getTitle(),
+                fileName
+        ));
 
         log.info("文件删除成功: fileId={}", fileId);
         return R.ok(null, "文件删除成功");
@@ -129,12 +178,29 @@ public class AchievementFileController {
      */
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除成果文件", description = "批量删除指定的成果文件")
+    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "FILE_DELETE", description = "批量删除文件")
     public R<Void> deleteFilesBatch(
             @Parameter(description = "文件ID列表") @RequestParam("fileIds") List<Long> fileIds) {
         Long userId = SecurityUtils.getUserId();
         log.info("批量删除成果文件: fileIds={}, userId={}", fileIds, userId);
+        if (fileIds == null || fileIds.isEmpty()) {
+            return R.fail("文件ID列表不能为空");
+        }
 
+        // 获取第一个文件的成果信息（用于日志，因为批量删除的都是同一成果的文件）
+        AchievementFileDTO firstFile = achievementFileService.getFileById(fileIds.getFirst());
+        Long achievementId = firstFile.getAchievementId();
+
+        // 执行批量删除
         achievementFileService.deleteFiles(fileIds, userId);
+
+        // 操作成功后记录日志
+        achievementRepository.findById(achievementId).ifPresent(achievement -> operationLogHelper.logAchievementBatchFileDelete(
+                achievement.getProjectId(),
+                achievementId,
+                achievement.getTitle(),
+                fileIds.size()
+        ));
 
         return R.ok(null, "批量删除成功");
     }

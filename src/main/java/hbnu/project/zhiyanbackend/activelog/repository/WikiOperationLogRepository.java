@@ -22,41 +22,37 @@ public interface WikiOperationLogRepository extends JpaRepository<WikiOperationL
 
     /**
      * 根据项目ID查询
-     * 使用索引：idx_project_id
      */
     Page<WikiOperationLog> findByProjectIdOrderByOperationTimeDesc(Long projectId, Pageable pageable);
 
     /**
-     * 根据项目ID和时间范围查询（
-     * 使用索引：idx_project_time 的前缀
+     * 根据项目ID和时间范围查询
      */
     Page<WikiOperationLog> findByProjectIdAndOperationTimeBetweenOrderByOperationTimeDesc(Long projectId, LocalDateTime startTime,  LocalDateTime endTime, Pageable pageable);
 
     /**
      * 根据项目ID和Wiki页面ID查询
-     * 使用索引：idx_project_wiki_time
      */
     Page<WikiOperationLog> findByProjectIdAndWikiPageIdOrderByOperationTimeDesc(Long projectId, Long wikiPageId, Pageable pageable);
 
     /**
      * 根据项目ID和用户ID查询
-     * 使用索引：idx_project_user_time
      */
     Page<WikiOperationLog> findByProjectIdAndUserIdOrderByOperationTimeDesc(Long projectId, Long userId, Pageable pageable);
 
     /**
-     * 根据项目ID和操作类型查询（使用索引：idx_project_id + idx_operation_type）
+     * 根据项目ID和操作类型查询
      */
     Page<WikiOperationLog> findByProjectIdAndOperationTypeOrderByOperationTimeDesc(Long projectId, WikiOperationType operationType, Pageable pageable);
 
     /**
-     * 组合查询：项目+Wiki页面+时间范围（使用索引：idx_project_wiki_time）
+     * 组合查询：项目+Wiki页面+时间范围
      */
     Page<WikiOperationLog> findByProjectIdAndWikiPageIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long wikiPageId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
-     * 组合查询：项目+用户+时间范围（使用索引：idx_project_user_time）
+     * 组合查询：项目+用户+时间范围
      */
     Page<WikiOperationLog> findByProjectIdAndUserIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);

@@ -33,13 +33,11 @@ public interface TaskOperationLogRepository extends JpaRepository<TaskOperationL
 
     /**
      * 根据项目ID和任务ID查询
-     * 使用索引：idx_project_task_time
      */
     Page<TaskOperationLog> findByProjectIdAndTaskIdOrderByOperationTimeDesc(Long projectId, Long taskId, Pageable pageable);
 
     /**
      * 根据项目ID和用户ID查询
-     * 使用索引：idx_project_user_time
      */
     Page<TaskOperationLog> findByProjectIdAndUserIdOrderByOperationTimeDesc(
             Long projectId, Long userId, Pageable pageable);
@@ -51,14 +49,12 @@ public interface TaskOperationLogRepository extends JpaRepository<TaskOperationL
 
     /**
      * 组合查询：项目+任务+时间范围
-     * 使用索引：idx_project_task_time
      */
     Page<TaskOperationLog> findByProjectIdAndTaskIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long taskId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * 组合查询：项目+用户+时间范围（
-     * 使用索引：idx_project_user_time
      */
     Page<TaskOperationLog> findByProjectIdAndUserIdAndOperationTimeBetweenOrderByOperationTimeDesc(
             Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
