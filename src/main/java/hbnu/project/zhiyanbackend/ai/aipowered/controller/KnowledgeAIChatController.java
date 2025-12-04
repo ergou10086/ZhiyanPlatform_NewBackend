@@ -110,17 +110,16 @@ public class KnowledgeAIChatController {
             }
         }
 
-        if (!allDifyFileIds.isEmpty()) {
-            List<Map<String, Object>> files = new ArrayList<>();
-            for (String fileId : allDifyFileIds) {
-                Map<String, Object> file = new HashMap<>();
-                file.put("type", "document");
-                file.put("transfer_method", "local_file");
-                file.put("upload_file_id", fileId);
-                files.add(file);
-            }
-            inputs.put("files", files);
+        // 构造 files 输入参数（即使没有文件也传空数组，满足 Dify 对必填项的要求）
+        List<Map<String, Object>> files = new ArrayList<>();
+        for (String fileId : allDifyFileIds) {
+            Map<String, Object> file = new HashMap<>();
+            file.put("type", "document");
+            file.put("transfer_method", "local_file");
+            file.put("upload_file_id", fileId);
+            files.add(file);
         }
+        inputs.put("files", files);
 
         log.info("[Knowledge Dify Config] apiUrl={}, apiKeyPrefix={}",
                 knowledgeDifyProperties.getApiUrl(),
