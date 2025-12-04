@@ -54,7 +54,10 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
             byte[] imageData = file.getBytes();
             project.setImageData(imageData);
             // 同时更新可直接访问的图片URL，便于前端在刷新后仍能展示
-            project.setImageUrl("/zhiyan/projects/get-image?projectId=" + projectId);
+            // 为了让浏览器可以长期缓存旧图片，但在用户重新上传图片时立刻看到新图，
+            // 这里为每次上传生成带时间戳的URL，实现 cache busting
+            long ts = System.currentTimeMillis();
+            project.setImageUrl("/zhiyan/projects/get-image?projectId=" + projectId + "&t=" + ts);
 
             // 保存更新后的项目信息到数据库
             projectRepository.save(project);
