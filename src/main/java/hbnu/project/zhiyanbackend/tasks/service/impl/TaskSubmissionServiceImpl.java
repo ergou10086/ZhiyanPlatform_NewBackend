@@ -169,11 +169,21 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         submission = submissionRepository.save(submission);
         log.info("提交记录审核完成: submissionId={}, status={}", submissionId, request.getReviewStatus());
 
+        // 根据审核结果更新任务状态
         if (request.getReviewStatus() == ReviewStatus.APPROVED
                 && task.getStatus() != TaskStatus.DONE) {
+            // 审核通过：更新任务状态为已完成
             task.setStatus(TaskStatus.DONE);
             taskRepository.save(task);
             log.info("任务已完成: taskId={}", task.getId());
+        } else if (request.getReviewStatus() == ReviewStatus.REJECTED
+                && task.getStatus() != TaskStatus.DONE) {
+            // 审核拒绝：更新任务状态为进行中，让用户可以继续修改并重新提交
+            // 注意：如果任务已经是DONE状态，不更新（避免已完成的任务被改回进行中）
+            TaskStatus oldStatus = task.getStatus();
+            task.setStatus(TaskStatus.IN_PROGRESS);
+            taskRepository.save(task);
+            log.info("任务审核被拒绝，状态已从 {} 更新为进行中: taskId={}", oldStatus, task.getId());
         }
 
         // 发送审核结果通知（审核通过或拒绝时发送）
