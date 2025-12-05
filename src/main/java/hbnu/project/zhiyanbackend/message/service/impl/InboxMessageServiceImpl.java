@@ -278,7 +278,7 @@ public class InboxMessageServiceImpl implements InboxMessageService {
 
 
     /**
-     * 删除某条消息（软删除）
+     * 删除某条消息（真删除）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -287,9 +287,19 @@ public class InboxMessageServiceImpl implements InboxMessageService {
 
         if (optional.isPresent()) {
             MessageRecipient messageRecipient = optional.get();
-            messageRecipient.softDelete();
-            messageRecipientRepository.save(messageRecipient);
-            log.info("删除消息: recipientId={}, receiverId={}", recipientId, receiverId);
+            Long messageBodyId = messageRecipient.getMessageBodyId();
+            
+            // 真删除收件人记录
+            messageRecipientRepository.delete(messageRecipient);
+            log.info("删除消息: recipientId={}, receiverId={}, messageBodyId={}", 
+                    recipientId, receiverId, messageBodyId);
+            
+            // 检查该消息体是否还有其他收件人，如果没有则删除消息体
+            long remainingRecipients = messageRecipientRepository.countByMessageBodyId(messageBodyId);
+            if (remainingRecipients == 0) {
+                messageBodyRepository.deleteById(messageBodyId);
+                log.info("消息体已无收件人，删除消息体: messageBodyId={}", messageBodyId);
+            }
         } else {
             log.warn("删除消息失败: 消息不存在或已删除, recipientId={}, receiverId={}",
                     recipientId, receiverId);
@@ -298,18 +308,38 @@ public class InboxMessageServiceImpl implements InboxMessageService {
 
 
     /**
-     * 清空当前用户的所有消息（软删除）
+     * 清空当前用户的所有已读消息（真删除）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void clearAll(Long receiverId) {
-        List<MessageRecipient> allList = messageRecipientRepository
-                .findByReceiverIdAndDeletedFalse(receiverId);
+    public void clearAllReadMessage(Long receiverId) {
+        // 查询所有已读且未删除的消息
+        List<MessageRecipient> readList = messageRecipientRepository
+                .findByReceiverIdAndReadFlagTrueAndDeletedFalse(receiverId);
 
-        allList.forEach(MessageRecipient::softDelete);
-        messageRecipientRepository.saveAll(allList);
+        if (readList.isEmpty()) {
+            log.info("清空已读消息: receiverId={}, count=0 (没有已读消息)", receiverId);
+            return;
+        }
 
-        log.info("清空所有消息: receiverId={}, count={}", receiverId, allList.size());
+        // 收集所有相关的消息体ID，用于后续检查是否需要删除消息体
+        List<Long> messageBodyIds = readList.stream()
+                .map(MessageRecipient::getMessageBodyId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 真删除所有已读消息的收件人记录
+        messageRecipientRepository.deleteAll(readList);
+        log.info("清空已读消息: receiverId={}, deletedCount={}", receiverId, readList.size());
+
+        // 检查并删除没有收件人的消息体
+        for (Long messageBodyId : messageBodyIds) {
+            long remainingRecipients = messageRecipientRepository.countByMessageBodyId(messageBodyId);
+            if (remainingRecipients == 0) {
+                messageBodyRepository.deleteById(messageBodyId);
+                log.debug("消息体已无收件人，删除消息体: messageBodyId={}", messageBodyId);
+            }
+        }
     }
 
 

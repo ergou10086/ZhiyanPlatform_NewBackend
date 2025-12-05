@@ -91,12 +91,12 @@ public interface InboxMessageService {
     void markAllAsRead(Long receiverId);
 
     /**
-     * 删除某条消息（软删除）
+     * 删除某条消息（真删除）
      */
     void deleteMessage(Long receiverId, Long recipientId);
 
     /**
-     * 清空当前用户的所有消息（软删除）
+     * 清空当前用户的所有已读消息（真删除）
      */
-    void clearAll(Long receiverId);
+    void clearAllReadMessage(Long receiverId);
 }

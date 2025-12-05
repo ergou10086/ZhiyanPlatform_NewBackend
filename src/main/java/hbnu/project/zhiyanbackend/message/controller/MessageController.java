@@ -656,22 +656,26 @@ public class MessageController {
     }
 
     /**
-     * 删除消息
+     * 删除消息（真删除）
+     * 删除指定收件人记录，如果该消息体没有其他收件人，则同时删除消息体
      */
     @DeleteMapping("/{recipientId}")
+    @Operation(summary = "删除消息", description = "真删除指定消息，如果消息体没有其他收件人则同时删除消息体")
     public R<Void> deleteMessage(@PathVariable Long recipientId) {
         Long userId = SecurityUtils.getUserId();
         inboxMessageService.deleteMessage(userId, recipientId);
-        return R.ok();
+        return R.ok(null, "消息已删除");
     }
 
     /**
-     * 清空所有消息
+     * 清空所有已读消息（真删除）
+     * 删除当前用户所有已读消息的收件人记录，如果消息体没有其他收件人则同时删除消息体
      */
     @DeleteMapping("/clear")
+    @Operation(summary = "清空所有已读消息", description = "真删除当前用户所有已读消息，如果消息体没有其他收件人则同时删除消息体")
     public R<Void> clearAll() {
         Long userId = SecurityUtils.getUserId();
-        inboxMessageService.clearAll(userId);
-        return R.ok();
+        inboxMessageService.clearAllReadMessage(userId);
+        return R.ok(null, "已清空所有已读消息");
     }
 }

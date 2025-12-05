@@ -144,4 +144,14 @@ public interface MessageRecipientRepository extends JpaRepository<MessageRecipie
     Page<MessageRecipient> searchMessage(@Param("receiverId") Long receiverId,
                                          @Param("keyword") String keyword,
                                          Pageable pageable);
+
+    /**
+     * 查询用户全部已读且未删除的消息，用于清理全部已读消息
+     */
+    List<MessageRecipient> findByReceiverIdAndReadFlagTrueAndDeletedFalse(Long receiverId);
+
+    /**
+     * 统计某个消息体的收件人数量（用于判断是否删除消息体）
+     */
+    long countByMessageBodyId(Long messageBodyId);
 }

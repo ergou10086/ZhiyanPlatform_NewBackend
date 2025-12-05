@@ -152,7 +152,8 @@ public class AuthServiceImpl implements AuthService {
             log.info("角色分配流程完成 - 用户ID: {}", savedUser.getId());
 
             // 7. 生成JWT令牌，注册后自动登录
-            boolean rememberMe = false; // 注册时固定为 false
+            // 记住我注册时固定为 false
+            boolean rememberMe = false;
             TokenDTO tokenDTO = generateTokens(savedUser.getId(), rememberMe);
 
             // 8. 计算密码强度描述
@@ -194,10 +195,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public R<UserLoginResponseDTO> login(LoginDTO loginDTO, HttpServletRequest request) {
-        log.info("处理用户登录: 邮箱={}, 是否提供密码={}, 是否提供2FA={}", 
-                loginDTO.getEmail(), 
-                StringUtils.isNotBlank(loginDTO.getPassword()),
-                StringUtils.isNotBlank(loginDTO.getTwoFactorCode()));
+        log.info("处理用户登录: 邮箱={}, 是否提供密码={}, 是否提供2FA={}", loginDTO.getEmail(), StringUtils.isNotBlank(loginDTO.getPassword()), StringUtils.isNotBlank(loginDTO.getTwoFactorCode()));
 
         try {
             // 先查找用户，检查是否启用2FA
@@ -269,15 +267,6 @@ public class AuthServiceImpl implements AuthService {
                 // 认证成功会拿到用户详情
                 loginUser = (LoginUserBody) authentication.getPrincipal();
                 userId = Objects.requireNonNull(loginUser).getUserId();
-
-                // 如果用户启用了2FA且提供了2FA码，额外验证2FA（可选增强）
-                if (StringUtils.isNotBlank(loginDTO.getTwoFactorCode()) && 
-                    Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
-                    if (StringUtils.isBlank(user.getTwoFactorSecret()) || !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), loginDTO.getTwoFactorCode())) {
-                        return R.fail("2FA验证码错误或已过期");
-                    }
-                    log.info("密码+2FA双重验证通过: userId={}", userId);
-                }
             }
             
             // 情况3：既没有密码也没有2FA码，或者2FA验证失败后没有密码
