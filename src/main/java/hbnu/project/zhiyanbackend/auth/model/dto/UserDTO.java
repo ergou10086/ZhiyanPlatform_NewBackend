@@ -91,4 +91,9 @@ public class UserDTO {
      * 是否启用双因素认证
      */
     private Boolean twoFactorEnabled;
+
+    /**
+     * 个人关联链接
+     */
+    private List<ProfileLinkDTO> profileLinks;
 }

@@ -97,4 +97,21 @@ public interface UserInformationService {
      * @return 修改状态
      */
     R<Void> updateUserDescription(Long userId, String description);
+
+    /**
+     * 更新个人关联链接
+     *
+     * @param userId 用户ID
+     * @param links 链接列表（最多6个）
+     * @return 更新后的链接
+     */
+    R<List<ProfileLinkDTO>> updateProfileLinks(Long userId, List<ProfileLinkDTO> links);
+
+    /**
+     * 获取指定用户的关联链接
+     *
+     * @param userId 用户ID
+     * @return 链接列表
+     */
+    R<List<ProfileLinkDTO>> getProfileLinks(Long userId);
 }

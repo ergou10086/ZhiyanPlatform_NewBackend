@@ -100,4 +100,10 @@ public class UserInfoResponseDTO {
      */
     @Schema(description = "是否启用双因素认证", example = "false")
     private Boolean twoFactorEnabled;
+
+    /**
+     * 个人关联链接
+     */
+    @Schema(description = "个人关联链接列表")
+    private List<ProfileLinkDTO> profileLinks;
 }

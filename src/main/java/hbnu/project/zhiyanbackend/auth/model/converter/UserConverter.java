@@ -31,6 +31,7 @@ public interface UserConverter {
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "researchTags", ignore = true)
+    @Mapping(target = "profileLinks", expression = "java(user.getProfileLinkList())")
     UserDTO toDTO(User user);
 
     /**
@@ -40,6 +41,7 @@ public interface UserConverter {
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "researchTags", ignore = true)
+    @Mapping(target = "profileLinks", expression = "java(user.getProfileLinkList())")
     UserDTO toDTOWithAvatar(User user);
 
     /**
@@ -48,6 +50,7 @@ public interface UserConverter {
     @Mapping(target = "avatarData", ignore = true)
     @Mapping(target = "userRoles", ignore = true)
     @Mapping(target = "researchTags", ignore = true)
+    @Mapping(target = "profileLinks", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

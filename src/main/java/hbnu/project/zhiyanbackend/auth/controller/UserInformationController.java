@@ -311,6 +311,46 @@ public class UserInformationController {
         return userInformationService.getUserResearchTags(userId);
     }
 
+    /**
+     * 获取当前用户的关联链接
+     */
+    @GetMapping("/profile/links")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "获取我的关联链接", description = "获取当前登录用户的个人关联链接列表")
+    public R<List<ProfileLinkDTO>> getMyProfileLinks() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录");
+        }
+        return userInformationService.getProfileLinks(userId);
+    }
+
+    /**
+     * 更新当前用户的关联链接
+     */
+    @PutMapping("/profile/links")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "更新我的关联链接", description = "更新当前登录用户的个人关联链接（最多6个）")
+    public R<List<ProfileLinkDTO>> updateMyProfileLinks(
+            @Valid @RequestBody UpdateProfileLinksDTO body) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录");
+        }
+        return userInformationService.updateProfileLinks(userId, body.getLinks());
+    }
+
+    /**
+     * 获取指定用户的关联链接（公开）
+     */
+    @GetMapping("/users/{userId}/links")
+    @Operation(summary = "获取用户关联链接", description = "根据用户ID获取其个人关联链接列表")
+    public R<List<ProfileLinkDTO>> getUserProfileLinks(
+            @Parameter(description = "用户ID", required = true)
+            @PathVariable Long userId) {
+        return userInformationService.getProfileLinks(userId);
+    }
+
 
     /**
      * 修改个人简介

@@ -1,6 +1,5 @@
 package hbnu.project.zhiyanbackend.auth.service.impl;
 
-import hbnu.project.zhiyanbackend.auth.model.dto.AvatarDTO;
 import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
@@ -8,8 +7,8 @@ import hbnu.project.zhiyanbackend.auth.model.entity.UserAchievement;
 import hbnu.project.zhiyanbackend.auth.repository.UserAchievementRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
-import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +47,7 @@ public class UserInformationServiceImpl implements UserInformationService {
     // 头像相关常量，限制5MB
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif");
+    private static final int MAX_PROFILE_LINKS = 6;
 
     /**
      * 更新用户个人资料
@@ -89,6 +89,7 @@ public class UserInformationServiceImpl implements UserInformationService {
 
             // 4. 转换为DTO返回
             UserDTO userDTO = userConverter.toDTO(savedUser);
+            userDTO.setProfileLinks(savedUser.getProfileLinkList());
 
             log.info("用户个人资料更新成功 - userId: {}", userId);
             return R.ok(userDTO, "个人资料更新成功");
@@ -411,6 +412,64 @@ public class UserInformationServiceImpl implements UserInformationService {
         }
     }
 
+    /**
+     * 更新个人关联链接
+     */
+    @Override
+    @Transactional
+    public R<List<ProfileLinkDTO>> updateProfileLinks(Long userId, List<ProfileLinkDTO> links) {
+        try {
+            ValidationUtils.requireNonNull(userId, "用户id不能为空");
+
+            Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (optionalUser.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            List<ProfileLinkDTO> normalized = normalizeProfileLinks(links);
+
+            User user = optionalUser.get();
+            user.setProfileLinkList(normalized);
+            userRepository.save(user);
+
+            return R.ok(normalized, "关联链接已更新");
+        } catch (ServiceException e) {
+            log.error("更新关联链接失败 - userId: {}, error: {}", userId, e.getMessage(), e);
+            return R.fail(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.error("关联链接参数错误 - userId: {}, error: {}", userId, e.getMessage());
+            return R.fail(e.getMessage());
+        } catch (Exception e) {
+            log.error("更新关联链接失败 - userId: {}", userId, e);
+            return R.fail("更新关联链接失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取指定用户的关联链接
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public R<List<ProfileLinkDTO>> getProfileLinks(Long userId) {
+        try {
+            ValidationUtils.requireNonNull(userId, "用户id不能为空");
+
+            Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (optionalUser.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            List<ProfileLinkDTO> links = optionalUser.get().getProfileLinkList();
+            return R.ok(links != null ? links : new ArrayList<>());
+        } catch (ServiceException e) {
+            log.error("查询关联链接失败 - userId: {}, error: {}", userId, e.getMessage(), e);
+            return R.fail("查询关联链接失败");
+        } catch (Exception e) {
+            log.error("查询关联链接异常 - userId: {}", userId, e);
+            return R.fail("查询关联链接失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 私有辅助方法 ====================
 
     /**
@@ -482,5 +541,55 @@ public class UserInformationServiceImpl implements UserInformationService {
             log.error("更新个人简介失败 - userId: {}, error: {}", userId, e.getMessage(), e);
             return R.fail("更新个人简介失败");
         }
+    }
+
+    /**
+     * 归一化并验证关联链接列表
+     */
+    private List<ProfileLinkDTO> normalizeProfileLinks(List<ProfileLinkDTO> links) {
+        if (links == null || links.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        if (links.size() > MAX_PROFILE_LINKS) {
+            throw new IllegalArgumentException("关联链接最多6个");
+        }
+
+        List<ProfileLinkDTO> normalized = new ArrayList<>();
+        for (ProfileLinkDTO link : links) {
+            if (link == null) {
+                continue;
+            }
+            String url = StringUtils.trimToEmpty(link.getUrl());
+            String label = StringUtils.trimToEmpty(link.getLabel());
+
+            if (StringUtils.isBlank(url)) {
+                throw new IllegalArgumentException("链接地址不能为空");
+            }
+            if (!isValidUrl(url)) {
+                throw new IllegalArgumentException("链接格式不正确，请以 http 或 https 开头");
+            }
+
+            // 限制长度，防止存储异常
+            if (label.length() > 50) {
+                label = label.substring(0, 50);
+            }
+            if (url.length() > 500) {
+                url = url.substring(0, 500);
+            }
+
+            normalized.add(ProfileLinkDTO.builder()
+                    .label(StringUtils.isNotBlank(label) ? label : url)
+                    .url(url)
+                    .build());
+        }
+
+        // 保留前6条
+        return normalized.stream().limit(MAX_PROFILE_LINKS).collect(Collectors.toList());
+    }
+
+    private boolean isValidUrl(String url) {
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.startsWith("http://") || lower.startsWith("https://");
     }
 }

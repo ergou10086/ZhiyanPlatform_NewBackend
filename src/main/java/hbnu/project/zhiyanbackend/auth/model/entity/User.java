@@ -121,6 +121,15 @@ public class User extends BaseAuditEntity {
     private String researchTags;
 
     /**
+     * 个人关联链接（JSON数组）
+     * 存储格式：[{"label":"GitHub","url":"https://github.com/xxx"}, ...]
+     * 最多6条
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "profile_links")
+    private String profileLinks;
+
+    /**
      * 用户状态
      */
     @Builder.Default
@@ -204,6 +213,43 @@ public class User extends BaseAuditEntity {
             this.researchTags = new ObjectMapper().writeValueAsString(limitedTags);
         } catch (Exception e) {
             this.researchTags = null;
+        }
+    }
+
+    /**
+     * 获取个人关联链接列表
+     */
+    @Transient
+    public List<hbnu.project.zhiyanbackend.auth.model.dto.ProfileLinkDTO> getProfileLinkList() {
+        if (profileLinks == null || profileLinks.isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            return new ObjectMapper().readValue(
+                    profileLinks,
+                    new TypeReference<List<hbnu.project.zhiyanbackend.auth.model.dto.ProfileLinkDTO>>() {});
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 设置个人关联链接列表，限制最多6条
+     */
+    @Transient
+    public void setProfileLinkList(List<hbnu.project.zhiyanbackend.auth.model.dto.ProfileLinkDTO> links) {
+        if (links == null || links.isEmpty()) {
+            this.profileLinks = null;
+            return;
+        }
+
+        // 只保留前6条
+        List<hbnu.project.zhiyanbackend.auth.model.dto.ProfileLinkDTO> limited =
+                links.stream().limit(6).collect(Collectors.toList());
+        try {
+            this.profileLinks = new ObjectMapper().writeValueAsString(limited);
+        } catch (Exception e) {
+            this.profileLinks = null;
         }
     }
 }
