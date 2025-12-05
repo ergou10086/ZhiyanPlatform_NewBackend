@@ -132,4 +132,14 @@ public interface MessageSendService {
      * @param lastLocation 上次登录位置（可能为空）
      */
     void notifyAccountSecurityAlert(Long userId, String currentIp, String currentLocation, String lastIp, String lastLocation);
+
+    /**
+     * 发送邮箱修改通知
+     * 发送给用户自己（高优先级系统消息）
+     *
+     * @param userId 用户ID
+     * @param oldEmail 旧邮箱
+     * @param newEmail 新邮箱
+     */
+    void notifyEmailChanged(Long userId, String oldEmail, String newEmail);
 }

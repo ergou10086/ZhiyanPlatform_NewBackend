@@ -853,13 +853,18 @@ public class AuthServiceImpl implements AuthService {
             }
             User user = userOpt.get();
 
-            // 2. 检查新邮箱是否已被使用
+            // 2.检查旧邮箱是否正确
+            if(changeEmailDTO.getOldEmail() != null && !changeEmailDTO.getOldEmail().equals(user.getEmail())){
+                return R.fail("旧邮箱不正确，请确认后重试");
+            }
+
+            // 3. 检查新邮箱是否已被使用
             Optional<User> existingUser = userRepository.findByEmail(changeEmailDTO.getNewEmail());
             if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
                 return R.fail("该邮箱已被使用");
             }
 
-            // 3. 校验新邮箱的验证码
+            // 4. 校验新邮箱的验证码
             R<Boolean> validResult = verificationCodeService.validateCode(
                     changeEmailDTO.getNewEmail(),
                     changeEmailDTO.getVerificationCode(),
@@ -869,12 +874,20 @@ public class AuthServiceImpl implements AuthService {
                 return R.fail("验证码错误或已过期");
             }
 
-            // 4. 更新用户邮箱
+            // 5. 更新用户邮箱
             String oldEmail = user.getEmail();
             user.setEmail(changeEmailDTO.getNewEmail());
             userRepository.save(user);
 
-            // 6. 将旧 token 加入黑名单并清理（强制重新登录）
+            // 6. 发送邮箱修改通知（高优先级系统消息）
+            try {
+                messageSendService.notifyEmailChanged(userId, oldEmail, changeEmailDTO.getNewEmail());
+                log.info("邮箱修改通知已发送: userId={}", userId);
+            } catch (Exception e) {
+                log.warn("发送邮箱修改通知失败(不影响主流程) - userId: {}, 错误: {}", userId, e.getMessage());
+            }
+
+            // 7. 将旧 token 加入黑名单并清理（强制重新登录）
             try {
                 String userTokenKey = CacheConstants.USER_TOKEN_PREFIX + user.getId();
                 String oldToken = redisService.getCacheObject(userTokenKey);
@@ -885,14 +898,14 @@ public class AuthServiceImpl implements AuthService {
                 log.warn("清理旧Token失败(不影响主流程) - userId: {}, 错误: {}", user.getId(), e.getMessage());
             }
 
-            // 7. 删除用户的RememberMe token（强制重新登录）
+            // 8. 删除用户的RememberMe token（强制重新登录）
             try {
                 rememberMeTokenRepository.deleteByUserId(userId);
             } catch (Exception e) {
                 log.warn("删除RememberMe token失败 - userId: {}", userId, e);
             }
 
-            // 8. 构建返回DTO
+            // 9. 构建返回DTO
             UserDTO userDTO = userConverter.toDTO(user);
 
             log.info("用户邮箱修改成功 - 用户ID: {}, 旧邮箱: {}, 新邮箱: {}",

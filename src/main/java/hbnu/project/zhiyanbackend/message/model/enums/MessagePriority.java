@@ -15,7 +15,7 @@ public enum MessagePriority {
         if (scene == null) {
             return LOW;
         }
-        
+
         switch (scene) {
             case TASK_OVERDUE:
             case TASK_REVIEW_REQUEST:
@@ -23,6 +23,7 @@ public enum MessagePriority {
             case PROJECT_MEMBER_APPLY:
             case SYSTEM_SECURITY_ALERT:
             case PROJECT_MEMBER_INVITED:
+            case USER_EMAIL_CHANGED:
                 return HIGH;
             case TASK_DEADLINE_REMIND:
             case PROJECT_ROLE_CHANGED:

@@ -118,11 +118,11 @@
             <artifactId>itextpdf</artifactId>
             <version>5.5.13.4</version>
         </dependency>
+        <!-- iText 5.x 中文字体支持 -->
         <dependency>
             <groupId>com.itextpdf</groupId>
-            <artifactId>font-asian</artifactId>
-            <version>9.4.0</version>
-            <scope>test</scope>
+            <artifactId>itext-asian</artifactId>
+            <version>5.2.0</version>
         </dependency>
 
         <!-- Lombok -->
@@ -145,6 +145,25 @@
             <groupId>com.github.pagehelper</groupId>
             <artifactId>pagehelper-spring-boot-starter</artifactId>
             <version>2.1.1</version>
+        </dependency>
+
+        <!-- Apache POI for Word documents -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
+        <!-- Google ZXing 用于生成二维码 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.2</version>
         </dependency>
 
         <!--JWT-->

@@ -1109,6 +1109,69 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 发送邮箱修改通知
+     * 发送给用户自己（高优先级系统消息）
+     *
+     * @param userId 用户ID
+     * @param oldEmail 旧邮箱
+     * @param newEmail 新邮箱
+     */
+    @Override
+    public void notifyEmailChanged(Long userId, String oldEmail, String newEmail) {
+        if (userId == null || newEmail == null) {
+            log.warn("邮箱修改通知参数不完整");
+            return;
+        }
+
+        try {
+            // 获取用户姓名
+            String userName = userRepository.findNameById(userId)
+                    .orElse("用户");
+
+            // 构建消息内容
+            String title = "邮箱修改成功";
+            StringBuilder content = new StringBuilder();
+            content.append("您的账号邮箱已成功修改\n");
+            if (oldEmail != null) {
+                content.append("原邮箱：").append(oldEmail).append("\n");
+            }
+            content.append("新邮箱：").append(newEmail).append("\n");
+            content.append("\n");
+            content.append("重要提示：\n");
+            content.append("1. 您的账号已自动登出，请使用新邮箱重新登录\n");
+            content.append("2. 请妥善保管新邮箱，用于后续登录和找回密码\n");
+            content.append("3. 如非本人操作，请立即联系管理员冻结账号并修改密码");
+
+            // 构建扩展数据
+            Map<String, Object> extendData = new HashMap<>();
+            extendData.put("userId", userId);
+            extendData.put("userName", userName);
+            extendData.put("oldEmail", oldEmail);
+            extendData.put("newEmail", newEmail);
+            extendData.put("redirectUrl", "/user/profile");
+            String extendDataJson = JsonUtils.toJsonString(extendData);
+
+            // 发送高优先级系统消息（senderId为null表示系统消息）
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.USER_EMAIL_CHANGED,
+                    null, // 系统消息，发送者为null
+                    userId,
+                    title,
+                    content.toString(),
+                    userId,
+                    "USER",
+                    extendDataJson
+            );
+
+            log.info("邮箱修改通知发送成功: userId={}, oldEmail={}, newEmail={}",
+                    userId, oldEmail, newEmail);
+        } catch (Exception e) {
+            log.error("发送邮箱修改通知失败: userId={}, newEmail={}", userId, newEmail, e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
      * 构建Wiki页面创建扩展数据JSON
      */
     private String buildWikiPageCreatedExtendData(WikiPage wikiPage, Long creatorId, String creatorName, String projectName) {

@@ -3,6 +3,7 @@ package hbnu.project.zhiyanbackend.wiki.service;
 import hbnu.project.zhiyanbackend.wiki.model.dto.WikiExportDTO;
 import hbnu.project.zhiyanbackend.wiki.model.dto.WikiImportDTO;
 import hbnu.project.zhiyanbackend.wiki.model.dto.WikiImportResultDTO;
+import hbnu.project.zhiyanbackend.wiki.model.entity.WikiPage;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

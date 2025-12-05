@@ -36,6 +36,7 @@ public enum MessageScene {
     WIKI_PAGE_DELETED("WIKI", "Wiki页面删除"),
     USER_CUSTOM_MESSAGE("USER", "用户自定义消息"),
     SYSTEM_SECURITY_ALERT("SYSTEM", "账号安全提醒"),
+    USER_EMAIL_CHANGED("USER", "邮箱修改通知"),
     SYSTEM_BROADCAST("SYSTEM", "平台广播");
 
     private final String module;
