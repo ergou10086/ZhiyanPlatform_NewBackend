@@ -247,6 +247,7 @@ public class UserServiceImpl implements UserService {
                 userPage = userRepository.findByIsDeletedFalse(pageable);
             }
 
+            // 保持列表接口行为不变，这里仍使用不带头像数据的 DTO 列表
             List<UserDTO> userDTOs = userConverter.toDTOList(userPage.getContent());
             Page<UserDTO> userDTOPage = new PageImpl<>(userDTOs, pageable, userPage.getTotalElements());
 
@@ -529,7 +530,10 @@ public class UserServiceImpl implements UserService {
                         keyword, keyword, pageable);
             }
 
-            List<UserDTO> userDTOs = userConverter.toDTOList(userPage.getContent());
+            // 使用包含头像数据的转换方法，确保前端可以显示头像
+            List<UserDTO> userDTOs = userPage.getContent().stream()
+                    .map(userConverter::toDTOWithAvatar)
+                    .toList();
             Page<UserDTO> userDTOPage = new PageImpl<>(userDTOs, pageable, userPage.getTotalElements());
 
             log.debug("搜索用户成功 - 关键词: {}, 找到: {}个", keyword, userPage.getTotalElements());
