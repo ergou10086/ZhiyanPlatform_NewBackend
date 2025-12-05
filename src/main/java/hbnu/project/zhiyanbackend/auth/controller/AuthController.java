@@ -6,6 +6,7 @@ import hbnu.project.zhiyanbackend.auth.service.AuthService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -310,5 +312,52 @@ public class AuthController {
             log.error("修改邮箱失败", e);
             return R.fail("修改邮箱失败：" + e.getMessage());
         }
+    }
+
+    /**
+     * 启用2FA - 生成密钥和二维码
+     */
+    @PostMapping("/2fa/enable")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "启用2FA", description = "生成2FA密钥和二维码，需要用户扫描后确认启用")
+    public R<TwoFactorSetupDTO> enableTwoFactorAuth() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+        log.info("用户[{}]请求启用2FA", userId);
+        return authService.enableTwoFactorAuth(userId);
+    }
+
+    /**
+     * 确认启用2FA
+     */
+    @PostMapping("/2fa/confirm")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "确认启用2FA", description = "验证2FA验证码后正式启用")
+    public R<Void> confirmEnableTwoFactorAuth(
+            @Valid @RequestBody TwoFactorVerifyDTO request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+        log.info("用户[{}]确认启用2FA", userId);
+        return authService.confirmEnableTwoFactorAuth(userId, request.getCode());
+    }
+
+    /**
+     * 禁用2FA
+     */
+    @PostMapping("/2fa/disable")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "禁用2FA", description = "需要验证当前2FA验证码才能禁用")
+    public R<Void> disableTwoFactorAuth(
+            @Valid @RequestBody TwoFactorVerifyDTO request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail(R.UNAUTHORIZED, "未登录或令牌无效");
+        }
+        log.info("用户[{}]请求禁用2FA", userId);
+        return authService.disableTwoFactorAuth(userId, request.getCode());
     }
 }

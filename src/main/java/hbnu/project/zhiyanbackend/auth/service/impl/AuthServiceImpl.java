@@ -20,14 +20,15 @@ import hbnu.project.zhiyanbackend.basic.utils.JwtUtils;
 import hbnu.project.zhiyanbackend.basic.utils.ip.AddressUtils;
 import hbnu.project.zhiyanbackend.basic.utils.ip.IpLocationUtils;
 import hbnu.project.zhiyanbackend.basic.utils.ip.IpUtils;
+import hbnu.project.zhiyanbackend.basic.utils.ip.RegionUtils;
 import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 import hbnu.project.zhiyanbackend.redis.service.RedisService;
 import hbnu.project.zhiyanbackend.security.context.LoginUserBody;
 import hbnu.project.zhiyanbackend.security.utils.PasswordUtils;
+import hbnu.project.zhiyanbackend.auth.utils.TwoFactorAuthUtil;
 
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.messaging.Message;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,15 +41,12 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -196,41 +194,115 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public R<UserLoginResponseDTO> login(LoginDTO loginDTO, HttpServletRequest request) {
-        log.info("处理用户登录: 邮箱={}", loginDTO.getEmail());
+        log.info("处理用户登录: 邮箱={}, 是否提供密码={}, 是否提供2FA={}", 
+                loginDTO.getEmail(), 
+                StringUtils.isNotBlank(loginDTO.getPassword()),
+                StringUtils.isNotBlank(loginDTO.getTwoFactorCode()));
 
         try {
-            // 使用 Spring Security 的标准认证流程
-            // 这会自动调用 AuthUserDetailsService.loadUserByUsername() 加载用户信息
-            // 并自动进行密码验证、账户状态检查等操作
-            UsernamePasswordAuthenticationToken authRequest = 
-                new UsernamePasswordAuthenticationToken(
-                    loginDTO.getEmail(), 
-                    loginDTO.getPassword()
-                );
+            // 先查找用户，检查是否启用2FA
+            Optional<User> userOpt = userRepository.findByEmail(loginDTO.getEmail());
+            if (userOpt.isEmpty()) {
+                return R.fail("邮箱或密码错误");
+            }
             
-            // 执行认证（内部会调用 loadUserByUsername 和密码验证）
-            Authentication authentication = authenticationManager.authenticate(authRequest);
+            User user = userOpt.get();
+            
+            // 检查账户状态
+            if (user.getIsDeleted()) {
+                return R.fail("账户不存在");
+            }
+            if (user.getIsLocked()) {
+                return R.fail("账户已被锁定，请联系管理员");
+            }
+            if (user.getStatus() == UserStatus.DISABLED) {
+                return R.fail("账户已被禁用");
+            }
 
-            // 认证成功会拿到用户详情
-            LoginUserBody loginUser = (LoginUserBody) authentication.getPrincipal();
-            Long userId = loginUser.getUserId();
+            LoginUserBody loginUser = null;
+            Long userId = user.getId();
+
+            // 情况1：提供了2FA验证码，且用户已启用2FA - 可以直接登录（无需密码）
+            if (StringUtils.isNotBlank(loginDTO.getTwoFactorCode())) {
+                // 检查用户是否启用了2FA
+                if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                    // 如果用户没有启用2FA但提供了2FA码，需要密码
+                    if (StringUtils.isBlank(loginDTO.getPassword())) {
+                        return R.fail("该账号未启用2FA，请输入密码");
+                    }
+                    // 继续使用密码登录流程（loginUser仍为null，会进入情况2）
+                } else {
+                    // 用户已启用2FA，验证2FA码
+                    if (StringUtils.isBlank(user.getTwoFactorSecret()) ||
+                            !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), loginDTO.getTwoFactorCode())) {
+                        return R.fail("2FA验证码错误或已过期");
+                    }
+
+                    // 2FA验证通过，直接加载用户信息（跳过密码验证）
+                    log.info("2FA验证通过，直接登录: userId={}, email={}", userId, loginDTO.getEmail());
+                    // loadUserByUsername返回UserDetails，但实际是LoginUserBody实例，需要类型转换
+                    UserDetails userDetails = authUserDetailsService.loadUserByUsername(loginDTO.getEmail());
+                    if (userDetails instanceof LoginUserBody) {
+                        loginUser = (LoginUserBody) userDetails;
+                        userId = loginUser.getUserId();
+                    } else {
+                        log.error("加载用户信息失败：返回类型不是LoginUserBody");
+                        return R.fail("登录失败，请稍后重试");
+                    }
+                }
+            }
+            
+            // 情况2：提供了密码 - 使用标准认证流程（如果情况1没有完成登录）
+            if (loginUser == null && StringUtils.isNotBlank(loginDTO.getPassword())) {
+                // 使用 Spring Security 的标准认证流程
+                // 这会自动调用 AuthUserDetailsService.loadUserByUsername() 加载用户信息
+                // 并自动进行密码验证、账户状态检查等操作
+                UsernamePasswordAuthenticationToken authRequest = 
+                    new UsernamePasswordAuthenticationToken(
+                        loginDTO.getEmail(), 
+                        loginDTO.getPassword()
+                    );
+                
+                // 执行认证（内部会调用 loadUserByUsername 和密码验证）
+                Authentication authentication = authenticationManager.authenticate(authRequest);
+
+                // 认证成功会拿到用户详情
+                loginUser = (LoginUserBody) authentication.getPrincipal();
+                userId = Objects.requireNonNull(loginUser).getUserId();
+
+                // 如果用户启用了2FA且提供了2FA码，额外验证2FA（可选增强）
+                if (StringUtils.isNotBlank(loginDTO.getTwoFactorCode()) && 
+                    Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                    if (StringUtils.isBlank(user.getTwoFactorSecret()) || !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), loginDTO.getTwoFactorCode())) {
+                        return R.fail("2FA验证码错误或已过期");
+                    }
+                    log.info("密码+2FA双重验证通过: userId={}", userId);
+                }
+            }
+            
+            // 情况3：既没有密码也没有2FA码，或者2FA验证失败后没有密码
+            if (loginUser == null) {
+                return R.fail("请输入密码或2FA验证码");
+            }
 
             // 获取当前登录IP
             String currentIp = request != null ? IpUtils.getIpAddr(request) : "unknown";
             String currentLocation = AddressUtils.getRealAddressByIP(currentIp);
 
+            // 重新获取用户信息（确保是最新的）
+            userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            
             // 获取用户信息，检查是否为异地登录
-            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
             if (userOpt.isPresent()) {
-                User user = userOpt.get();
-                String lastLoginIp = user.getLastLoginIp();
+                User currentUser = userOpt.get();
+                String lastLoginIp = currentUser.getLastLoginIp();
 
                 // 判断是否为异地登录
                 if (StrUtil.isNotBlank(lastLoginIp) &&
                         IpLocationUtils.isDifferentIp(currentIp, lastLoginIp)) {
 
                     // 获取上次登录位置
-                    String lastLocation = AddressUtils.getRealAddressByIP(lastLoginIp);
+                    String lastLocation = RegionUtils.getCityInfo(lastLoginIp);
 
                     // 发送账号安全通知
                     try {
@@ -250,8 +322,8 @@ public class AuthServiceImpl implements AuthService {
                 }
 
                 // 更新用户的上次登录IP
-                user.setLastLoginIp(currentIp);
-                userRepository.save(user);
+                currentUser.setLastLoginIp(currentIp);
+                userRepository.save(currentUser);
             }
 
             // 生成 JWT Token
@@ -265,7 +337,7 @@ public class AuthServiceImpl implements AuthService {
             }
 
             // 构建响应 DTO
-            // 优化：从LoginUserBody中获取头像信息，如果avatarUrl存在则使用，否则从avatarData生成
+            // 从LoginUserBody中获取头像信息，如果avatarUrl存在则使用，否则从avatarData生成
             String avatarData = null;
             if (loginUser.getAvatarUrl() != null) {
                 avatarData = loginUser.getAvatarUrl();
@@ -281,6 +353,10 @@ public class AuthServiceImpl implements AuthService {
                 }
             }
 
+            // 从数据库获取用户实体以获取2FA状态
+            User userEntity = userOpt.orElse(null);
+            Boolean twoFactorEnabled = userEntity != null ? userEntity.getTwoFactorEnabled() : false;
+            
             UserDTO userDTO = UserDTO.builder()
                     .id(loginUser.getUserId())
                     .email(loginUser.getEmail())
@@ -291,6 +367,7 @@ public class AuthServiceImpl implements AuthService {
                     .institution(loginUser.getInstitution())
                     .roles(loginUser.getRoles())
                     .permissions(new ArrayList<>(loginUser.getPermissions()))
+                    .twoFactorEnabled(twoFactorEnabled)
                     .build();
 
             UserLoginResponseDTO response = UserLoginResponseDTO.builder()
@@ -729,6 +806,19 @@ public class AuthServiceImpl implements AuthService {
             }
             User user = userOpt.get();
 
+            // 0. 如果启用了2FA，需要验证2FA码
+            if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                String twoFactorCode = request.getTwoFactorCode();
+                if (StringUtils.isBlank(twoFactorCode)) {
+                    return R.fail("该账号已启用双因素认证，请输入验证码");
+                }
+
+                if (StringUtils.isBlank(user.getTwoFactorSecret()) ||
+                        !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), twoFactorCode)) {
+                    return R.fail("2FA验证码错误或已过期");
+                }
+            }
+
             // 1. 校验验证码
             R<Boolean> validResult = verificationCodeService.validateCode(
                     request.getEmail(), request.getVerificationCode(), VerificationCodeType.RESET_PASSWORD
@@ -852,6 +942,19 @@ public class AuthServiceImpl implements AuthService {
                 return R.fail("用户不存在");
             }
             User user = userOpt.get();
+
+            // 0. 如果启用了2FA，需要验证2FA码
+            if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                String twoFactorCode = changeEmailDTO.getTwoFactorCode();
+                if (StringUtils.isBlank(twoFactorCode)) {
+                    return R.fail("该账号已启用双因素认证，请输入验证码");
+                }
+
+                if (StringUtils.isBlank(user.getTwoFactorSecret()) ||
+                        !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), twoFactorCode)) {
+                    return R.fail("2FA验证码错误或已过期");
+                }
+            }
 
             // 2.检查旧邮箱是否正确
             if(changeEmailDTO.getOldEmail() != null && !changeEmailDTO.getOldEmail().equals(user.getEmail())){
@@ -1059,6 +1162,179 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    /**
+     * 启用2FA - 生成密钥和二维码
+     */
+    @Override
+    public R<TwoFactorSetupDTO> enableTwoFactorAuth(Long userId) {
+        log.info("用户请求启用2FA: userId={}", userId);
+
+        try {
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            // 如果已经启用，返回现有密钥信息
+            if (Boolean.TRUE.equals(user.getTwoFactorEnabled()) &&
+                    StringUtils.isNotBlank(user.getTwoFactorSecret())) {
+                // 生成二维码（不返回密钥，只返回二维码）
+                String qrCodeText = TwoFactorAuthUtil.getQrCodeText(
+                        user.getTwoFactorSecret(),
+                        user.getEmail(),
+                        "智研平台"
+                );
+                String qrCodeBase64 = TwoFactorAuthUtil.getQrCodeBase64(qrCodeText, 300, 300);
+
+                TwoFactorSetupDTO setupDTO = TwoFactorSetupDTO.builder()
+                        .qrCodeBase64(qrCodeBase64)
+                        .qrCodeText(qrCodeText)
+                        .build();
+                return R.ok(setupDTO, "2FA已启用");
+            }
+
+            // 生成新密钥
+            String secretKey = TwoFactorAuthUtil.generateSecretKey();
+
+            // 生成二维码
+            String qrCodeText = TwoFactorAuthUtil.getQrCodeText(secretKey, user.getEmail(), "智研平台");
+            String qrCodeBase64 = TwoFactorAuthUtil.getQrCodeBase64(qrCodeText, 300, 300);
+
+            // 临时保存密钥（待验证后正式启用）
+            user.setTwoFactorSecret(secretKey);
+            userRepository.save(user);
+
+            TwoFactorSetupDTO setupDTO = TwoFactorSetupDTO.builder()
+                    .secretKey(secretKey)
+                    .qrCodeBase64(qrCodeBase64)
+                    .qrCodeText(qrCodeText)
+                    .build();
+
+            log.info("2FA密钥生成成功: userId={}", userId);
+            return R.ok(setupDTO, "请使用Microsoft Authenticator扫描二维码，然后输入验证码确认启用");
+
+        } catch (Exception e) {
+            log.error("启用2FA失败: userId={}", userId, e);
+            return R.fail("启用2FA失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 确认启用2FA - 验证验证码后正式启用
+     */
+    @Override
+    @Transactional
+    public R<Void> confirmEnableTwoFactorAuth(Long userId, String code) {
+        log.info("用户确认启用2FA: userId={}", userId);
+
+        try {
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            if (StringUtils.isBlank(user.getTwoFactorSecret())) {
+                return R.fail("请先生成2FA密钥");
+            }
+
+            // 验证验证码
+            if (!TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), code)) {
+                return R.fail("验证码错误，请重新输入");
+            }
+
+            // 正式启用2FA
+            user.setTwoFactorEnabled(true);
+            userRepository.save(user);
+
+            log.info("2FA启用成功: userId={}", userId);
+            return R.ok(null, "2FA已成功启用");
+
+        } catch (Exception e) {
+            log.error("确认启用2FA失败: userId={}", userId, e);
+            return R.fail("确认启用2FA失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 禁用2FA
+     *
+     * @param userId 用户ID
+     * @param code   验证码（需要验证当前2FA码才能禁用）
+     * @return 操作结果
+     */
+    @Override
+    @Transactional
+    public R<Void> disableTwoFactorAuth(Long userId, String code) {
+        log.info("用户请求禁用2FA: userId={}", userId);
+
+        try {
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            if(!Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+                return R.fail("2FA未启用");
+            }
+
+            // 验证验证码
+            if (StringUtils.isBlank(user.getTwoFactorSecret()) || !TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), code)) {
+                return R.fail("验证码错误，无法禁用2FA");
+            }
+
+            // 禁用2FA并清除密钥
+            user.setTwoFactorEnabled(false);
+            user.setTwoFactorSecret(null);
+            userRepository.save(user);
+
+            log.info("2FA已禁用: userId={}", userId);
+            return R.ok(null, "2FA已成功禁用");
+        }catch (Exception e) {
+            log.error("禁用2FA失败: userId={}", userId, e);
+            return R.fail("禁用2FA失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 验证2FA验证码
+     *
+     * @param userId 用户ID
+     * @param code   验证码
+     * @return 验证结果
+     */
+    @Override
+    public R<Boolean> verifyTwoFactorCode(Long userId, String code) {
+        try {
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            if (!Boolean.TRUE.equals(user.getTwoFactorEnabled()) ||
+                    StringUtils.isBlank(user.getTwoFactorSecret())) {
+                return R.fail("用户未启用2FA");
+            }
+
+            boolean isValid = TwoFactorAuthUtil.verifyCode(user.getTwoFactorSecret(), code);
+            if (isValid) {
+                return R.ok(true, "验证码正确");
+            } else {
+                return R.fail("验证码错误或已过期");
+            }
+
+        } catch (Exception e) {
+            log.error("验证2FA验证码失败: userId={}", userId, e);
+            return R.fail("验证失败，请稍后重试");
+        }
+    }
 
     /**
      * 为新用户分配默认角色

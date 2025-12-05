@@ -51,5 +51,11 @@ public class ResetPasswordDTO {
     @NotBlank(message = "确认密码不能为空")
     @Schema(description = "确认密码（需与新密码一致）", example = "newpassword123", required = true)
     private String confirmPassword;
+
+    /**
+     * 2FA验证码（如果用户启用了2FA，此字段必填）
+     */
+    @Pattern(regexp = "^\\d{6}$", message = "2FA验证码必须是6位数字")
+    private String twoFactorCode;
 }
 

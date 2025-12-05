@@ -11,6 +11,7 @@ import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -132,6 +133,22 @@ public class User extends BaseAuditEntity {
      */
     @Column(name = "last_login_ip", length = 50)
     private String lastLoginIp;
+
+    /**
+     * 2FA密钥（Base32编码，用于生成TOTP）
+     * 仅在启用2FA时存储
+     */
+    @Column(name = "two_factor_secret", length = 32)
+    @JsonIgnore
+    private String twoFactorSecret;
+
+    /**
+     * 是否启用双因素认证
+     */
+    @Builder.Default
+    @Column(name = "two_factor_enabled", nullable = false)
+    @ColumnDefault("false")
+    private Boolean twoFactorEnabled = false;
 
     /**
      * 用户角色关联（一对多）

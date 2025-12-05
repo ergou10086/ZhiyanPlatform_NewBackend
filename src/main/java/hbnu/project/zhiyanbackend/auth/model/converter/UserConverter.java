@@ -74,6 +74,7 @@ public interface UserConverter {
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "twoFactorEnabled", source = "twoFactorEnabled")
     UserInfoResponseDTO toUserInfoResponse(UserDTO userDTO);
 
     /**

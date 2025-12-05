@@ -1,9 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.model.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,4 +42,10 @@ public class ChangeEmailDTO {
     @NotBlank(message = "验证码不能为空")
     @Size(min = 4, max = 6, message = "验证码长度应为4-6位")
     private String verificationCode;
+
+    /**
+     * 2FA验证码（如果用户启用了2FA，此字段必填）
+     */
+    @Pattern(regexp = "^\\d{6}$", message = "2FA验证码必须是6位数字")
+    private String twoFactorCode;
 }

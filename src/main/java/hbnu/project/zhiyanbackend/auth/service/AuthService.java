@@ -172,4 +172,39 @@ public interface AuthService {
      * 清理过期的RememberMe token
      */
     void cleanExpiredTokens();
+
+    /**
+     * 启用2FA
+     *
+     * @param userId 用户id
+     * @return TwoFactorSetupDTO启用结果
+     */
+    R<TwoFactorSetupDTO> enableTwoFactorAuth(Long userId);
+
+    /**
+     * 确认启用2FA - 验证验证码后正式启用
+     *
+     * @param userId 用户ID
+     * @param code   验证码
+     * @return 操作结果
+     */
+    R<Void> confirmEnableTwoFactorAuth(Long userId, String code);
+
+    /**
+     * 禁用2FA
+     *
+     * @param userId 用户ID
+     * @param code   验证码（需要验证当前2FA码才能禁用）
+     * @return 操作结果
+     */
+    R<Void> disableTwoFactorAuth(Long userId, String code);
+
+    /**
+     * 验证2FA验证码
+     *
+     * @param userId 用户ID
+     * @param code   验证码
+     * @return 验证结果
+     */
+    R<Boolean> verifyTwoFactorCode(Long userId, String code);
 }

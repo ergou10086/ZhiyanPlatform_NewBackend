@@ -3,6 +3,7 @@ package hbnu.project.zhiyanbackend.auth.model.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 /**
@@ -27,10 +28,9 @@ public class LoginDTO {
     private String email;
 
     /**
-     * 用户密码
+     * 用户密码（可选，如果提供了2FA验证码则可以省略）
      */
-    @NotBlank(message = "密码不能为空")
-    @Schema(description = "用户密码", example = "password123", required = true)
+    @Schema(description = "用户密码（可选，如果提供了2FA验证码则可以省略）", example = "password123")
     private String password;
 
     /**
@@ -45,5 +45,12 @@ public class LoginDTO {
      */
     @Schema(description = "验证码（可选，用于二次验证）", example = "123456")
     private String verificationCode;
+
+    /**
+     * 2FA验证码（可选，如果提供了2FA验证码且用户已启用2FA，可以直接登录无需密码）
+     */
+    @Pattern(regexp = "^\\d{6}$", message = "2FA验证码必须是6位数字")
+    @Schema(description = "2FA验证码（可选，如果提供了2FA验证码且用户已启用2FA，可以直接登录无需密码）", example = "123456")
+    private String twoFactorCode;
 }
 

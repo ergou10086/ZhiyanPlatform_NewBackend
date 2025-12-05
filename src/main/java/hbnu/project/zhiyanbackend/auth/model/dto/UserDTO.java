@@ -86,4 +86,9 @@ public class UserDTO {
      * 研究方向标签
      */
     private List<String> researchTags;
+
+    /**
+     * 是否启用双因素认证
+     */
+    private Boolean twoFactorEnabled;
 }

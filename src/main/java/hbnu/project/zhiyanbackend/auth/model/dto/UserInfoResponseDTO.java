@@ -94,4 +94,10 @@ public class UserInfoResponseDTO {
      */
     @Schema(description = "最后更新时间", example = "2024-10-14T15:45:00")
     private LocalDateTime updatedAt;
+
+    /**
+     * 是否启用双因素认证
+     */
+    @Schema(description = "是否启用双因素认证", example = "false")
+    private Boolean twoFactorEnabled;
 }

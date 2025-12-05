@@ -61,8 +61,15 @@ public class UserServiceImpl implements UserService {
 
             User user = optionalUser.get();
             UserDTO userDTO = userConverter.toDTO(user);
+            
+            // 手动设置2FA状态，确保MapStruct正确映射（如果MapStruct没有自动映射）
+            if (userDTO != null) {
+                userDTO.setTwoFactorEnabled(user.getTwoFactorEnabled());
+                log.debug("设置2FA状态 - userId: {}, twoFactorEnabled: {}", userId, user.getTwoFactorEnabled());
+            }
 
-            log.debug("成功获取用户信息 - userId: {}, email: {}", userId, user.getEmail());
+            log.debug("成功获取用户信息 - userId: {}, email: {}, twoFactorEnabled: {}", 
+                    userId, user.getEmail(), user.getTwoFactorEnabled());
             return R.ok(userDTO);
 
         } catch (Exception e) {
