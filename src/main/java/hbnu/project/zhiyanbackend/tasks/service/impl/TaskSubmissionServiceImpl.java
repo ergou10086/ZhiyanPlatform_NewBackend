@@ -230,19 +230,30 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         return convertToDTO(submission, task);
     }
 
+/**
+ * 根据提交记录ID获取提交详情
+ * 此方法为只读事务方法
+ * @param submissionId 提交记录ID
+ * @return TaskSubmissionDTO 提交详情的数据传输对象
+ * @throws IllegalArgumentException 当提交记录不存在或已删除或关联任务不存在时抛出
+ */
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true)  // 声明这是一个只读事务方法
     public TaskSubmissionDTO getSubmissionDetail(Long submissionId) {
+    // 根据ID查找提交记录，如果不存在则抛出异常
         TaskSubmission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("提交记录不存在"));
 
+    // 检查提交记录是否已被删除
         if (Boolean.TRUE.equals(submission.getIsDeleted())) {
             throw new IllegalArgumentException("提交记录已删除");
         }
 
+    // 根据提交记录中的任务ID查找关联任务，如果不存在则抛出异常
         Task task = taskRepository.findById(submission.getTaskId())
                 .orElseThrow(() -> new IllegalArgumentException("关联任务不存在"));
 
+    // 将提交记录和任务信息转换为数据传输对象并返回
         return convertToDTO(submission, task);
     }
 
@@ -452,6 +463,62 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     private TaskSubmissionDTO convertToDTO(TaskSubmission submission) {
         Task task = taskRepository.findById(submission.getTaskId()).orElse(null);
         return convertToDTO(submission, task);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> getTasksAttachments(List<Long> taskIds) {
+        log.info("批量查询任务附件: taskIds={}", taskIds);
+        
+        if (taskIds == null || taskIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // 批量查询所有任务的提交记录
+        List<TaskSubmission> submissions = submissionRepository
+                .findByTaskIdInAndIsDeletedFalseOrderByTaskIdAscVersionDesc(taskIds);
+
+        // 按任务ID分组，收集所有附件URL并去重
+        Map<String, List<String>> result = new HashMap<>();
+        
+        for (TaskSubmission submission : submissions) {
+            String taskIdStr = String.valueOf(submission.getTaskId());
+            
+            // 解析附件URL列表
+            List<String> attachmentUrls = new ArrayList<>();
+            if (submission.getAttachmentUrls() != null && !submission.getAttachmentUrls().trim().isEmpty()) {
+                try {
+                    attachmentUrls = objectMapper.readValue(
+                            submission.getAttachmentUrls(),
+                            objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+                } catch (JsonProcessingException e) {
+                    log.warn("任务附件URL反序列化失败: taskId={}, submissionId={}", 
+                            submission.getTaskId(), submission.getId(), e);
+                }
+            }
+            
+            // 如果该任务还没有在结果中，初始化列表
+            result.putIfAbsent(taskIdStr, new ArrayList<>());
+            
+            // 添加附件URL（去重）
+            List<String> existingUrls = result.get(taskIdStr);
+            for (String url : attachmentUrls) {
+                if (url != null && !url.trim().isEmpty() && !existingUrls.contains(url)) {
+                    existingUrls.add(url);
+                }
+            }
+        }
+        
+        // 确保所有请求的任务ID都在结果中（即使没有附件）
+        for (Long taskId : taskIds) {
+            String taskIdStr = String.valueOf(taskId);
+            result.putIfAbsent(taskIdStr, new ArrayList<>());
+        }
+        
+        log.info("批量查询任务附件完成: 查询了{}个任务，找到{}个有附件的任务", 
+                taskIds.size(), result.values().stream().filter(list -> !list.isEmpty()).count());
+        
+        return result;
     }
 
     private LocalDateTime instantToLocalDateTime(Instant instant) {

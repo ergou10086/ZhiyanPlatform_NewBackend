@@ -51,4 +51,11 @@ public interface TaskSubmissionService {
     long countPendingSubmissionsForReview(Long userId);
 
     Map<String, Object> getTaskSubmissionStats(Long taskId);
+
+    /**
+     * 批量查询任务的附件列表
+     * @param taskIds 任务ID列表
+     * @return Map<任务ID(字符串), 附件URL列表>，附件列表已去重
+     */
+    Map<String, List<String>> getTasksAttachments(List<Long> taskIds);
 }
