@@ -122,6 +122,12 @@ public class AuthServiceImpl implements AuthService {
             if (!PasswordUtils.isValidPassword(request.getPassword())) {
                 return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
+            
+            // 检查密码是否与邮箱相同
+            if (request.getPassword().equalsIgnoreCase(request.getEmail())) {
+                return R.fail("密码不能与邮箱相同");
+            }
+            
             validatePasswordStrength(request.getPassword());
 
             // 4. 校验验证码
@@ -158,7 +164,7 @@ public class AuthServiceImpl implements AuthService {
 
             // 8. 计算密码强度描述
             int passwordStrength = PasswordUtils.validatePasswordStrength(request.getPassword());
-            String passwordStrengthDesc = getPasswordStrengthDescription(passwordStrength);
+            String passwordStrengthDesc = PasswordUtils.getPasswordStrengthDescriptionByLevel(passwordStrength);
 
             // 9. 构建完整的响应（包含登录令牌）
             UserRegisterResponseDTO response = UserRegisterResponseDTO.builder()
@@ -825,6 +831,12 @@ public class AuthServiceImpl implements AuthService {
             if (!PasswordUtils.isValidPassword(request.getNewPassword())) {
                 return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
+            
+            // 检查密码是否与邮箱相同
+            if (request.getNewPassword().equalsIgnoreCase(request.getEmail())) {
+                return R.fail("密码不能与邮箱相同");
+            }
+            
             validatePasswordStrength(request.getNewPassword());
 
             // 4. 更新用户密码
@@ -888,6 +900,12 @@ public class AuthServiceImpl implements AuthService {
             if (!PasswordUtils.isValidPassword(request.getNewPassword())) {
                 return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
+            
+            // 检查密码是否与邮箱相同
+            if (request.getNewPassword().equalsIgnoreCase(request.getEmail())) {
+                return R.fail("密码不能与邮箱相同");
+            }
+            
             validatePasswordStrength(request.getNewPassword());
 
             // 4. 更新用户密码
@@ -1391,10 +1409,11 @@ public class AuthServiceImpl implements AuthService {
             throw new ServiceException("密码必须为7-25位，且必须包含至少一个字母");
         }
 
-        // 可根据需求添加密码强度建议
+        // 检查密码强度
         int strength = PasswordUtils.validatePasswordStrength(password);
         if (strength < 2) {
-            log.warn("密码强度较弱 - 建议使用字母、数字和特殊字符组合");
+            log.warn("密码强度较弱 - 当前强度: {}, 建议使用字母、数字和特殊字符组合", 
+                    PasswordUtils.getPasswordStrengthDescriptionByLevel(strength));
         }
     }
 
@@ -1422,22 +1441,4 @@ public class AuthServiceImpl implements AuthService {
         return token.trim();
     }
 
-    /**
-     * 获取密码强度描述
-     * 
-     * @param strength 密码强度等级（0-无效，1-弱，2-中等，3-强）
-     * @return 密码强度描述
-     */
-    private String getPasswordStrengthDescription(int strength) {
-        switch (strength) {
-            case 3:
-                return "强";
-            case 2:
-                return "中等";
-            case 1:
-                return "弱";
-            default:
-                return "无效";
-        }
-    }
 }

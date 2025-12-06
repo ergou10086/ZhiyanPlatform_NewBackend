@@ -235,6 +235,10 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             if (!PasswordUtils.isValidPassword(supplementBody.getPassword())) {
                 return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
+            // 检查密码是否与邮箱相同
+            if (supplementBody.getPassword().equalsIgnoreCase(supplementBody.getEmail())) {
+                return R.fail("密码不能与邮箱相同");
+            }
 
             // 3. 验证OAuth2信息
             OAuth2UserInfoDTO oauth2UserInfo = supplementBody.getOauth2UserInfo();
