@@ -1,5 +1,7 @@
 package hbnu.project.zhiyanbackend.tasks.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskDetailDTO;
@@ -37,6 +39,7 @@ public class TaskController {
 
     @PostMapping
     @Operation(summary = "创建任务")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "CREATE", description = "创建任务")
     public R<Task> createTask(@Valid @RequestBody CreateTaskRequest request) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {

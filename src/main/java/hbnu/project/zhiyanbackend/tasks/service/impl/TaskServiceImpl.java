@@ -21,6 +21,7 @@ import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.projects.utils.ProjectSecurityUtils;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -54,6 +55,7 @@ public class TaskServiceImpl implements TaskService {
     private final InboxMessageService inboxMessageService;
     private final UserRepository userRepository;
     private final ProjectSecurityUtils projectSecurityUtils;
+    private final OperationLogHelper operationLogHelper;
 
     @Override
     @Transactional
@@ -133,6 +135,13 @@ public class TaskServiceImpl implements TaskService {
             } catch (Exception e) {
                 log.warn("发送任务分配消息失败: taskId={}, assigneeIds={}", saved.getId(), assigneeIds, e);
             }
+        }
+
+        // 记录创建任务操作日志
+        try {
+            operationLogHelper.logTaskCreate(projectId, saved.getId(), saved.getTitle());
+        } catch (Exception e) {
+            log.warn("记录创建任务日志失败: taskId={}, error={}", saved.getId(), e.getMessage(), e);
         }
 
         return R.ok(saved, "任务创建成功");

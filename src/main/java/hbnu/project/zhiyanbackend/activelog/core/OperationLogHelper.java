@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static hbnu.project.zhiyanbackend.basic.utils.FileUtils.formatFileSize;
 
 /**
@@ -184,6 +187,127 @@ public class OperationLogHelper {
         } catch (Exception e) {
             log.error("记录角色变更日志失败: projectId={}, userId={}, error={}",
                     projectId, userId, e.getMessage(), e);
+        }
+    }
+
+    // ==================== 任务操作日志 ====================
+
+    /**
+     * 记录创建任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     */
+    public void logTaskCreate(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置创建任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录创建任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录更新任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     */
+    public void logTaskUpdate(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置更新任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录更新任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录删除任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     */
+    public void logTaskDelete(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置删除任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录删除任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录分配任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     * @param assigneeIds 被分配的用户ID列表
+     */
+    public void logTaskAssign(Long projectId, Long taskId, String taskTitle, List<Long> assigneeIds) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            String assigneeNames = assigneeIds != null && !assigneeIds.isEmpty()
+                    ? assigneeIds.stream()
+                    .map(this::getUsername)
+                    .collect(Collectors.joining("、"))
+                    : "无";
+            String operationDesc = String.format("分配任务【%s】给【%s】", taskTitle, assigneeNames);
+            OperationLogContext context = OperationLogContext.get();
+            if (context != null) {
+                context.setExtra(operationDesc);
+            }
+            log.debug("设置分配任务日志上下文: projectId={}, taskId={}, assigneeIds={}",
+                    projectId, taskId, assigneeIds);
+        } catch (Exception e) {
+            log.error("记录分配任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录提交任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     */
+    public void logTaskSubmit(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置提交任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录提交任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录审核任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     * @param reviewResult 审核结果（通过/拒绝）
+     */
+    public void logTaskReview(Long projectId, Long taskId, String taskTitle, String reviewResult) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            String operationDesc = String.format("审核任务【%s】，结果：%s", taskTitle, reviewResult);
+            OperationLogContext context = OperationLogContext.get();
+            if (context != null) {
+                context.setExtra(operationDesc);
+            }
+            log.debug("设置审核任务日志上下文: projectId={}, taskId={}, reviewResult={}",
+                    projectId, taskId, reviewResult);
+        } catch (Exception e) {
+            log.error("记录审核任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
         }
     }
 

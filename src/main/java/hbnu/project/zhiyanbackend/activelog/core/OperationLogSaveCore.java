@@ -6,13 +6,14 @@ import hbnu.project.zhiyanbackend.activelog.model.entity.ProjectOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.entity.TaskOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.entity.WikiOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.enums.AchievementOperationType;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.activelog.model.enums.ProjectOperationType;
 import hbnu.project.zhiyanbackend.activelog.model.enums.TaskOperationType;
+import hbnu.project.zhiyanbackend.activelog.model.enums.WikiOperationType;
 import hbnu.project.zhiyanbackend.activelog.repository.AchievementOperationLogRepository;
 import hbnu.project.zhiyanbackend.activelog.repository.ProjectOperationLogRepository;
 import hbnu.project.zhiyanbackend.activelog.repository.TaskOperationLogRepository;
 import hbnu.project.zhiyanbackend.activelog.repository.WikiOperationLogRepository;
-import hbnu.project.zhiyanbackend.activelog.model.enums.WikiOperationType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,21 +56,18 @@ public class OperationLogSaveCore {
             String username,
             LocalDateTime operationTime) {
         try {
-            switch (annotation.module()) {
-                case PROJECT:
-                    saveProjectLog(annotation, projectId, bizTitle, userId, username, operationTime);
-                    break;
-                case TASK:
-                    saveTaskLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
-                    break;
-                case WIKI:
-                    saveWikiLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
-                    break;
-                case ACHIEVEMENT:
-                    saveAchievementLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
-                    break;
-                default:
-                    log.warn("未知的业务模块: {}", annotation.module());
+            // 使用 if-else 替代 switch，避免可能的匿名内部类生成问题
+            BizOperationModule module = annotation.module();
+            if (module == BizOperationModule.PROJECT) {
+                saveProjectLog(annotation, projectId, bizTitle, userId, username, operationTime);
+            } else if (module == BizOperationModule.TASK) {
+                saveTaskLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
+            } else if (module == BizOperationModule.WIKI) {
+                saveWikiLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
+            } else if (module == BizOperationModule.ACHIEVEMENT) {
+                saveAchievementLog(annotation, projectId, bizId, bizTitle, userId, username, operationTime);
+            } else {
+                log.warn("未知的业务模块: {}", annotation.module());
             }
         }catch (Exception e) {
             log.error("保存操作日志失败: module={}, type={}, error={}",
@@ -95,7 +93,19 @@ public class OperationLogSaveCore {
             return;
         }
 
-        ProjectOperationLog log = ProjectOperationLog.builder()
+        // 如果projectId为null，记录警告但不阻止保存
+        if (projectId == null) {
+            log.warn("保存项目操作日志时projectId为null: type={}, userId={}, username={}", 
+                    annotation.type(), userId, username);
+        }
+        
+        // 如果projectName为null，使用默认值
+        if (projectName == null || projectName.trim().isEmpty()) {
+            projectName = "未知项目";
+            log.warn("保存项目操作日志时projectName为null，使用默认值");
+        }
+
+        ProjectOperationLog operationLog = ProjectOperationLog.builder()
                 .projectId(projectId)
                 .projectName(projectName)
                 .userId(userId)
@@ -106,7 +116,9 @@ public class OperationLogSaveCore {
                 .operationTime(operationTime)
                 .build();
 
-        projectOperationLogRepository.save(log);
+        projectOperationLogRepository.save(operationLog);
+        log.info("项目操作日志保存成功: projectId={}, projectName={}, type={}",
+                projectId, projectName, operationType);
     }
 
 
@@ -130,7 +142,21 @@ public class OperationLogSaveCore {
             return;
         }
 
-        TaskOperationLog log = TaskOperationLog.builder()
+        // 如果关键信息缺失，记录警告
+        if (projectId == null) {
+            log.warn("保存任务操作日志时projectId为null: type={}, taskId={}, userId={}", 
+                    annotation.type(), taskId, userId);
+        }
+        if (taskId == null) {
+            log.warn("保存任务操作日志时taskId为null: type={}, projectId={}, userId={}", 
+                    annotation.type(), projectId, userId);
+        }
+        if (taskTitle == null || taskTitle.trim().isEmpty()) {
+            taskTitle = "未知任务";
+            log.warn("保存任务操作日志时taskTitle为null，使用默认值");
+        }
+
+        TaskOperationLog operationLog = TaskOperationLog.builder()
                 .projectId(projectId)
                 .taskId(taskId)
                 .taskTitle(taskTitle)
@@ -142,7 +168,9 @@ public class OperationLogSaveCore {
                 .operationTime(operationTime)
                 .build();
 
-        taskOperationLogRepository.save(log);
+        taskOperationLogRepository.save(operationLog);
+        log.info("任务操作日志保存成功: projectId={}, taskId={}, taskTitle={}, type={}", 
+                projectId, taskId, taskTitle, operationType);
     }
 
 
@@ -202,7 +230,7 @@ public class OperationLogSaveCore {
             return;
         }
 
-        AchievementOperationLog log = AchievementOperationLog.builder()
+        AchievementOperationLog operationLog = AchievementOperationLog.builder()
                 .projectId(projectId)
                 .achievementId(achievementId)
                 .achievementTitle(achievementTitle)
@@ -214,7 +242,7 @@ public class OperationLogSaveCore {
                 .operationTime(operationTime)
                 .build();
 
-        achievementOperationLogRepository.save(log);
+        achievementOperationLogRepository.save(operationLog);
     }
 
 }

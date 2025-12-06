@@ -260,6 +260,20 @@ public class TaskSubmissionController {
         return R.ok(stats);
     }
 
+    @PostMapping("/tasks/attachments/batch")
+    @Operation(summary = "批量查询任务附件", description = "根据任务ID列表批量查询所有任务的附件URL列表")
+    public R<Map<String, List<String>>> getTasksAttachments(
+            @RequestBody @Parameter(description = "任务ID列表") List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return R.fail("任务ID列表不能为空");
+        }
+        if (taskIds.size() > 100) {
+            return R.fail("单次查询任务数量不能超过100个");
+        }
+        Map<String, List<String>> result = submissionService.getTasksAttachments(taskIds);
+        return R.ok(result, "查询成功");
+    }
+
     @PostMapping("/files/upload")
     @Operation(summary = "上传任务附件（单个）")
     public R<TaskSubmissionFileResponse> uploadSubmissionFile(@RequestPart("file") MultipartFile file) {
