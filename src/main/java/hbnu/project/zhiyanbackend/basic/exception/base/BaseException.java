@@ -63,4 +63,7 @@ public class BaseException extends RuntimeException {
         this.defaultMessage = message;
     }
 
+    public BaseException() {
+        defaultMessage = "";
+    }
 }

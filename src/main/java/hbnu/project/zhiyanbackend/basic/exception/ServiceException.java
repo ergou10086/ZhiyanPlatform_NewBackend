@@ -3,6 +3,7 @@ package hbnu.project.zhiyanbackend.basic.exception;
 import hbnu.project.zhiyanbackend.basic.exception.base.BaseException;
 
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 import java.io.Serial;
 
@@ -49,6 +50,10 @@ public class ServiceException extends BaseException {
     public ServiceException(String message, Integer errorCode, Throwable e) {
         super(message, e);
         this.errorCode = errorCode;
+    }
+
+    public ServiceException(String s, HttpStatus httpStatus) {
+        super();
     }
 
     public ServiceException setDetailMessage(String detailMessage) {
