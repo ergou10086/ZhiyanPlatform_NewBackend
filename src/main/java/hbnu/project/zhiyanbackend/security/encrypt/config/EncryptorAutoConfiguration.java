@@ -20,13 +20,14 @@ import org.springframework.context.annotation.Bean;
 @Slf4j
 @AutoConfiguration
 @EnableConfigurationProperties(EncryptorProperties.class)
-@ConditionalOnProperty(prefix = "zhiyan.encrypt", name = "enabled", havingValue = "true")
 public class EncryptorAutoConfiguration {
 
     /**
      * 创建加密上下文
+     * 仅在加密功能启用时创建
      */
     @Bean
+    @ConditionalOnProperty(prefix = "zhiyan.encrypt", name = "enabled", havingValue = "true")
     public EncryptContext encryptContext(EncryptorProperties properties) {
         EncryptContext context = EncryptContext.from(properties);
 
@@ -44,8 +45,10 @@ public class EncryptorAutoConfiguration {
     /**
      * 创建加密器管理器
      * 用于管理加密器实例和缓存加密字段信息
+     * 仅在加密功能启用时创建
      */
     @Bean
+    @ConditionalOnProperty(prefix = "zhiyan.encrypt", name = "enabled", havingValue = "true")
     public EncryptorManager encryptorManager() {
         EncryptorManager manager = new EncryptorManager();
         log.info("加密器管理器初始化完成 - 支持字段级别加密");

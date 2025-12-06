@@ -15,6 +15,7 @@ import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
@@ -30,6 +31,7 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnBean(EncryptorManager.class)
 public class FieldEncryptUtils {
 
     private final EncryptorProperties encryptorProperties;
