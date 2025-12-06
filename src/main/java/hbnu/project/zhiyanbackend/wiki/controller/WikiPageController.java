@@ -1,5 +1,8 @@
 package hbnu.project.zhiyanbackend.wiki.controller;
 
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
@@ -41,6 +44,8 @@ public class WikiPageController {
     private final ProjectSecurityUtils projectSecurityUtils;
 
     private final WikiPageRepository wikiPageRepository;
+    
+    private final OperationLogHelper operationLogHelper;
 
     /**
      * 创建Wiki页面
@@ -49,6 +54,7 @@ public class WikiPageController {
     @PostMapping("/pages")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "创建Wiki页面", description = "创建新的Wiki页面（目录或文档）")
+    @BizOperationLog(module = BizOperationModule.WIKI, type = "CREATE", description = "创建Wiki页面")
     public R<WikiPage> createPage(@RequestBody @Valid CreateWikiPageDTO dto) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
@@ -64,6 +70,11 @@ public class WikiPageController {
         dto.setCreatorId(userId);
         WikiPage page = wikiPageService.createWikiPage(dto);
 
+        // 记录创建Wiki页面日志
+        if (page != null && page.getId() != null) {
+            operationLogHelper.logWikiCreate(projectId, page.getId(), page.getTitle());
+        }
+
         return R.ok(page, "Wiki页面创建成功");
     }
 
@@ -74,6 +85,7 @@ public class WikiPageController {
     @PutMapping("/pages/{pageId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "更新Wiki页面", description = "更新Wiki页面的标题和内容")
+    @BizOperationLog(module = BizOperationModule.WIKI, type = "UPDATE", description = "更新Wiki页面")
     public R<WikiPage> updatePage(
             @Parameter(description = "页面ID") @PathVariable Long pageId,
             @RequestBody @Valid UpdateWikiPageDTO dto) {
@@ -102,6 +114,11 @@ public class WikiPageController {
                 userId
         );
 
+        // 记录更新Wiki页面日志
+        if (page != null) {
+            operationLogHelper.logWikiUpdate(page.getProjectId(), pageId, page.getTitle());
+        }
+
         return R.ok(page, "Wiki页面更新成功");
     }
 
@@ -112,6 +129,7 @@ public class WikiPageController {
     @DeleteMapping("/pages/{pageId}")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "删除Wiki页面", description = "删除指定Wiki页面")
+    @BizOperationLog(module = BizOperationModule.WIKI, type = "DELETE", description = "删除Wiki页面")
     public R<Void> deletePage(@PathVariable Long pageId) {
         Long userId = SecurityUtils.getUserId();
         log.info("用户[{}]删除Wiki页面[{}]", userId, pageId);
@@ -121,7 +139,17 @@ public class WikiPageController {
             return R.fail("您没有删除该Wiki页面的权限");
         }
 
+        // 获取页面信息用于日志记录
+        WikiPage page = wikiPageRepository.findById(pageId).orElse(null);
+        Long projectId = page != null ? page.getProjectId() : null;
+        String pageTitle = page != null ? page.getTitle() : null;
+
         wikiPageService.deleteWikiPage(pageId, userId);
+
+        // 记录删除Wiki页面日志
+        if (projectId != null) {
+            operationLogHelper.logWikiDelete(projectId, pageId, pageTitle);
+        }
 
         return R.ok(null, "Wiki页面删除成功");
     }
@@ -311,6 +339,7 @@ public class WikiPageController {
     @PatchMapping("/pages/{pageId}/move")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "移动Wiki页面", description = "移动Wiki页面到新的父页面下")
+    @BizOperationLog(module = BizOperationModule.WIKI, type = "MOVE", description = "移动Wiki页面")
     public R<Void> movePage(
             @PathVariable Long pageId,
             @RequestBody @Valid MoveWikiPageDTO dto) {
@@ -327,7 +356,17 @@ public class WikiPageController {
             return R.fail("您没有编辑该Wiki页面的权限");
         }
 
+        // 获取页面信息用于日志记录
+        WikiPage page = wikiPageRepository.findById(pageId).orElse(null);
+        Long projectId = page != null ? page.getProjectId() : null;
+        String pageTitle = page != null ? page.getTitle() : null;
+
         wikiPageService.moveWikiPage(pageId, dto.getNewParentId(), userId);
+
+        // 记录移动Wiki页面日志
+        if (projectId != null) {
+            operationLogHelper.logWikiMove(projectId, pageId, pageTitle, dto.getNewParentId());
+        }
 
         return R.ok(null, "Wiki页面移动成功");
     }

@@ -249,6 +249,23 @@ public class OperationLogHelper {
      * @param projectId   项目ID
      * @param taskId      任务ID
      * @param taskTitle   任务标题
+     */
+    public void logTaskAssign(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置分配任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录分配任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录分配任务日志（带分配人列表）
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
      * @param assigneeIds 被分配的用户ID列表
      */
     public void logTaskAssign(Long projectId, Long taskId, String taskTitle, List<Long> assigneeIds) {
@@ -289,6 +306,41 @@ public class OperationLogHelper {
     }
 
     /**
+     * 记录任务状态变更日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     * @param newStatus   新状态
+     */
+    public void logTaskStatusChange(Long projectId, Long taskId, String taskTitle, Object newStatus) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置任务状态变更日志上下文: projectId={}, taskId={}, newStatus={}",
+                    projectId, taskId, newStatus);
+        } catch (Exception e) {
+            log.error("记录任务状态变更日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录完成任务日志
+     *
+     * @param projectId   项目ID
+     * @param taskId      任务ID
+     * @param taskTitle   任务标题
+     */
+    public void logTaskComplete(Long projectId, Long taskId, String taskTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, taskId, taskTitle);
+            log.debug("设置完成任务日志上下文: projectId={}, taskId={}, title={}",
+                    projectId, taskId, taskTitle);
+        } catch (Exception e) {
+            log.error("记录完成任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    /**
      * 记录审核任务日志
      *
      * @param projectId   项目ID
@@ -308,6 +360,83 @@ public class OperationLogHelper {
                     projectId, taskId, reviewResult);
         } catch (Exception e) {
             log.error("记录审核任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+    }
+
+    // ==================== Wiki操作日志 ====================
+
+    /**
+     * 记录创建Wiki页面日志
+     *
+     * @param projectId   项目ID
+     * @param wikiPageId  Wiki页面ID
+     * @param wikiPageTitle Wiki页面标题
+     */
+    public void logWikiCreate(Long projectId, Long wikiPageId, String wikiPageTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, wikiPageId, wikiPageTitle);
+            log.debug("设置创建Wiki页面日志上下文: projectId={}, wikiPageId={}, title={}",
+                    projectId, wikiPageId, wikiPageTitle);
+        } catch (Exception e) {
+            log.error("记录创建Wiki页面日志失败: wikiPageId={}, error={}", wikiPageId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录更新Wiki页面日志
+     *
+     * @param projectId   项目ID
+     * @param wikiPageId  Wiki页面ID
+     * @param wikiPageTitle Wiki页面标题
+     */
+    public void logWikiUpdate(Long projectId, Long wikiPageId, String wikiPageTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, wikiPageId, wikiPageTitle);
+            log.debug("设置更新Wiki页面日志上下文: projectId={}, wikiPageId={}, title={}",
+                    projectId, wikiPageId, wikiPageTitle);
+        } catch (Exception e) {
+            log.error("记录更新Wiki页面日志失败: wikiPageId={}, error={}", wikiPageId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录删除Wiki页面日志
+     *
+     * @param projectId   项目ID
+     * @param wikiPageId  Wiki页面ID
+     * @param wikiPageTitle Wiki页面标题
+     */
+    public void logWikiDelete(Long projectId, Long wikiPageId, String wikiPageTitle) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, wikiPageId, wikiPageTitle);
+            log.debug("设置删除Wiki页面日志上下文: projectId={}, wikiPageId={}, title={}",
+                    projectId, wikiPageId, wikiPageTitle);
+        } catch (Exception e) {
+            log.error("记录删除Wiki页面日志失败: wikiPageId={}, error={}", wikiPageId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 记录移动Wiki页面日志
+     *
+     * @param projectId   项目ID
+     * @param wikiPageId  Wiki页面ID
+     * @param wikiPageTitle Wiki页面标题
+     * @param newParentId 新父页面ID
+     */
+    public void logWikiMove(Long projectId, Long wikiPageId, String wikiPageTitle, Long newParentId) {
+        try {
+            OperationLogContext.setBasicInfo(projectId, wikiPageId, wikiPageTitle);
+            String operationDesc = String.format("移动Wiki页面【%s】到父页面【%s】", 
+                    wikiPageTitle, newParentId != null ? String.valueOf(newParentId) : "根目录");
+            OperationLogContext context = OperationLogContext.get();
+            if (context != null) {
+                context.setExtra(operationDesc);
+            }
+            log.debug("设置移动Wiki页面日志上下文: projectId={}, wikiPageId={}, newParentId={}",
+                    projectId, wikiPageId, newParentId);
+        } catch (Exception e) {
+            log.error("记录移动Wiki页面日志失败: wikiPageId={}, error={}", wikiPageId, e.getMessage(), e);
         }
     }
 

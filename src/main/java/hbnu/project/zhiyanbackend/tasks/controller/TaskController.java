@@ -50,6 +50,7 @@ public class TaskController {
 
     @PutMapping("/{taskId}")
     @Operation(summary = "更新任务")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "UPDATE", description = "更新任务")
     public R<Task> updateTask(@PathVariable("taskId") Long taskId,
                               @Valid @RequestBody UpdateTaskRequest request) {
         Long userId = SecurityUtils.getUserId();
@@ -61,6 +62,7 @@ public class TaskController {
 
     @DeleteMapping("/{taskId}")
     @Operation(summary = "删除任务（软删除）")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "DELETE", description = "删除任务")
     public R<Void> deleteTask(@PathVariable("taskId") Long taskId) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
@@ -71,6 +73,7 @@ public class TaskController {
 
     @PatchMapping("/{taskId}/status")
     @Operation(summary = "更新任务状态")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "STATUS_CHANGE", description = "更新任务状态")
     public R<Task> updateTaskStatus(@PathVariable("taskId") Long taskId,
                                     @RequestParam("status") TaskStatus status) {
         Long userId = SecurityUtils.getUserId();
@@ -82,6 +85,7 @@ public class TaskController {
 
     @PutMapping("/{taskId}/assign")
     @Operation(summary = "分配任务执行者")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "ASSIGN", description = "分配任务")
     public R<Task> assignTask(@PathVariable("taskId") Long taskId,
                               @RequestBody List<Long> assigneeIds) {
         Long userId = SecurityUtils.getUserId();

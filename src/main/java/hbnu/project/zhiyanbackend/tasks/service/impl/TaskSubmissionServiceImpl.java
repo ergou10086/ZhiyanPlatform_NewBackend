@@ -59,6 +59,7 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     private final MessageSendService messageSendService;
     private final UserRepository userRepository;
     private final UserConverter userConverter;
+    private final hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper operationLogHelper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -127,6 +128,13 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             log.info("任务状态已更新为待审核: taskId={}", taskId);
         }
 
+        // 记录提交任务操作日志
+        try {
+            operationLogHelper.logTaskSubmit(task.getProjectId(), taskId, task.getTitle());
+        } catch (Exception e) {
+            log.warn("记录提交任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
+
         return convertToDTO(submission, task);
     }
 
@@ -192,6 +200,19 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         } catch (Exception e) {
             log.error("发送任务审核结果通知失败: submissionId={}, reviewStatus={}", submissionId, request.getReviewStatus(), e);
             // 通知发送失败不影响主流程
+        }
+
+        // 记录审核任务操作日志
+        try {
+            String reviewResult = request.getReviewStatus() == ReviewStatus.APPROVED ? "通过" : "拒绝";
+            operationLogHelper.logTaskReview(task.getProjectId(), task.getId(), task.getTitle(), reviewResult);
+            
+            // 如果审核通过，任务完成，记录完成日志
+            if (request.getReviewStatus() == ReviewStatus.APPROVED && task.getStatus() == TaskStatus.DONE) {
+                operationLogHelper.logTaskComplete(task.getProjectId(), task.getId(), task.getTitle());
+            }
+        } catch (Exception e) {
+            log.warn("记录审核任务日志失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
         }
 
         return convertToDTO(submission, task);

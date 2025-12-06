@@ -243,6 +243,8 @@ public class OperationLogSaveCore {
                 .build();
 
         achievementOperationLogRepository.save(operationLog);
+        log.info("成果操作日志保存成功: projectId={}, achievementId={}, achievementTitle={}, type={}", 
+                projectId, achievementId, achievementTitle, operationType);
     }
 
 }

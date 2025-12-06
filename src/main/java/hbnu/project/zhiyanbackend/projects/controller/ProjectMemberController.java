@@ -74,6 +74,7 @@ public class ProjectMemberController {
      */
     @DeleteMapping("/{projectId}/members/{userId}")
     @Operation(summary = "移除项目成员", description = "从项目中移除指定用户")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "MEMBER_REMOVE", description = "移除成员")
     public R<Void> removeMember(
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @PathVariable("userId") @Parameter(description = "用户ID") Long userId
@@ -98,6 +99,7 @@ public class ProjectMemberController {
      */
     @PutMapping("/{projectId}/members/{userId}/role")
     @Operation(summary = "更新成员角色", description = "修改项目成员在项目中的角色")
+    @BizOperationLog(module = BizOperationModule.PROJECT, type = "ROLE_CHANGE", description = "角色变更")
     public R<Void> updateMemberRole(
             @PathVariable("projectId") @Parameter(description = "项目ID") Long projectId,
             @PathVariable("userId") @Parameter(description = "用户ID") Long userId,
