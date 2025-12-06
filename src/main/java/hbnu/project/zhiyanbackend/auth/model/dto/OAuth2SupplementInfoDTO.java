@@ -46,10 +46,12 @@ public class OAuth2SupplementInfoDTO {
 
     /**
      * 密码
+     * 规则：7-25位，必须包含至少一个字母，允许特殊符号
      */
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 16, message = "密码长度必须在6-16位之间")
-    @Schema(description = "密码", example = "password123", required = true)
+    @Size(min = 7, max = 25, message = "密码长度必须在7-25位之间")
+    @Pattern(regexp = ".*[a-zA-Z].*", message = "密码必须包含至少一个小写字母或大写字母")
+    @Schema(description = "密码（7-25位，必须包含至少一个字母，允许特殊符号）", example = "password123", required = true)
     private String password;
 
     /**

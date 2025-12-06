@@ -120,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
 
             // 3. 密码合法性校验和强度校验
             if (!PasswordUtils.isValidPassword(request.getPassword())) {
-                return R.fail("密码必须为6-16位");
+                return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
             validatePasswordStrength(request.getPassword());
 
@@ -823,7 +823,7 @@ public class AuthServiceImpl implements AuthService {
 
             // 3. 校验密码合法性及其强度
             if (!PasswordUtils.isValidPassword(request.getNewPassword())) {
-                return R.fail("密码必须为6-16位字母和数字组合");
+                return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
             validatePasswordStrength(request.getNewPassword());
 
@@ -886,7 +886,7 @@ public class AuthServiceImpl implements AuthService {
 
             // 3. 校验新密码合法性及其强度
             if (!PasswordUtils.isValidPassword(request.getNewPassword())) {
-                return R.fail("密码必须为6-16位字母和数字组合");
+                return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
             validatePasswordStrength(request.getNewPassword());
 
@@ -1388,7 +1388,7 @@ public class AuthServiceImpl implements AuthService {
      */
     private void validatePasswordStrength(String password) {
         if (!PasswordUtils.isValidPassword(password)) {
-            throw new ServiceException("密码必须为6-16位");
+            throw new ServiceException("密码必须为7-25位，且必须包含至少一个字母");
         }
 
         // 可根据需求添加密码强度建议

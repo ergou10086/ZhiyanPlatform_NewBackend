@@ -38,11 +38,12 @@ public class ResetPasswordDTO {
 
     /**
      * 新密码
+     * 规则：7-25位，必须包含至少一个字母，允许特殊符号
      */
     @NotBlank(message = "新密码不能为空")
-    @Size(min = 6, max = 16, message = "密码长度应为6-16位")
-    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "密码只能包含字母和数字")
-    @Schema(description = "新密码（6-16位字母数字组合）", example = "newpassword123", required = true)
+    @Size(min = 7, max = 25, message = "密码长度应为7-25位")
+    @Pattern(regexp = ".*[a-zA-Z].*", message = "密码必须包含至少一个小写字母或大写字母")
+    @Schema(description = "新密码（7-25位，必须包含至少一个字母，允许特殊符号）", example = "newpassword123", required = true)
     private String newPassword;
 
     /**
