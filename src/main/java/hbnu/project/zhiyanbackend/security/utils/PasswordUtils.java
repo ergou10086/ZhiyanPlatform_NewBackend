@@ -13,48 +13,63 @@ import java.util.regex.Pattern;
 public class PasswordUtils {
 
     /**
-     * 密码强度：弱（只包含一种字符类型）
-     */
-    private static final Pattern WEAK_PASSWORD = Pattern.compile(
-            "^[0-9]+$|^[a-zA-Z]+$|^[^a-zA-Z0-9]+$"
-    );
-
-    /**
-     * 密码强度：中等（包含两种字符类型）
-     */
-    private static final Pattern MEDIUM_PASSWORD = Pattern.compile(
-            "^(?=.*[0-9])(?=.*[a-zA-Z])[^!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$|" +
-                    "^(?=.*[0-9])(?=.*[^a-zA-Z0-9])[a-zA-Z!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$|" +
-                    "^(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9])[0-9!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]*$"
-    );
-
-    /**
-     * 密码强度：强（包含三种字符类型）
-     */
-    private static final Pattern STRONG_PASSWORD = Pattern.compile(
-            "^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9]).+$"
-    );
-
-    /**
      * 验证密码强度
+     * 五级密码强度：
+     * 5 - 无懈可击：>12位，有大写字母、小写字母和特殊字符
+     * 4 - 高强度：≥10位，包含三种及以上字符组合（数字+字母+符号）
+     * 3 - 稳健：≥8位，包含三种及以上字符组合（数字+字母+符号）
+     * 2 - 入门：>7位，仅两种字符组合
+     * 1 - 无效：密码强度不够平台最低标准
+     * 0 - 不符合基本要求
      *
      * @param password 密码
-     * @return 密码强度等级（1-弱，2-中等，3-强）
+     * @return 密码强度等级（0-5）
      */
     public static int validatePasswordStrength(String password) {
         if (password == null || password.length() < 7) {
-            return 0; // 无效密码
+            return 0; // 不符合基本要求
         }
 
-        if (STRONG_PASSWORD.matcher(password).matches()) {
-            return 3; // 强密码
-        } else if (MEDIUM_PASSWORD.matcher(password).matches()) {
-            return 2; // 中等密码
-        } else if (WEAK_PASSWORD.matcher(password).matches()) {
-            return 1; // 弱密码
-        } else {
-            return 0; // 无效密码
+        // 检查字符类型
+        boolean hasDigit = password.matches(".*[0-9].*");
+        boolean hasLowercase = password.matches(".*[a-z].*");
+        boolean hasUppercase = password.matches(".*[A-Z].*");
+        boolean hasSpecialChar = password.matches(".*[^a-zA-Z0-9].*");
+        
+        int charTypeCount = 0;
+        if (hasDigit) charTypeCount++;
+        if (hasLowercase || hasUppercase) charTypeCount++;
+        if (hasSpecialChar) charTypeCount++;
+        
+        int length = password.length();
+        
+        // 5 - 无懈可击：>12位，有大写字母、小写字母和特殊字符
+        if (length > 12 && hasLowercase && hasUppercase && hasSpecialChar) {
+            return 5;
         }
+        
+        // 4 - 高强度：≥10位，包含三种及以上字符组合（数字+字母+符号）
+        if (length >= 10 && charTypeCount >= 3) {
+            return 4;
+        }
+        
+        // 3 - 稳健：≥8位，包含三种及以上字符组合（数字+字母+符号）
+        if (length >= 8 && charTypeCount >= 3) {
+            return 3;
+        }
+        
+        // 2 - 入门：>7位，仅两种字符组合
+        if (length > 7 && charTypeCount == 2) {
+            return 2;
+        }
+        
+        // 1 - 无效：密码强度不够平台最低标准（虽然符合基本要求，但强度太低）
+        if (length > 7 && charTypeCount == 1) {
+            return 1;
+        }
+        
+        // 0 - 不符合基本要求
+        return 0;
     }
 
     /**
@@ -117,11 +132,23 @@ public class PasswordUtils {
      */
     public static String getPasswordStrengthDescription(String password) {
         int strength = validatePasswordStrength(password);
+        return getPasswordStrengthDescriptionByLevel(strength);
+    }
+
+    /**
+     * 根据强度等级获取密码强度描述
+     *
+     * @param strength 密码强度等级（0-5）
+     * @return 密码强度描述
+     */
+    public static String getPasswordStrengthDescriptionByLevel(int strength) {
         return switch (strength) {
-            case 0 -> "密码无效";
-            case 1 -> "密码强度：弱";
-            case 2 -> "密码强度：中等";
-            case 3 -> "密码强度：强";
+            case 0 -> "无效";
+            case 1 -> "无效";
+            case 2 -> "入门";
+            case 3 -> "稳健";
+            case 4 -> "高强度";
+            case 5 -> "无懈可击";
             default -> "未知";
         };
     }
