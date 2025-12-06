@@ -70,9 +70,6 @@ public class OperationLogAspect {
         // 记录开始时间
         LocalDateTime operationTime = LocalDateTime.now();
 
-        // 从ThreadLocal获取日志上下文
-        OperationLogContext context = OperationLogContext.get();
-
         // 执行目标的方法
         Object result = null;
 
@@ -85,6 +82,17 @@ public class OperationLogAspect {
         } finally {
             // 异步记录日志
             try {
+                // 在finally块中重新获取上下文，因为上下文是在方法执行过程中设置的
+                OperationLogContext context = OperationLogContext.get();
+                
+                if (context == null) {
+                    log.warn("操作日志上下文为空: method={}, module={}, type={}", 
+                            method.getName(), annotation.module(), annotation.type());
+                } else {
+                    log.debug("获取到操作日志上下文: projectId={}, bizId={}, bizTitle={}", 
+                            context.getProjectId(), context.getBizId(), context.getBizTitle());
+                }
+                
                 recordOperationLogAsync(
                         annotation,
                         joinPoint,
@@ -96,8 +104,8 @@ public class OperationLogAspect {
             } catch (Exception e) {
                 log.error("记录操作日志失败: {}", e.getMessage(), e);
             } finally {
-                // 清理ThreadLocal，避免内存泄漏
-                OperationLogContext.clear();
+                // 注意：不要在这里清理ThreadLocal，因为异步方法可能需要使用
+                // ThreadLocal的清理会在异步方法的TaskDecorator中完成
             }
         }
     }
@@ -127,15 +135,20 @@ public class OperationLogAspect {
                 username = context.getUsername();
             }
 
+            // 记录调试信息
+            log.info("开始记录操作日志: module={}, type={}, userId={}, username={}, projectId={}, bizId={}, bizTitle={}",
+                    annotation.module(), annotation.type(), userId, username, projectId, bizId, bizTitle);
+
             // 使用日志保存服务统一保存日志
             operationLogSaveCore.saveLogByModule(
                     annotation, projectId, bizId, bizTitle, userId, username, operationTime
             );
 
-            log.debug("操作日志记录成功: module={}, type={}, user={}",
-                    annotation.module(), annotation.type(), username);
+            log.info("操作日志记录成功: module={}, type={}, user={}, projectId={}",
+                    annotation.module(), annotation.type(), username, projectId);
         }catch (Exception e){
-            log.error("异步记录操作日志失败: {}", e.getMessage(), e);
+            log.error("异步记录操作日志失败: module={}, type={}, error={}", 
+                    annotation.module(), annotation.type(), e.getMessage(), e);
         }
     }
 
