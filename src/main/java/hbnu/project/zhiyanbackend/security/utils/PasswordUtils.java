@@ -42,7 +42,7 @@ public class PasswordUtils {
      * @return 密码强度等级（1-弱，2-中等，3-强）
      */
     public static int validatePasswordStrength(String password) {
-        if (password == null || password.length() < 6) {
+        if (password == null || password.length() < 7) {
             return 0; // 无效密码
         }
 
@@ -59,6 +59,10 @@ public class PasswordUtils {
 
     /**
      * 检查密码是否符合基本要求
+     * 新规则：
+     * 1. 长度：7-25位（避免与6位2FA验证码冲突）
+     * 2. 必须包含至少一个小写字母或大写字母
+     * 3. 允许特殊符号（不做限制）
      *
      * @param password 密码
      * @return 是否符合要求
@@ -68,12 +72,17 @@ public class PasswordUtils {
             return false;
         }
 
-        // 长度检查：6-16位
-        if (password.length() < 6 || password.length() > 16) {
+        // 长度检查：7-25位（避免与6位2FA验证码冲突）
+        if (password.length() < 7 || password.length() > 25) {
             return false;
         }
 
-        // 允许任何可见字符，排除控制字符
+        // 必须包含至少一个小写字母或大写字母
+        if (!password.matches(".*[a-zA-Z].*")) {
+            return false;
+        }
+
+        // 允许任何可见字符，排除控制字符（允许特殊符号）
         return password.matches("^[\\x20-\\x7E]+$");
     }
 

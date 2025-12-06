@@ -233,7 +233,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
 
             // 2. 验证密码强度
             if (!PasswordUtils.isValidPassword(supplementBody.getPassword())) {
-                return R.fail("密码必须为6-16位字母和数字组合");
+                return R.fail("密码必须为7-25位，且必须包含至少一个字母");
             }
 
             // 3. 验证OAuth2信息
