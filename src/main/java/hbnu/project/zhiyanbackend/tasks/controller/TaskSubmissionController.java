@@ -1,6 +1,8 @@
 package hbnu.project.zhiyanbackend.tasks.controller;
 
 import com.qcloud.cos.http.HttpMethodName;
+import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
+import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.basic.utils.JwtUtils;
@@ -57,6 +59,7 @@ public class TaskSubmissionController {
 
     @PostMapping("/{taskId}/submit")
     @Operation(summary = "提交任务", description = "任务执行者提交任务，等待任务创建者审核")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "SUBMIT", description = "提交任务")
     public R<TaskSubmissionDTO> submitTask(
             @PathVariable("taskId") @Parameter(description = "任务ID") Long taskId,
             @Valid @RequestBody SubmitTaskRequest request) {
@@ -70,6 +73,7 @@ public class TaskSubmissionController {
 
     @PutMapping("/{submissionId}/review")
     @Operation(summary = "审核任务提交", description = "任务创建者审核任务提交（批准/拒绝）")
+    @BizOperationLog(module = BizOperationModule.TASK, type = "REVIEW", description = "审核任务")
     public R<TaskSubmissionDTO> reviewSubmission(
             @PathVariable("submissionId") @Parameter(description = "提交记录ID") Long submissionId,
             @Valid @RequestBody ReviewSubmissionRequest request) {

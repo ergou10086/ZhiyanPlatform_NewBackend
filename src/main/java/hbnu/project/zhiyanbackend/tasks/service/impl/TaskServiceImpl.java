@@ -238,6 +238,13 @@ public class TaskServiceImpl implements TaskService {
             }
         }
         
+        // 记录更新任务操作日志
+        try {
+            operationLogHelper.logTaskUpdate(saved.getProjectId(), saved.getId(), saved.getTitle());
+        } catch (Exception e) {
+            log.warn("记录更新任务日志失败: taskId={}, error={}", saved.getId(), e.getMessage(), e);
+        }
+        
         return R.ok(saved, "任务更新成功");
     }
 
@@ -264,6 +271,13 @@ public class TaskServiceImpl implements TaskService {
 
         LocalDateTime now = LocalDateTime.now();
         taskUserRepository.deactivateTaskAssignees(taskId, now, operatorId);
+
+        // 记录删除任务操作日志
+        try {
+            operationLogHelper.logTaskDelete(task.getProjectId(), taskId, task.getTitle());
+        } catch (Exception e) {
+            log.warn("记录删除任务日志失败: taskId={}, error={}", taskId, e.getMessage(), e);
+        }
 
         return R.ok(null, "任务已删除");
     }
@@ -319,6 +333,13 @@ public class TaskServiceImpl implements TaskService {
             } catch (Exception e) {
                 log.warn("发送任务状态变更消息失败: taskId={}", saved.getId(), e);
             }
+        }
+        
+        // 记录任务状态变更操作日志
+        try {
+            operationLogHelper.logTaskStatusChange(saved.getProjectId(), saved.getId(), saved.getTitle(), newStatus);
+        } catch (Exception e) {
+            log.warn("记录任务状态变更日志失败: taskId={}, error={}", saved.getId(), e.getMessage(), e);
         }
         
         return R.ok(saved, "任务状态更新成功");
@@ -446,6 +467,14 @@ public class TaskServiceImpl implements TaskService {
         }
 
         Task saved = taskRepository.save(task);
+        
+        // 记录分配任务操作日志
+        try {
+            operationLogHelper.logTaskAssign(saved.getProjectId(), saved.getId(), saved.getTitle());
+        } catch (Exception e) {
+            log.warn("记录分配任务日志失败: taskId={}, error={}", saved.getId(), e.getMessage(), e);
+        }
+        
         return R.ok(saved, "任务分配已更新");
     }
 
