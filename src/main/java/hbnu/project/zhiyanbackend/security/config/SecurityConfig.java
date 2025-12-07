@@ -72,7 +72,9 @@ public class SecurityConfig implements WebMvcConfigurer {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:8001",
                 "http://zhiyan.ergoutreegal.cn",    // 旧二级域名
-                "http://zyplatform.xyz"   // 新域名
+                "https://zhiyan.ergoutreegal.cn",
+                "http://zyplatform.xyz",   // 新域名
+                "https://zyplatform.xyz"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
