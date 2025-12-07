@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -20,18 +21,21 @@ public class CustomAchievementFieldDTO {
      * 字段键（英文，用于存储）
      */
     @NotBlank(message = "字段键不能为空")
+    @Xss(message = "字段键包含非法字符")
     private String fieldKey;
 
     /**
      * 字段名称（中文，用于显示）
      */
     @NotBlank(message = "字段名称不能为空")
+    @Xss(message = "字段名称包含非法字符")
     private String fieldLabel;
 
     /**
      * 字段类型：text, number, date, textarea, select, multiselect
      */
     @NotBlank(message = "字段类型不能为空")
+    @Xss(message = "字段类型包含非法字符")
     private String fieldType;
 
     /**
@@ -43,11 +47,13 @@ public class CustomAchievementFieldDTO {
     /**
      * 默认值
      */
+    @Xss(message = "默认值包含非法字符")
     private String defaultValue;
 
     /**
      * 占位符
      */
+    @Xss(message = "占位符包含非法字符")
     private String placeholder;
 
     /**
@@ -63,6 +69,7 @@ public class CustomAchievementFieldDTO {
     /**
      * 提示信息
      */
+    @Xss(message = "提示信息包含非法字符")
     private String helpText;
 
     /**

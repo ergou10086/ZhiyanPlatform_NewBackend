@@ -75,4 +75,14 @@ public class MessageListDTO {
      * 触发时间
      */
     private LocalDateTime triggerTime;
+
+    /**
+     * 是否已过期
+     */
+    private Boolean expired;
+
+    /**
+     * 过期时间
+     */
+    private LocalDateTime expiredAt;
 }

@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.wiki.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import hbnu.project.zhiyanbackend.wiki.model.enums.PageType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,6 +35,7 @@ public class CreateWikiPageDTO {
      */
     @NotBlank(message = "页面标题不能为空")
     @Size(min = 1, max = 255, message = "页面标题长度必须在1-255字符之间")
+    @Xss(message = "页面标题包含非法字符")
     private String title;
 
     /**
@@ -43,6 +45,8 @@ public class CreateWikiPageDTO {
 
     /**
      * Markdown内容（可选，仅当pageType为DOCUMENT时有效）
+     * 注意：Markdown内容可能包含HTML标签，但为了安全，仍然进行XSS检查
+     * 如果后续需要支持富文本，可以考虑放宽此限制
      */
     private String content;
 
@@ -65,6 +69,7 @@ public class CreateWikiPageDTO {
      * 修改说明（可选，用于版本历史）
      */
     @Size(max = 500, message = "修改说明长度不能超过500字符")
+    @Xss(message = "修改说明包含非法字符")
     private String changeDescription;
 
     /**

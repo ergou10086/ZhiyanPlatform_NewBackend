@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.wiki.model.dto;
 
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +28,7 @@ public class WikiCollaborationDTO {
     @AllArgsConstructor
     public static class CursorPosition {
         private Long userId;
+        @Xss(message = "用户名包含非法字符")
         private String username;
         private String avatar;
         private Integer line;
@@ -34,6 +36,7 @@ public class WikiCollaborationDTO {
         private Integer selectionStart;
         private Integer selectionEnd;
         private LocalDateTime lastUpdate;
+        @Xss(message = "段落ID包含非法字符")
         private String paragraphId;
     }
 
@@ -47,6 +50,7 @@ public class WikiCollaborationDTO {
     @AllArgsConstructor
     public static class EditorInfo {
         private Long userId;
+        @Xss(message = "用户名包含非法字符")
         private String username;
         private String avatar;
         private LocalDateTime joinTime;
@@ -77,6 +81,7 @@ public class WikiCollaborationDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class IncrementalChange {
+        @Xss(message = "操作类型包含非法字符")
         private String operation;
         private Integer position;
         private String text;
@@ -94,6 +99,7 @@ public class WikiCollaborationDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SyncMessage {
+        @Xss(message = "消息类型包含非法字符")
         private String type;
         private Long pageId;
         private Long userId;

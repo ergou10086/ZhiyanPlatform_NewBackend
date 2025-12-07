@@ -14,7 +14,9 @@ import java.time.LocalDateTime;
  * @author ErgouTree
  */
 @Entity
-@Table(name = "message_recipient", schema = "zhiyanmessage")
+@Table(name = "message_recipient", schema = "zhiyanmessage", indexes = {
+        @Index(name = "idx_message_recipient_expired", columnList = "scene_code, read_flag, deleted, expired, trigger_time")
+})
 @Getter
 @Setter
 @SuperBuilder
@@ -84,6 +86,18 @@ public class MessageRecipient {
     private LocalDateTime deletedAt;
 
     /**
+     * 是否已过期
+     */
+    @Column(name = "expired",  nullable = false)
+    private Boolean expired = false;
+
+    /**
+     * 过期时间
+     */
+    @Column(name = "expired_at")
+    private LocalDateTime expiredAt;
+
+    /**
      * 关联消息体（多对一关系）
      */
     @ManyToOne(fetch = FetchType.LAZY)
@@ -112,5 +126,20 @@ public class MessageRecipient {
     public void softDelete() {
         this.deleted = true;
         this.deletedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 标记消息已过期
+     */
+    public void markAsExpired() {
+        this.expired = true;
+        this.expiredAt = LocalDateTime.now();
+    }
+
+    /**
+     * 检查消息是否已经过期
+     */
+    public boolean isExpired() {
+        return this.expired != null && this.expired;
     }
 }

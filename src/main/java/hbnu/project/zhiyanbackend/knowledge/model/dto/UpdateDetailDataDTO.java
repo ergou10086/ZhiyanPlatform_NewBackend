@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -31,5 +32,6 @@ public class UpdateDetailDataDTO {
     /**
      * 摘要/描述
      */
+    @Xss(message = "摘要包含非法字符")
     private String abstractText;
 }

@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.model.form;
 
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -29,12 +30,14 @@ import java.time.LocalDate;
 public class CreateProjectRequest {  // Bean Validation注解，确保字段不为空
   // Swagger注解
     @NotBlank(message = "项目名称不能为空")
+    @Xss(message = "项目名称包含非法字符")
     @Schema(description = "项目名称", required = true, example = "AI智能分析平台")
 
 
     // 项目描述字段，选填项
     private String name;  // Swagger注解
 
+    @Xss(message = "项目描述包含非法字符")
     @Schema(description = "项目描述", example = "基于深度学习的数据分析平台")
 
 
@@ -48,6 +51,7 @@ public class CreateProjectRequest {  // Bean Validation注解，确保字段不�
     private ProjectVisibility visibility;  // Bean Validation注解，确保字段不为空
   // Swagger注解
     @NotBlank(message = "项目图片URL不能为空")
+    @Xss(message = "项目图片URL包含非法字符")
     @Schema(description = "项目图片URL", required = true, example = "https://example.com/project-image.jpg")
 
 

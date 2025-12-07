@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -44,16 +45,19 @@ public class AchievementQueryDTO {
     /**
      * 标题关键字（模糊查询）
      */
+    @Xss(message = "标题关键字包含非法字符")
     private String titleKeyword;
 
     /**
      * 标签（包含查询）
      */
+    @Xss(message = "标签包含非法字符")
     private String tag;
 
     /**
      * 摘要关键字（模糊查询）
      */
+    @Xss(message = "摘要关键字包含非法字符")
     private String abstractKeyword;
 
     /**
@@ -81,6 +85,7 @@ public class AchievementQueryDTO {
      * 可选值：createdAt, updatedAt, title
      */
     @Builder.Default
+    @Xss(message = "排序字段包含非法字符")
     private String sortBy = "createdAt";
 
     /**
@@ -88,6 +93,7 @@ public class AchievementQueryDTO {
      * 可选值：ASC, DESC
      */
     @Builder.Default
+    @Xss(message = "排序方向包含非法字符")
     private String sortOrder = "DESC";
 
     /**

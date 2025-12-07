@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import lombok.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class AchievementTemplateDTO {
     /**
      * 模板名称
      */
+    @Xss(message = "模板名称包含非法字符")
     private String templateName;
 
     /**
@@ -36,6 +38,7 @@ public class AchievementTemplateDTO {
     /**
      * 摘要/描述
      */
+    @Xss(message = "模板描述包含非法字符")
     private String description;
 
     /**

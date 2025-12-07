@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementType;
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -34,6 +35,7 @@ public class CreateAchievementDTO {
      */
     @NotBlank(message = "成果标题不能为空")
     @Size(min = 1, max = 200, message = "成果标题长度必须在1-200字符之间")
+    @Xss(message = "成果标题包含非法字符")
     private String title;
 
     /**
@@ -59,6 +61,7 @@ public class CreateAchievementDTO {
      * 摘要/描述（可选）
      */
     @Size(max = 5000, message = "摘要长度不能超过5000字符")
+    @Xss(message = "摘要包含非法字符")
     private String abstractText;
 
     /**

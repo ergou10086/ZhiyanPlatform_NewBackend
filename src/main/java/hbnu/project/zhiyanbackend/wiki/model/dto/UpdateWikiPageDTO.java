@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.wiki.model.dto;
 
+import hbnu.project.zhiyanbackend.security.xss.Xss;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class UpdateWikiPageDTO {
      * 页面标题
      */
     @Size(min = 1, max = 255, message = "页面标题长度必须在1-255字符之间")
+    @Xss(message = "页面标题包含非法字符")
     private String title;
 
     /**
@@ -32,6 +34,7 @@ public class UpdateWikiPageDTO {
      * 修改说明
      */
     @Size(max = 500, message = "修改说明长度不能超过500字符")
+    @Xss(message = "修改说明包含非法字符")
     private String changeDescription;
 
     /**

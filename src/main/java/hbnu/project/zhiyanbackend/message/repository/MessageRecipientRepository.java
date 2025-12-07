@@ -146,6 +146,25 @@ public interface MessageRecipientRepository extends JpaRepository<MessageRecipie
                                          Pageable pageable);
 
     /**
+     * 查找指定场景下过期的未读消息
+     * 用于定时任务标记过期消息
+     *
+     * @param sceneCode 场景代码
+     * @param expireTime 过期时间点(3天前)
+     * @return 过期的消息列表
+     */
+    @Query("SELECT mr FROM MessageRecipient mr " +
+            "JOIN FETCH mr.messageBody mb " +
+            "WHERE mr.sceneCode = :sceneCode " +
+            "AND mr.readFlag = false " +
+            "AND mr.deleted = false " +
+            "AND mr.expired = false " +
+            "AND mr.triggerTime < :expireTime")
+    List<MessageRecipient> findExpiredUnreadMessages(
+            @Param("sceneCode") String sceneCode,
+            @Param("expireTime") LocalDateTime expireTime);
+
+    /**
      * 查询用户全部已读且未删除的消息，用于清理全部已读消息
      */
     List<MessageRecipient> findByReceiverIdAndReadFlagTrueAndDeletedFalse(Long receiverId);

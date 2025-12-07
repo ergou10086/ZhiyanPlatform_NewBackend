@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.message.controller;
 
 import cn.hutool.core.lang.Dict;
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
@@ -130,7 +131,7 @@ public class MessageController {
 
             // 根据用户名查找接收者
             Long receiverId = userRepository.findByNameAndIsDeletedFalse(dto.getReceiverUsername())
-                    .map(user -> user.getId())
+                    .map(User::getId)
                     .orElseThrow(() -> new ServiceException("用户不存在: " + dto.getReceiverUsername()));
 
             // 不能给自己发消息
@@ -371,6 +372,11 @@ public class MessageController {
             return R.fail("该消息不是项目邀请，无法执行此操作");
         }
 
+        // 检查消息是否已过期
+        if (recipient.isExpired()) {
+            return R.fail("该邀请已过期(超过3天未处理),无法接受");
+        }
+
         // 解析扩展数据
         String extendJson = recipient.getMessageBody().getExtendData();
         Dict extend = JsonUtils.parseMap(extendJson);
@@ -386,8 +392,7 @@ public class MessageController {
         ProjectMemberRole role = ProjectMemberRole.MEMBER;
         try {
             role = ProjectMemberRole.valueOf(roleCode);
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
 
         // 调用原有成员加入逻辑
         R<Void> addResult = projectMemberService.addMember(projectId, userId, role);
@@ -443,6 +448,11 @@ public class MessageController {
 
         if (!MessageScene.PROJECT_MEMBER_INVITED.name().equals(recipient.getSceneCode())) {
             return R.fail("该消息不是项目邀请，无法执行此操作");
+        }
+
+        // 检查消息是否已过期
+        if (recipient.isExpired()) {
+            return R.fail("该邀请已过期(超过3天未处理),无需拒绝");
         }
 
         String extendJson = recipient.getMessageBody().getExtendData();
@@ -503,6 +513,11 @@ public class MessageController {
 
         if (!MessageScene.PROJECT_MEMBER_APPLY.name().equals(recipient.getSceneCode())) {
             return R.fail("该消息不是加入申请，无法执行此操作");
+        }
+
+        // 检查消息是否已过期
+        if (recipient.isExpired()) {
+            return R.fail("该邀请已过期(超过3天未处理),无需拒绝");
         }
 
         String extendJson = recipient.getMessageBody().getExtendData();
@@ -579,6 +594,11 @@ public class MessageController {
 
         if (!MessageScene.PROJECT_MEMBER_APPLY.name().equals(recipient.getSceneCode())) {
             return R.fail("该消息不是加入申请，无法执行此操作");
+        }
+
+        // 检查消息是否已过期
+        if (recipient.isExpired()) {
+            return R.fail("该申请已过期(超过3天未处理),无需拒绝");
         }
 
         String extendJson = recipient.getMessageBody().getExtendData();
