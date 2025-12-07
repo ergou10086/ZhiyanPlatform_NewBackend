@@ -10,14 +10,13 @@ import java.lang.annotation.Target;
 
 /**
  * 自定义xss校验注解
- * 
- * @author ruoyi
+ *
+ * @author ErgouTree
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(value = { ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR, ElementType.PARAMETER })
-@Constraint(validatedBy = { XssValidator.class })
-public @interface Xss
-{
+@Target(value = {ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR, ElementType.PARAMETER})
+@Constraint(validatedBy = {XssValidator.class})
+public @interface Xss {
     /**
      * 校验失败时的错误消息
      */

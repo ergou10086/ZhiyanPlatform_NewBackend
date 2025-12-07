@@ -69,7 +69,11 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:8001"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:8001",
+                "http://zhiyan.ergoutreegal.cn",    // 旧二级域名
+                "http://zyplatform.xyz"   // 新域名
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
@@ -94,7 +98,7 @@ public class SecurityConfig implements WebMvcConfigurer {
      * 认证管理器
      */
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
         return config.getAuthenticationManager();
     }
 
@@ -141,7 +145,7 @@ public class SecurityConfig implements WebMvcConfigurer {
      * 集成JWT、RememberMe自动续签机制
      */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // 关闭CSRF
