@@ -30,6 +30,11 @@ public class WikiPageTreeDTO {
     private String title;
 
     /**
+     * 创建者ID（用于统计成员Wiki贡献）
+     */
+    private String creatorId;
+
+    /**
      * 父页面ID
      */
     private String parentId;

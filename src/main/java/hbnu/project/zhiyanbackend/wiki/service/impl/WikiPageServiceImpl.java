@@ -386,6 +386,8 @@ public class WikiPageServiceImpl implements WikiPageService {
         WikiPageTreeDTO dto = WikiPageTreeDTO.builder()
                 .id(String.valueOf(page.getId()))
                 .title(page.getTitle())
+                // 创建者ID：用于前端按成员统计 Wiki 文档数量
+                .creatorId(page.getCreatedBy() != null ? String.valueOf(page.getCreatedBy()) : null)
                 .parentId(page.getParentId() != null ? String.valueOf(page.getParentId()) : null)
                 .path(page.getPath())
                 .sortOrder(page.getSortOrder())
