@@ -88,7 +88,7 @@ public class MessageRecipient {
     /**
      * 是否已过期
      */
-    @Column(name = "expired",  nullable = false)
+    @Column(name = "expired")
     private Boolean expired = false;
 
     /**
