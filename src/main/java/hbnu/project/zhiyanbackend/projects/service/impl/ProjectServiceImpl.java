@@ -41,6 +41,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 项目服务实现类
@@ -669,6 +670,148 @@ public class ProjectServiceImpl implements ProjectService {
         return projects.stream()
                 .map(project -> convertToDTO(project, currentUserId))
                 .toList();
+    }
+
+    /**
+     * 保存项目草稿
+     * @param name 项目名称
+     * @param description 项目描述
+     * @param visibility 项目可见性
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param imageUrl 项目图片URL
+     * @param creatorId 创建者ID
+     * @return 保存结果，包含草稿项目信息
+     */
+    @Override
+    @Transactional
+    public R<Project> saveDraft(String name,
+                                String description,
+                                ProjectVisibility visibility,
+                                LocalDate startDate,
+                                LocalDate endDate,
+                                String imageUrl,
+                                Long creatorId) {
+        try {
+            // 验证创建者存在
+            if (creatorId == null) {
+                return R.fail("未登录或令牌无效，无法保存草稿");
+            }
+
+            if (!userRepository.existsById(creatorId)) {
+                return R.fail("用户不存在，无法保存草稿");
+            }
+
+            // 查找用户是否已有草稿
+            Optional<Project> existingDraft = projectRepository.findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(creatorId);
+
+            Project draft;
+            if (existingDraft.isPresent()) {
+                // 更新现有草稿
+                draft = existingDraft.get();
+                if (StringUtils.hasText(name)) {
+                    draft.setName(name);
+                }
+                if (description != null) {
+                    draft.setDescription(description);
+                }
+                if (visibility != null) {
+                    draft.setVisibility(visibility);
+                }
+                if (startDate != null) {
+                    draft.setStartDate(startDate);
+                }
+                if (endDate != null) {
+                    draft.setEndDate(endDate);
+                }
+                if (imageUrl != null) {
+                    draft.setImageUrl(imageUrl);
+                }
+                draft.setIsDraft(true);
+            } else {
+                // 创建新草稿
+                draft = Project.builder()
+                        .name(StringUtils.hasText(name) ? name : "未命名项目")
+                        .description(description)
+                        .status(ProjectStatus.PLANNING)
+                        .visibility(visibility != null ? visibility : ProjectVisibility.PRIVATE)
+                        .startDate(startDate)
+                        .endDate(endDate)
+                        .imageUrl(imageUrl)
+                        .creatorId(creatorId)
+                        .isDeleted(false)
+                        .isDraft(true)
+                        .build();
+
+                // 显式设置审计创建人
+                draft.setCreatedBy(creatorId);
+            }
+
+            // 保存草稿
+            draft = projectRepository.save(draft);
+
+            log.info("保存项目草稿成功: id={}, name={}, creatorId={}", draft.getId(), draft.getName(), creatorId);
+            return R.ok(draft, "草稿保存成功");
+        } catch (Exception e) {
+            log.error("保存项目草稿失败: name={}, creatorId={}", name, creatorId, e);
+            return R.fail("保存草稿失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取用户的草稿项目
+     * @param userId 用户ID
+     * @return 返回草稿项目信息，如果不存在则返回空
+     */
+    @Override
+    public R<Project> getDraft(Long userId) {
+        try {
+            if (userId == null) {
+                return R.fail("未登录或令牌无效，无法获取草稿");
+            }
+
+            Optional<Project> draft = projectRepository.findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(userId);
+            
+            if (draft.isPresent()) {
+                return R.ok(draft.get(), "获取草稿成功");
+            } else {
+                return R.ok(null, "暂无草稿");
+            }
+        } catch (Exception e) {
+            log.error("获取项目草稿失败: userId={}", userId, e);
+            return R.fail("获取草稿失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除用户的草稿项目
+     * @param userId 用户ID
+     * @return 返回操作结果
+     */
+    @Override
+    @Transactional
+    public R<Void> deleteDraft(Long userId) {
+        try {
+            if (userId == null) {
+                return R.fail("未登录或令牌无效，无法删除草稿");
+            }
+
+            Optional<Project> draft = projectRepository.findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(userId);
+            
+            if (draft.isPresent()) {
+                // 软删除草稿
+                Project project = draft.get();
+                project.setIsDeleted(true);
+                projectRepository.save(project);
+                log.info("删除项目草稿成功: id={}, creatorId={}", project.getId(), userId);
+                return R.ok(null, "草稿删除成功");
+            } else {
+                return R.ok(null, "草稿不存在");
+            }
+        } catch (Exception e) {
+            log.error("删除项目草稿失败: userId={}", userId, e);
+            return R.fail("删除草稿失败: " + e.getMessage());
+        }
     }
 }
 

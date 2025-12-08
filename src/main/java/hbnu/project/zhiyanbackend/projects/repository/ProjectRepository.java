@@ -93,5 +93,12 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     @Query("SELECT p.name FROM Project p WHERE p.isDeleted = false AND p.id = :id")
     Optional<String> findProjectNameById(@Param("id") Long id);
+
+    /**
+     * 查找用户的草稿项目
+     * @param creatorId 创建者ID
+     * @return 草稿项目，如果不存在则返回空
+     */
+    Optional<Project> findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(Long creatorId);
 }
 

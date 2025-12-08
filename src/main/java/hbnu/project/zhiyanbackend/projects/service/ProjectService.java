@@ -155,5 +155,34 @@ public interface ProjectService {
      * @return 返回项目数量
      */
     R<Long> countUserParticipatedProjects(Long userId);
+
+    /**
+     * 保存项目草稿
+     * @param name 项目名称
+     * @param description 项目描述
+     * @param visibility 项目可见性
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param imageUrl 项目图片URL
+     * @param creatorId 创建者ID
+     * @return 返回保存结果，包含草稿项目信息
+     */
+    R<Project> saveDraft(String name,String description,
+                         ProjectVisibility visibility,LocalDate startDate,
+                         LocalDate endDate,String imageUrl,Long creatorId);
+
+    /**
+     * 获取用户的草稿项目
+     * @param userId 用户ID
+     * @return 返回草稿项目信息，如果不存在则返回空
+     */
+    R<Project> getDraft(Long userId);
+
+    /**
+     * 删除用户的草稿项目
+     * @param userId 用户ID
+     * @return 返回操作结果
+     */
+    R<Void> deleteDraft(Long userId);
 }
 

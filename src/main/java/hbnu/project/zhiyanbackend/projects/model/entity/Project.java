@@ -118,6 +118,13 @@ public class Project extends BaseAuditEntity {
     private Boolean isDeleted = false;
 
     /**
+     * 是否为草稿
+     */
+    @Builder.Default
+    @Column(name = "is_draft", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isDraft = false;
+
+    /**
      * 持久化前自动生成雪花ID
      */
     @PrePersist

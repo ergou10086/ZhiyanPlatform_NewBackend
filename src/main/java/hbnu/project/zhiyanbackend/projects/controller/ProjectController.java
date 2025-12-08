@@ -10,6 +10,7 @@ import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
 import hbnu.project.zhiyanbackend.projects.model.form.CreateProjectRequest;
+import hbnu.project.zhiyanbackend.projects.model.form.SaveDraftRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectStatusRequest;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
@@ -58,6 +59,9 @@ public class ProjectController {
         if (userId == null) {
             return R.fail("未登录或Token无效，无法创建项目");
         }
+
+        // 创建项目前，如果用户存在草稿且选择删除，也就是放弃了草稿进入新的新建项目，删除用户的草稿
+        projectService.deleteDraft(userId);
 
         R<Project> result = projectService.createProject(
                 request.getName(),
@@ -307,5 +311,46 @@ public class ProjectController {
             return R.fail("未登录或Token无效，无法统计我参与的项目数量");
         }
         return projectService.countUserParticipatedProjects(userId);
+    }
+
+    @PostMapping("/draft")
+    @Operation(summary = "保存项目草稿")
+    public R<Project> saveDraft(@RequestBody SaveDraftRequest request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法保存草稿");
+        }
+
+        return projectService.saveDraft(
+                request.getName(),
+                request.getDescription(),
+                request.getVisibility(),
+                request.getStartDate(),
+                request.getEndDate(),
+                request.getImageUrl(),
+                userId
+        );
+    }
+
+    @GetMapping("/draft")
+    @Operation(summary = "获取我的项目草稿")
+    public R<Project> getDraft() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取草稿");
+        }
+
+        return projectService.getDraft(userId);
+    }
+
+    @DeleteMapping("/draft")
+    @Operation(summary = "删除我的项目草稿")
+    public R<Void> deleteDraft() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法删除草稿");
+        }
+
+        return projectService.deleteDraft(userId);
     }
 }
