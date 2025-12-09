@@ -9,10 +9,8 @@ import hbnu.project.zhiyanbackend.sse.service.DifyStreamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -42,6 +40,81 @@ public class KnowledgeAIChatController {
     private final DifyStreamService difyStreamService;
 
     /**
+     * 上传知识库文件到 Dify（提前上传）
+     * @param request 包含知识库文件ID列表的请求体
+     * @return 上传结果列表
+     */
+    @PostMapping("/upload-knowledge-files")
+    public ResponseEntity<Map<String, Object>> uploadKnowledgeFiles(@RequestBody Map<String, Object> request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            throw new IllegalStateException("未登录，无法上传文件");
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Object> fileIdObjects = (List<Object>) request.get("knowledgeFileIds");
+        if (fileIdObjects == null || fileIdObjects.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                "code", 400,
+                "msg", "文件ID列表为空",
+                "data", List.of()
+            ));
+        }
+
+        // 转换为 Long 类型
+        List<Long> knowledgeFileIds = fileIdObjects.stream()
+                .map(obj -> {
+                    if (obj instanceof Number) {
+                        return ((Number) obj).longValue();
+                    } else if (obj instanceof String) {
+                        return Long.parseLong((String) obj);
+                    }
+                    return null;
+                })
+                .filter(id -> id != null)
+                .toList();
+
+        log.info("[Knowledge Dify] 提前上传知识库文件, userId={}, fileIds={}", userId, knowledgeFileIds);
+
+        try {
+            List<DifyFileUploadResponse> uploadResponses = knowledgeDifyFileService.uploadKnowledgeFiles(knowledgeFileIds, userId);
+            
+            // 构建返回结果
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (int i = 0; i < knowledgeFileIds.size(); i++) {
+                Long fileId = knowledgeFileIds.get(i);
+                DifyFileUploadResponse response = i < uploadResponses.size() ? uploadResponses.get(i) : null;
+                
+                Map<String, Object> result = new HashMap<>();
+                result.put("knowledgeFileId", String.valueOf(fileId)); // 转换为字符串避免精度丢失
+                result.put("success", response != null && response.getFileId() != null);
+                result.put("difyFileId", response != null ? response.getFileId() : null);
+                result.put("fileName", response != null ? response.getFileName() : null);
+                result.put("error", response == null ? "上传失败" : null);
+                
+                results.add(result);
+            }
+
+            log.info("[Knowledge Dify] 文件上传完成, 成功={}, 总数={}", 
+                    results.stream().filter(r -> (Boolean) r.get("success")).count(), 
+                    results.size());
+
+            return ResponseEntity.ok(Map.of(
+                "code", 200,
+                "msg", "上传完成",
+                "data", results
+            ));
+        } catch (Exception e) {
+            log.error("[Knowledge Dify] 上传知识库文件失败", e);
+            return ResponseEntity.ok(Map.of(
+                "code", 500,
+                "msg", "上传失败: " + e.getMessage(),
+                "data", List.of()
+            ));
+        }
+    }
+
+    /**
      * 处理带文件的流式AI对话请求
      * @param query 用户查询内容
      * @param conversationId 会话ID（可选）
@@ -53,7 +126,18 @@ public class KnowledgeAIChatController {
     public SseEmitter chatStreamWithFiles(@RequestParam String query,
                                           @RequestParam(required = false) String conversationId,
                                           @RequestParam(required = false, name = "localFiles") List<MultipartFile> localFiles,
-                                          @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds) {
+                                          @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds,
+                                          @RequestParam(required = false, name = "difyFileIds") List<String> difyFileIds) {
+        // 调试日志：打印接收到的参数
+        log.info("[Knowledge Dify] 接收到请求参数:");
+        log.info("  - query: {}", query);
+        log.info("  - conversationId: {}", conversationId);
+        log.info("  - localFiles: {}", localFiles != null ? localFiles.size() : "null");
+        log.info("  - knowledgeFileIds: {}", knowledgeFileIds);
+        log.info("  - knowledgeFileIds size: {}", knowledgeFileIds != null ? knowledgeFileIds.size() : "null");
+        log.info("  - difyFileIds: {}", difyFileIds);
+        log.info("  - difyFileIds size: {}", difyFileIds != null ? difyFileIds.size() : "null");
+        
         // 获取当前用户ID，如果未登录则抛出异常
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
@@ -86,9 +170,15 @@ public class KnowledgeAIChatController {
         // 存储所有Dify文件ID
         List<String> allDifyFileIds = new ArrayList<>();
 
-        // 处理知识库文件
+        // 处理已上传的 Dify 文件ID（提前上传的文件）
+        if (difyFileIds != null && !difyFileIds.isEmpty()) {
+            log.info("[Knowledge Dify] 附带已上传的Dify文件, count={}", difyFileIds.size());
+            allDifyFileIds.addAll(difyFileIds);
+        }
+
+        // 处理知识库文件（需要即时上传）
         if (knowledgeFileIds != null && !knowledgeFileIds.isEmpty()) {
-            log.info("[Knowledge Dify] 附带知识库文件, count={}", knowledgeFileIds.size());
+            log.info("[Knowledge Dify] 附带知识库文件（需即时上传）, count={}", knowledgeFileIds.size());
             List<DifyFileUploadResponse> knowledgeResponses =
                     knowledgeDifyFileService.uploadKnowledgeFiles(knowledgeFileIds, userId);
             for (DifyFileUploadResponse resp : knowledgeResponses) {
@@ -120,6 +210,9 @@ public class KnowledgeAIChatController {
             files.add(file);
         }
         inputs.put("files", files);
+        
+        log.info("[Knowledge Dify] 最终发送的文件列表: allDifyFileIds={}, files={}", allDifyFileIds, files);
+        log.info("[Knowledge Dify] 完整请求体: {}", body);
 
         log.info("[Knowledge Dify Config] apiUrl={}, apiKeyPrefix={}",
                 knowledgeDifyProperties.getApiUrl(),

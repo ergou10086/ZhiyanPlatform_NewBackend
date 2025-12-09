@@ -108,9 +108,17 @@ public class DifyFileServiceImpl implements DifyFileService {
 
                 String fileUrl = context.getFileUrl();
                 String fileName = context.getFileName();
+                
+                log.info("[Dify 知识库上传] 准备下载文件: fileId={}, fileName={}, fileUrl前50字符={}", 
+                        fileId, fileName, fileUrl != null ? fileUrl.substring(0, Math.min(50, fileUrl.length())) : "null");
 
                 MultipartFile multipartFile = downloadAsMultipart(fileUrl, fileName);
+                log.info("[Dify 知识库上传] 文件下载成功: fileId={}, fileName={}, size={}字节", 
+                        fileId, fileName, multipartFile.getSize());
+                
                 DifyFileUploadResponse response = uploadFile(multipartFile, userId);
+                log.info("[Dify 知识库上传] 文件上传到Dify成功: fileId={}, difyFileId={}", 
+                        fileId, response != null ? response.getFileId() : "null");
                 responses.add(response);
             } catch (Exception e) {
                 log.error("[Dify 知识库上传] 处理单个文件失败, fileId={}", fileId, e);

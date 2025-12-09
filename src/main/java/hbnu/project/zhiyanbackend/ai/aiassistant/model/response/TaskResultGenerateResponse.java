@@ -51,7 +51,13 @@ public class TaskResultGenerateResponse implements Serializable {
     /**
      * 生成成果的标题（来自请求），用于创建知识库成果时复用
      */
-    private String achievementTitle;  // 记录对象创建时间
+    private String achievementTitle;
+
+    /**
+     * 本次生成时用户选中的附件URL列表
+     * 用于前端在保存成果时一并上传这些附件
+     */
+    private List<String> selectedAttachmentUrls;  // 记录对象创建时间
 
     private LocalDateTime createdAt;  // 记录对象最后更新时间
 

@@ -142,11 +142,41 @@ public class TaskResultAIGenerateServiceImpl implements TaskResultAIGenerateServ
                         }
                     }
 
+                    // 根据前端传来的 attachmentFilters 进行过滤
                     if (detailSource != null && detailSource.getAttachmentUrls() != null) {
-                        allAttachmentUrls.addAll(detailSource.getAttachmentUrls());
-                        taskSummary.append("**附件数量**: ")
-                                .append(detailSource.getAttachmentUrls().size())
-                                .append(" 个\n\n");
+                        List<String> taskAttachmentUrls = detailSource.getAttachmentUrls();
+                        
+                        if (request.getIncludeAttachments() && 
+                            request.getAttachmentFilters() != null && 
+                            !request.getAttachmentFilters().isEmpty()) {
+                            
+                            // 只添加用户在前端选中的附件
+                            List<String> selectedUrls = taskAttachmentUrls.stream()
+                                    .filter(url -> request.getAttachmentFilters().contains(url))
+                                    .toList();
+                            
+                            allAttachmentUrls.addAll(selectedUrls);
+                            
+                            log.info("[JobId: {}] 任务[{}] 共有 {} 个附件，用户选中 {} 个", 
+                                    jobId, taskId, taskAttachmentUrls.size(), selectedUrls.size());
+                            
+                            taskSummary.append("**附件数量**: ")
+                                    .append(selectedUrls.size())
+                                    .append(" 个（用户选中）\n\n");
+                                    
+                        } else if (request.getIncludeAttachments()) {
+                            // 如果启用附件但没有过滤列表，则使用所有附件（向后兼容）
+                            allAttachmentUrls.addAll(taskAttachmentUrls);
+                            log.info("[JobId: {}] 任务[{}] 使用所有 {} 个附件（未提供过滤列表）", 
+                                    jobId, taskId, taskAttachmentUrls.size());
+                            taskSummary.append("**附件数量**: ")
+                                    .append(taskAttachmentUrls.size())
+                                    .append(" 个\n\n");
+                        } else {
+                            // 用户未启用附件
+                            log.info("[JobId: {}] 任务[{}] 用户未启用附件", jobId, taskId);
+                            taskSummary.append("**附件**: 未启用\n\n");
+                        }
                     } else {
                         taskSummary.append("**附件**: 无\n\n");
                     }

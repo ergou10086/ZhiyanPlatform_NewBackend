@@ -132,7 +132,7 @@ public class DifyAIChatController {
         }
 
         if (knowledgeFileIds != null && !knowledgeFileIds.isEmpty()) {
-            log.info("[Dify 对话] 附带知识库文件, count={}", knowledgeFileIds.size());
+            log.info("[Dify 对话] 附带知识库文件, count={}, fileIds={}", knowledgeFileIds.size(), knowledgeFileIds);
             List<DifyFileUploadResponse> knowledgeResponses = difyFileService.uploadKnowledgeFiles(knowledgeFileIds, userId);
             for (DifyFileUploadResponse resp : knowledgeResponses) {
                 if (resp != null && resp.getFileId() != null) {

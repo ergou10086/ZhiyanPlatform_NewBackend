@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
  * OAuth2补充信息创建账号请求体
  * 用于补充必要信息（邮箱、密码）创建新账号
  *
- * @author ErgouTree
+ * @author ErgouTree //
  */
 @Data
 @Builder

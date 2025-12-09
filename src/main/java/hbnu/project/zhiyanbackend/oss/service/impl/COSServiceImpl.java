@@ -554,6 +554,51 @@ public class COSServiceImpl implements COSService {
     }
 
     /**
+     * 下载文件为字节数组
+     */
+    @Override
+    public byte[] downloadFileAsBytes(String bucketName, String key) {
+        try {
+            // 使用默认桶名(如果未指定)
+            String targetBucket = StringUtils.isNotBlank(bucketName)
+                    ? bucketName
+                    : cosProperties.getBucketName();
+
+            log.info("开始从COS下载文件: bucket={}, key={}", targetBucket, key);
+
+            // 获取对象
+            GetObjectRequest getObjectRequest = new GetObjectRequest(targetBucket, key);
+            COSObject cosObject = cosClient.getObject(getObjectRequest);
+
+            if (cosObject == null) {
+                log.error("COS对象不存在: bucket={}, key={}", targetBucket, key);
+                throw new OssException("文件不存在");
+            }
+
+            // 读取对象内容
+            try (COSObjectInputStream objectContent = cosObject.getObjectContent()) {
+                byte[] content = objectContent.readAllBytes();
+                log.info("文件下载成功: bucket={}, key={}, size={} bytes", targetBucket, key, content.length);
+                return content;
+            } finally {
+                // 确保关闭对象输入流
+                cosObject.close();
+            }
+
+        } catch (CosServiceException e) {
+            log.error("COS下载文件失败(服务端): statusCode={}, errorCode={}, key={}",
+                    e.getStatusCode(), e.getErrorCode(), key, e);
+            throw new OssException("下载文件失败: " + e.getErrorMessage(), e);
+        } catch (CosClientException e) {
+            log.error("COS下载文件失败(客户端): {}, key={}", e.getMessage(), key, e);
+            throw new OssException("COS客户端错误: " + e.getMessage(), e);
+        } catch (IOException e) {
+            log.error("读取文件内容失败: key={}", key, e);
+            throw new OssException("读取文件内容失败", e);
+        }
+    }
+
+    /**
      * 删除文件
      * 单个删除，<a href="https://cloud.tencent.com/document/product/436/65939">...</a>
      */

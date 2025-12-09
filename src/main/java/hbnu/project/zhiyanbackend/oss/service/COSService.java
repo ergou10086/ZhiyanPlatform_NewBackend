@@ -144,4 +144,12 @@ public interface COSService {
      * @return 删除结果
      */
     DeleteObjectsResult deleteObjects(DeleteObjectsRequest deleteObjectsRequest);
+
+    /**
+     * 下载文件为字节数组
+     * @param bucketName 存储桶名称
+     * @param key 对象键
+     * @return 文件内容字节数组
+     */
+    byte[] downloadFileAsBytes(String bucketName, String key);
 }

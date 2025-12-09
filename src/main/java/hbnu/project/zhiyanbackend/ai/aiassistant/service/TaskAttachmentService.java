@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.ai.aiassistant.service;
 
 import hbnu.project.zhiyanbackend.ai.aiassistant.model.response.DifyFileUploadResponse;
+import hbnu.project.zhiyanbackend.oss.config.COSProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.List;
 public class TaskAttachmentService {
 
     private final DifyFileService difyFileService;
+    private final COSProperties cosProperties;
 
     /**
      * 下载并上传附件
@@ -66,14 +68,30 @@ public class TaskAttachmentService {
 
     /**
      * 从URL下载文件并转换为MultipartFile对象
-     * @param fileUrl 文件URL
+     * @param fileUrl 文件URL（可能是相对路径或绝对路径）
      * @return MultipartFile对象
      * @throws IOException IO异常
      * @throws URISyntaxException URI语法异常
      */
     private MultipartFile downloadAsMultipart(String fileUrl) throws IOException, URISyntaxException {
+        // 处理相对路径：如果URL不是以http开头，则拼接COS公网域名
+        String fullUrl = fileUrl;
+        if (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://")) {
+            // 相对路径，拼接COS公网域名
+            String publicDomain = cosProperties.getPublicDomain();
+            // 确保 publicDomain 以 / 结尾，fileUrl 不以 / 开头
+            if (!publicDomain.endsWith("/")) {
+                publicDomain += "/";
+            }
+            if (fileUrl.startsWith("/")) {
+                fileUrl = fileUrl.substring(1);
+            }
+            fullUrl = publicDomain + fileUrl;
+            log.info("转换相对路径为绝对路径: {} -> {}", fileUrl, fullUrl);
+        }
+        
         // 解析URL
-        URI uri = new URI(fileUrl);
+        URI uri = new URI(fullUrl);
         URL url = uri.toURL();
         // 从URL读取文件内容
         try (InputStream inputStream = url.openStream()) {

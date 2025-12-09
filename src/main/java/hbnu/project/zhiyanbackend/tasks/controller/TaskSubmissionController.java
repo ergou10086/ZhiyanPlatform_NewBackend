@@ -1,5 +1,7 @@
 package hbnu.project.zhiyanbackend.tasks.controller;
 
+import org.springframework.http.ContentDisposition;
+
 import com.qcloud.cos.http.HttpMethodName;
 import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -359,13 +362,13 @@ public class TaskSubmissionController {
     }
 
     @GetMapping("/files/download")
-    @Operation(summary = "下载任务附件", description = "支持通过token参数校验的文件下载")
-    public ResponseEntity<Void> downloadSubmissionFile(
+    @Operation(summary = "代理下载任务附件（避免CORS）", description = "后端代理下载COS文件，避免前端跨域问题")
+    public ResponseEntity<byte[]> downloadSubmissionFile(
             @RequestParam("fileUrl") String fileUrl,
             @RequestParam(value = "token", required = false) String token,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
 
-        log.info("下载任务附件请求: fileUrl={}", fileUrl);
+        log.info("代理下载任务附件请求: fileUrl={}", fileUrl);
         
         String effectiveToken = resolveToken(token, authorizationHeader);
         if (!validateToken(effectiveToken)) {
@@ -373,31 +376,34 @@ public class TaskSubmissionController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // 从 COS 生成预签名 URL 并重定向
+        // 从 COS 下载文件内容并返回
         try {
-            int expireMinutes = 10;
-            Date expiration = new Date(System.currentTimeMillis() + expireMinutes * 60 * 1000L);
-            URL url = cosService.generatePresignedUrl(
-                    cosProperties.getBucketName(),
-                    fileUrl,
-                    expiration,
-                    HttpMethodName.GET,
-                    null,
-                    null,
-                    false,
-                    true
-            );
-
-            if (url != null) {
-                log.info("重定向任务附件下载到COS: fileUrl={}, cosUrl={}", fileUrl, url);
-                return ResponseEntity.status(HttpStatus.FOUND)
-                        .location(URI.create(url.toString()))
-                        .build();
+            // 直接从COS下载文件
+            byte[] fileContent = cosService.downloadFileAsBytes(cosProperties.getBucketName(), fileUrl);
+            
+            if (fileContent != null && fileContent.length > 0) {
+                log.info("代理下载成功: fileUrl={}, size={} bytes", fileUrl, fileContent.length);
+                
+                // 设置响应头
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                headers.setContentLength(fileContent.length);
+                headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+                headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, OPTIONS");
+                headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "*");
+                
+                // 尝试从fileUrl中提取文件名
+                String fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
+                headers.setContentDisposition(ContentDisposition.attachment().filename(fileName).build());
+                
+                return ResponseEntity.ok()
+                        .headers(headers)
+                        .body(fileContent);
             }
         } catch (Exception e) {
-            log.error("生成COS下载链接失败: fileUrl={}", fileUrl, e);
+            log.error("代理下载附件失败: fileUrl={}", fileUrl, e);
         }
-        log.warn("下载附件失败: 无法生成COS预签名URL, fileUrl={}", fileUrl);
+        log.warn("下载附件失败: 无法从COS下载文件, fileUrl={}", fileUrl);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
 
