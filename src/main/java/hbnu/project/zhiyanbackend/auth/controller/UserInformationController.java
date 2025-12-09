@@ -213,6 +213,38 @@ public class UserInformationController {
     // ==================== 个人资料管理接口 ====================
 
     /**
+     * 更新当前用户个人资料
+     * 路径: PUT /zhiyan/auth/users/me
+     * 权限: 所有已登录用户（只能更新自己的资料）
+     */
+    @PutMapping("/users/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "更新我的个人资料", description = "更新当前登录用户的个人信息")
+    public R<UserDTO> updateMyProfile(
+            @Valid @RequestBody UserUpdateDTO updateBody) {
+        log.info("更新用户资料: {}", updateBody);
+
+        try {
+            // 获取当前用户ID
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null) {
+                return R.fail("用户未登录");
+            }
+
+            // 调用服务层更新资料
+            R<UserDTO> result = userInformationService.updateUserProfile(userId, updateBody);
+            if (!R.isSuccess(result)) {
+                return R.fail(result.getMsg());
+            }
+
+            return R.ok(result.getData(), "资料更新成功");
+        } catch (Exception e) {
+            log.error("更新用户资料失败", e);
+            return R.fail("更新资料失败");
+        }
+    }
+
+    /**
      * 更新用户个人资料
      * 路径: PUT /zhiyan/auth/users/profile
      * 权限: 所有已登录用户（只能更新自己的资料）
