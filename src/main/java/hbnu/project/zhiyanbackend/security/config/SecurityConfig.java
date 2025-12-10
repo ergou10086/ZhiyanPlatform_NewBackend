@@ -49,7 +49,6 @@ public class SecurityConfig implements WebMvcConfigurer {
     private final UserDetailsService userDetailsService;
 
     /**
-
      * RestTemplate Bean
      * 提供给 GithubOAuth2Provider 等需要发起 HTTP 请求的组件使用
      */
@@ -71,8 +70,6 @@ public class SecurityConfig implements WebMvcConfigurer {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:8001",
-                "http://zhiyan.ergoutreegal.cn",    // 旧二级域名
-                "https://zhiyan.ergoutreegal.cn",
                 "http://zyplatform.xyz",   // 新域名
                 "https://zyplatform.xyz"
         ));
