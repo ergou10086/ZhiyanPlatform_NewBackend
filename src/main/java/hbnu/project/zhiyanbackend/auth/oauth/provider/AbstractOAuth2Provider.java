@@ -11,6 +11,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -20,6 +21,7 @@ import java.util.Objects;
  *
  * @author ErgouTree
  * @rewrite yui
+ * @modify ErgouTree
  */
 @Slf4j
 public abstract class AbstractOAuth2Provider implements OAuth2Provider {
@@ -63,6 +65,7 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             url.append("&scope=").append(scope);
         }
 
+        log.debug("生成授权URL: {}", url.toString());
         return url.toString();
     }
 
@@ -85,6 +88,7 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
             params.add("client_id", clientId);
             params.add("client_secret", clientSecret);
+            params.add("grant_type", "authorization_code");
             params.add("code", code);
             params.add("redirect_uri", redirectUri);
 
@@ -93,7 +97,7 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             // HTML 表单默认的提交格式，提交键值对
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             // 期望收到JSON
-            headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
             // 发送请求
@@ -107,13 +111,17 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             if(response.getStatusCode().is2xxSuccessful()){
                 String body = response.getBody();
                 log.debug("获取访问令牌响应: {}", body);
-
-                // 解析响应（可能是JSON或URL编码格式）
+                // 解析响应
                 return parseAccessToken(body);
             } else {
-                throw new OAuth2Exception("获取访问令牌失败: " + response.getStatusCode());
+                String errorBody = response.getBody();
+                log.error("获取访问令牌失败 - 状态码: {}, 响应: {}", response.getStatusCode(), errorBody);
+                throw new OAuth2Exception("获取访问令牌失败: " + response.getStatusCode() + (errorBody != null ? " - " + errorBody : ""));
             }
         }catch (OAuth2Exception e){
+            log.error("获取访问令牌异常", e);
+            throw new OAuth2Exception("获取访问令牌失败: " + e.getMessage(), e);
+        }catch (Exception e) {
             log.error("获取访问令牌异常", e);
             throw new OAuth2Exception("获取访问令牌失败: " + e.getMessage(), e);
         }
@@ -159,7 +167,7 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             throw new OAuth2Exception("OAuth2配置不完整：缺少userInfoUri");
         }
 
-        try{
+        try {
             // 设置请求头
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
@@ -178,13 +186,13 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String body = response.getBody();
                 log.debug("获取用户信息响应: {}", body);
-
-                // 解析用户信息
                 return parseUserInfo(body);
             } else {
                 throw new OAuth2Exception("获取用户信息失败: " + response.getStatusCode());
             }
-        }catch (OAuth2Exception e){
+        } catch (OAuth2Exception e) {
+            throw e;
+        } catch (Exception e) {
             log.error("获取用户信息异常", e);
             throw new OAuth2Exception("获取用户信息失败: " + e.getMessage(), e);
         }

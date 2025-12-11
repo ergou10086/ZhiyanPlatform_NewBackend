@@ -9,8 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,10 @@ import java.util.Map;
 /**
  * ORCID OAuth2提供商实现
  * ORCID是用于唯一标识科研人员的国际标准
+ *
+ * Token请求必须使用 application/x-www-form-urlencoded 格式，且client_id 和 client_secret 必须作为请求体参数
+ * 不使用 Basic Auth，使用表单
+ *
  *
  * @author ErgouTree
  */
@@ -78,8 +85,8 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
 
     /**
      * 重写getAccessToken以处理ORCID的特殊响应格式
-     * ORCID返回的token响应中包含orcid、id_token等额外信息
-     * 根据ORCID OpenID Connect规范，token响应包含id_token（JWT），其中sub字段是ORCID iD
+     * 必须使用 application/x-www-form-urlencoded，client_id 和 client_secret 作为表单参数
+     * 不使用 HTTP Basic Auth
      */
     @Override
     public String getAccessToken(String code, String redirectUri) {
@@ -87,22 +94,37 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
         String clientId = getClientId();
         String clientSecret = getClientSecret();
 
-        if(StringUtils.isBlank(tokenUri) || StringUtils.isEmpty(clientId) || StringUtils.isEmpty(clientSecret)) {
+        if (StringUtils.isBlank(tokenUri) || StringUtils.isEmpty(clientId) || StringUtils.isEmpty(clientSecret)) {
             throw new OAuth2Exception("OAuth2配置不完整：缺少tokenUri、clientId或clientSecret");
         }
 
         try {
-            // ORCID要求使用form-urlencoded格式
+            log.debug("ORCID token请求 - clientId: {}, redirectUri: {}, code长度: {}",
+                    clientId, redirectUri, code != null ? code.length() : 0);
+
+            // 检查client_secret是否为空
+            if (StringUtils.isBlank(clientSecret)) {
+                log.error("ORCID client_secret为空，请检查配置");
+                throw new OAuth2Exception("ORCID client_secret未配置，请检查配置文件中的 zhiyan.oauth2.orcid.client-secret 或环境变量 ORCID_CLIENT_SECRET");
+            }
+
+            // 构建请求体 - ORCID 要求使用表单参数方式
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("client_id", clientId);
+            params.add("client_secret", clientSecret);
+            params.add("grant_type", "authorization_code");
+            params.add("code", code);
+            params.add("redirect_uri", redirectUri);
+
+            // 设置请求头
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
 
-            // 构建请求体
-            String requestBody = String.format(
-                    "client_id=%s&client_secret=%s&grant_type=authorization_code&code=%s&redirect_uri=%s",
-                    clientId, clientSecret, code, redirectUri
-            );
-            HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+            log.debug("ORCID token请求头: Content-Type=application/x-www-form-urlencoded, Accept=application/json");
+            log.debug("ORCID token请求体参数: grant_type=authorization_code, code={}, redirect_uri={}", code, redirectUri);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
             // 发送请求
             ResponseEntity<String> response = restTemplate.exchange(
@@ -112,10 +134,9 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     String.class
             );
 
-            if(response.getStatusCode().is2xxSuccessful()) {
+            if (response.getStatusCode().is2xxSuccessful()) {
                 String body = response.getBody();
-                log.info("ORCID获取访问令牌响应状态: {}, 响应体长度: {}", 
-                        response.getStatusCode(), body != null ? body.length() : 0);
+                log.info("ORCID获取访问令牌响应状态: {}, 响应体长度: {}", response.getStatusCode(), body != null ? body.length() : 0);
                 log.debug("ORCID获取访问令牌完整响应: {}", body);
 
                 if (StringUtils.isBlank(body)) {
@@ -123,7 +144,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     throw new OAuth2Exception("ORCID token响应为空");
                 }
 
-                // 解析响应（使用Dict类型，因为JsonUtils.parseMap返回Dict）
+                // 解析响应（使用Dict类型）
                 Dict tokenMap = null;
                 try {
                     tokenMap = JsonUtils.parseMap(body);
@@ -131,7 +152,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     log.error("ORCID token响应JSON解析异常: {}", e.getMessage(), e);
                     throw new OAuth2Exception("ORCID token响应JSON解析失败: " + e.getMessage(), e);
                 }
-                
+
                 if (tokenMap == null) {
                     log.error("ORCID token响应解析结果为null，响应体: {}", body);
                     throw new OAuth2Exception("ORCID token响应解析失败：解析结果为null");
@@ -146,14 +167,14 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     log.error("ORCID响应中未找到access_token，可用字段: {}", tokenMap.keySet());
                     throw new OAuth2Exception("ORCID响应中未找到access_token");
                 }
-                
+
                 log.info("成功获取ORCID access_token，长度: {}", accessToken.length());
                 return accessToken;
-            }else {
+            } else {
                 String errorBody = response.getBody();
-                log.error("获取ORCID访问令牌失败，状态码: {}, 响应体: {}", 
-                        response.getStatusCode(), errorBody);
-                throw new OAuth2Exception("获取ORCID访问令牌失败: " + response.getStatusCode() + 
+                int statusCode = response.getStatusCode().value();
+                log.error("获取ORCID访问令牌失败，状态码: {}, 响应体: {}", statusCode, errorBody);
+                throw new OAuth2Exception("获取ORCID访问令牌失败: " + response.getStatusCode() +
                         (errorBody != null ? ", " + errorBody : ""));
             }
         } catch (Exception e) {
@@ -168,7 +189,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
      */
     @Override
     public OAuth2UserInfoDTO getUserInfo(String accessToken) {
-        try{
+        try {
             // 首先从token中提取ORCID iD
             String orcidId = extractOrcidIdFromToken(accessToken);
             if (StringUtils.isEmpty(orcidId)) {
@@ -177,13 +198,15 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
 
             // 构建用户信息URL：https://pub.orcid.org/v3.0/{orcid-id}/person
             String userInfoUri = getUserInfoUri() + "/" + orcidId + "/person";
+            log.debug("ORCID用户信息请求URL: {}", userInfoUri);
 
             // 设置请求头
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
             headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
             HttpEntity<Void> request = new HttpEntity<>(headers);
-            // 发送
+
+            // 发送请求
             ResponseEntity<String> response = restTemplate.exchange(
                     userInfoUri,
                     HttpMethod.GET,
@@ -196,7 +219,6 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                 log.debug("ORCID获取用户信息响应: {}", body);
 
                 // 解析用户信息
-                // ORCID中用户信息需要公开才能拿到
                 OAuth2UserInfoDTO userInfo = parseUserInfo(body);
                 userInfo.setProviderUserId(orcidId);
                 userInfo.setAccessToken(accessToken);
@@ -205,7 +227,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             } else {
                 throw new OAuth2Exception("获取ORCID用户信息失败: " + response.getStatusCode());
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("获取ORCID用户信息异常", e);
             throw new OAuth2Exception("获取用户信息失败: " + e.getMessage(), e);
         }
@@ -214,19 +236,17 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
     /**
      * 解析ORCID用户信息
      * ORCID的响应格式比较复杂，包含嵌套的XML风格的JSON
-     * 需要用户公开自己的个人信息
      */
     @Override
     protected OAuth2UserInfoDTO parseUserInfo(String responseBody) {
-        try{
+        try {
             if (StringUtils.isBlank(responseBody)) {
                 log.error("ORCID用户信息响应体为空");
                 throw new OAuth2Exception("ORCID用户信息响应体为空");
             }
-            
+
             log.debug("开始解析ORCID用户信息，响应体长度: {}", responseBody.length());
-            
-            // JsonUtils.parseMap返回Dict类型
+
             Dict personData = null;
             try {
                 personData = JsonUtils.parseMap(responseBody);
@@ -234,13 +254,14 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                 log.error("ORCID用户信息JSON解析异常: {}", e.getMessage(), e);
                 throw new OAuth2Exception("ORCID用户信息JSON解析失败: " + e.getMessage(), e);
             }
-            
+
             if (personData == null) {
                 log.error("ORCID用户信息解析结果为null，响应体: {}", responseBody);
                 throw new OAuth2Exception("ORCID用户信息解析失败：解析结果为null");
             }
-            
+
             log.debug("ORCID用户信息解析成功，包含字段: {}", personData.keySet());
+
             // 提取用户名
             String givenName = null;
             String familyName = null;
@@ -261,7 +282,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     }
 
                     // 构建全名
-                    if(StringUtils.isNotEmpty(givenName) && StringUtils.isNotEmpty(familyName)){
+                    if (StringUtils.isNotEmpty(givenName) && StringUtils.isNotEmpty(familyName)) {
                         fullName = givenName + " " + familyName;
                     } else if (StringUtils.isNotEmpty(givenName)) {
                         fullName = givenName;
@@ -283,7 +304,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     }
 
                     // 构建全名
-                    if(StringUtils.isNotEmpty(givenName) && StringUtils.isNotEmpty(familyName)){
+                    if (StringUtils.isNotEmpty(givenName) && StringUtils.isNotEmpty(familyName)) {
                         fullName = givenName + " " + familyName;
                     } else if (StringUtils.isNotEmpty(givenName)) {
                         fullName = givenName;
@@ -294,7 +315,6 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             }
 
             // 提取邮箱（ORCID的邮箱在emails字段中）
-            // 需要用户设置为公开
             String email = null;
             if (personData.containsKey("emails")) {
                 Object emailsObj = personData.get("emails");
@@ -307,7 +327,6 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     }
 
                     if (emailListObj instanceof List<?> emailList) {
-
                         // 优先获取primary和verified的邮箱
                         for (Object emailItemObj : emailList) {
                             if (emailItemObj instanceof Dict emailItem) {
@@ -362,16 +381,14 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             // 构建OAuth2UserInfoDTO
             OAuth2UserInfoDTO userInfo = OAuth2UserInfoDTO.builder()
                     .provider("orcid")
-                    // 将在getUserInfo中设置
-                    .providerUserId("")
-                    // ORCID没有username概念，使用全名
+                    .providerUserId("") // 将在getUserInfo中设置
                     .username(fullName)
                     .nickname(fullName)
                     .email(email)
                     .build();
             log.info("解析ORCID用户信息成功: name={}, email={}", fullName, email);
             return userInfo;
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("解析ORCID用户信息失败", e);
             throw new OAuth2Exception("解析用户信息失败: " + e.getMessage(), e);
         }
@@ -379,19 +396,16 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
 
     /**
      * 从token响应中提取ORCID iD
-     * 根据ORCID OpenID Connect规范，优先从以下位置提取：
-     * 1. token响应中的"orcid"字段（如果存在）
-     * 2. id_token JWT中的"sub"字段（ORCID iD）
-     * 3. 备选方案：使用token info endpoint
+     * ORCID在token响应中直接返回orcid字段
      */
     private String extractOrcidIdFromToken(String accessToken) {
         log.debug("开始提取ORCID iD，tokenResponse是否为null: {}", this.tokenResponse == null);
-        
-        // 方案1：从保存的token响应中提取
+
+        // 方案1：从保存的tokenResponse中提取
         if (this.tokenResponse != null) {
             log.debug("tokenResponse包含字段: {}", this.tokenResponse.keySet());
-            
-            // 优先从"orcid"字段获取
+
+            // ORCID在token响应中直接返回orcid字段
             String orcid = this.tokenResponse.getStr("orcid");
             if (StringUtils.isNotBlank(orcid)) {
                 log.info("从token响应的orcid字段提取ORCID iD: {}", orcid);
@@ -400,7 +414,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                 log.debug("token响应中未找到orcid字段");
             }
 
-            // 从id_token JWT中提取
+            // 备选：从id_token JWT中提取
             String idToken = this.tokenResponse.getStr("id_token");
             if (StringUtils.isNotBlank(idToken)) {
                 log.debug("找到id_token，长度: {}", idToken.length());
@@ -409,48 +423,13 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                     if (StringUtils.isNotBlank(orcidId)) {
                         log.info("从id_token JWT提取ORCID iD: {}", orcidId);
                         return orcidId;
-                    } else {
-                        log.warn("从id_token JWT提取的ORCID iD为空");
                     }
                 } catch (Exception e) {
-                    log.warn("从id_token JWT提取ORCID iD失败: {}", e.getMessage(), e);
+                    log.warn("从id_token JWT提取ORCID iD失败: {}", e.getMessage());
                 }
-            } else {
-                log.debug("token响应中未找到id_token字段");
             }
         } else {
             log.warn("tokenResponse为null，无法从token响应中提取ORCID iD");
-        }
-
-        // 方案2：使用token info endpoint（备选方案）
-        try {
-            String tokenInfoUri = "https://orcid.org/oauth/tokeninfo";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            String requestBody = "token=" + accessToken;
-            HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                    tokenInfoUri,
-                    HttpMethod.POST,
-                    request,
-                    String.class
-            );
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Dict tokenInfo = JsonUtils.parseMap(response.getBody());
-                if (tokenInfo != null) {
-                    String orcid = tokenInfo.getStr("orcid");
-                    if (StringUtils.isNotBlank(orcid)) {
-                        log.debug("从token info endpoint提取ORCID iD: {}", orcid);
-                        return orcid;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("从token info endpoint提取ORCID iD失败: {}", e.getMessage());
         }
 
         log.error("无法从任何来源提取ORCID iD");
@@ -460,108 +439,31 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
     /**
      * 从JWT id_token中提取ORCID iD
      * JWT格式：header.payload.signature
-     * payload中的"sub"字段包含ORCID iD
      */
     private String extractOrcidIdFromJwt(String idToken) {
         try {
-            if (StringUtils.isBlank(idToken)) {
-                throw new OAuth2Exception("id_token为空");
-            }
-
-            log.debug("开始解析JWT id_token，长度: {}", idToken.length());
-
-            // JWT由三部分组成，用.分隔
             String[] parts = idToken.split("\\.");
-            log.debug("JWT分割后部分数量: {}", parts.length);
-            
             if (parts.length != 3) {
-                throw new OAuth2Exception("无效的JWT格式，期望3部分，实际: " + parts.length);
+                throw new OAuth2Exception("无效的JWT格式");
             }
 
             // 解码payload（第二部分）
             String payload = parts[1];
-            if (StringUtils.isBlank(payload)) {
-                throw new OAuth2Exception("JWT payload为空");
-            }
-            
-            log.debug("JWT payload字符串长度: {}", payload.length());
-            
-            // Base64 URL解码
-            byte[] decodedBytes = null;
-            try {
-                // 确保payload不为空再解码
-                if (payload == null || payload.isEmpty()) {
-                    log.error("JWT payload字符串为null或空");
-                    throw new OAuth2Exception("JWT payload字符串为null或空");
-                }
-                
-                // Base64 URL解码（不会返回null，但可能抛出异常）
-                decodedBytes = Base64.getUrlDecoder().decode(payload);
-                
-                // Base64.getUrlDecoder().decode() 不会返回null，但为了安全起见还是检查
-                if (decodedBytes == null) {
-                    log.error("JWT payload Base64解码结果为null（不应该发生），payload: {}", payload);
-                    throw new OAuth2Exception("JWT payload解码结果为null");
-                }
-                
-            } catch (IllegalArgumentException e) {
-                log.error("JWT payload Base64解码失败（格式错误），payload: {}", payload, e);
-                throw new OAuth2Exception("JWT payload Base64解码失败: " + e.getMessage(), e);
-            } catch (Exception e) {
-                log.error("JWT payload Base64解码异常", e);
-                throw new OAuth2Exception("JWT payload Base64解码异常: " + e.getMessage(), e);
-            }
-
-            // 再次检查解码结果（防御性编程）
-            if (decodedBytes == null) {
-                log.error("JWT payload Base64解码结果为null（第二次检查），payload: {}", payload);
-                throw new OAuth2Exception("JWT payload解码结果为null");
-            }
-
-            // 安全地检查长度（先检查null再检查length）
-            int length;
-            try {
-                length = decodedBytes.length;
-            } catch (NullPointerException e) {
-                log.error("访问decodedBytes.length时发生NullPointerException（不应该发生）", e);
-                throw new OAuth2Exception("JWT payload解码结果异常: " + e.getMessage(), e);
-            }
-            
-            if (length == 0) {
-                log.error("JWT payload解码结果为空字节数组");
-                throw new OAuth2Exception("JWT payload解码结果为空");
-            }
-
-            log.debug("JWT payload解码成功，字节数组长度: {}", length);
-
+            byte[] decodedBytes = java.util.Base64.getUrlDecoder().decode(payload);
             String payloadJson = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
-            log.debug("JWT payload JSON字符串: {}", payloadJson);
 
-            // 解析JSON获取sub字段
-            Dict payloadMap = null;
-            try {
-                payloadMap = JsonUtils.parseMap(payloadJson);
-            } catch (Exception e) {
-                log.error("JWT payload JSON解析异常: {}", e.getMessage(), e);
-                throw new OAuth2Exception("JWT payload JSON解析失败: " + e.getMessage(), e);
-            }
-            
+            // 解析JSON获取sub字段（ORCID iD）
+            Dict payloadMap = JsonUtils.parseMap(payloadJson);
             if (payloadMap == null) {
-                log.error("JWT payload JSON解析结果为null，payloadJson: {}", payloadJson);
-                throw new OAuth2Exception("JWT payload JSON解析失败：解析结果为null");
+                throw new OAuth2Exception("JWT payload解析失败");
             }
 
             String sub = payloadMap.getStr("sub");
             if (StringUtils.isBlank(sub)) {
-                log.error("JWT payload中未找到sub字段，可用字段: {}", payloadMap.keySet());
                 throw new OAuth2Exception("JWT payload中未找到sub字段");
             }
 
-            log.info("成功从JWT提取ORCID iD: {}", sub);
             return sub;
-        } catch (OAuth2Exception e) {
-            // 重新抛出OAuth2Exception
-            throw e;
         } catch (Exception e) {
             log.error("从JWT提取ORCID iD失败", e);
             throw new OAuth2Exception("从JWT提取ORCID iD失败: " + e.getMessage(), e);
