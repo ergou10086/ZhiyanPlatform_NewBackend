@@ -73,6 +73,16 @@ public class UserController {
             // 转换为Response对象(不包含用户权限)
             UserDTO userDTO = result.getData();
             UserInfoResponseDTO response = userConverter.toUserInfoResponse(userDTO);
+            
+            // 确保OAuth2绑定信息被正确映射（MapStruct应该自动映射，但为了确保，我们显式设置）
+            if (response != null && userDTO != null) {
+                response.setGithubId(userDTO.getGithubId());
+                response.setGithubUsername(userDTO.getGithubUsername());
+                response.setOrcidId(userDTO.getOrcidId());
+                response.setOrcidBound(userDTO.getOrcidBound());
+                log.debug("OAuth2绑定信息 - githubId: {}, githubUsername: {}, orcidId: {}, orcidBound: {}", 
+                        response.getGithubId(), response.getGithubUsername(), response.getOrcidId(), response.getOrcidBound());
+            }
 
             return R.ok(response);
         }catch (ControllerException e){

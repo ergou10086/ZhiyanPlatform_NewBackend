@@ -66,10 +66,18 @@ public class UserServiceImpl implements UserService {
             if (userDTO != null) {
                 userDTO.setTwoFactorEnabled(user.getTwoFactorEnabled());
                 log.debug("设置2FA状态 - userId: {}, twoFactorEnabled: {}", userId, user.getTwoFactorEnabled());
+                
+                // 手动设置OAuth2绑定信息，确保MapStruct正确映射
+                userDTO.setGithubId(user.getGithubId());
+                userDTO.setGithubUsername(user.getGithubUsername());
+                userDTO.setOrcidId(user.getOrcidId());
+                userDTO.setOrcidBound(user.getOrcidBound());
+                log.debug("设置OAuth2绑定信息 - userId: {}, githubId: {}, githubUsername: {}, orcidId: {}, orcidBound: {}", 
+                        userId, user.getGithubId(), user.getGithubUsername(), user.getOrcidId(), user.getOrcidBound());
             }
 
-            log.debug("成功获取用户信息 - userId: {}, email: {}, twoFactorEnabled: {}", 
-                    userId, user.getEmail(), user.getTwoFactorEnabled());
+            log.debug("成功获取用户信息 - userId: {}, email: {}, twoFactorEnabled: {}, githubId: {}, orcidId: {}", 
+                    userId, user.getEmail(), user.getTwoFactorEnabled(), user.getGithubId(), user.getOrcidId());
             return R.ok(userDTO);
 
         } catch (Exception e) {
