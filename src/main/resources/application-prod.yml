@@ -210,13 +210,12 @@ zhiyan:
     # 回调地址基础路径（不包含具体路径）
     # 开发环境：本地运行，使用localhost
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
-    callback-base-url: http://localhost:9006
+    callback-base-url: https://api.zyplatform.xyz
     # 前端页面URL配置（根据登录状态跳转到不同页面）
-    # TODO: 请根据实际前端部署地址修改以下URL
-    frontend-home-url: http://localhost:8001/home  # 主页URL（登录成功后跳转）
-    frontend-supplement-url: http://localhost:8001/oauth2/supplement  # 补充信息页面URL
-    frontend-bind-url: http://localhost:8001/oauth2/bind  # 绑定页面URL
-    frontend-error-url: http://localhost:8001/oauth2/error  # 错误页面URL
+    frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
+    frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL
+    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL
+    frontend-error-url: https://zyplatform.xyz/oauth2/error  # 错误页面URL
 
     github:
       # 是否启用GitHub登录
@@ -226,7 +225,7 @@ zhiyan:
       client-id: ${GITHUB_CLIENT_ID:Ov23liNSEUAOKgBl1xBA}
       # GitHub应用的Client Secret（从GitHub开发者平台获取）
       # 建议使用环境变量：${GITHUB_CLIENT_SECRET:your-github-client-secret}
-      client-secret: ${GITHUB_CLIENT_SECRET:760d26f6727b47dd9ed6e24e08532480136052ba}
+      client-secret: ${GITHUB_CLIENT_SECRET}
       # 授权范围（scope）
       # read:user - 读取用户基本信息
       # user:email - 读取用户邮箱（需要此权限才能获取邮箱）

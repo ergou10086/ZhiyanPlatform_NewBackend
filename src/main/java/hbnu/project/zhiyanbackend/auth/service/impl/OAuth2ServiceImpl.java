@@ -11,6 +11,7 @@ import hbnu.project.zhiyanbackend.auth.service.OAuth2Service;
 import hbnu.project.zhiyanbackend.auth.service.RoleService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.PasswordUtils;
+
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -285,6 +286,20 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                     .researchTags("")
                     .build();
 
+            // 绑定OAuth2账号（在保存前设置）
+            String provider = supplementBody.getProvider();
+            if (StringUtils.isNotBlank(provider) && StringUtils.isNotBlank(oauth2UserInfo.getProviderUserId())) {
+                if ("github".equalsIgnoreCase(provider)) {
+                    newUser.setGithubId(oauth2UserInfo.getProviderUserId());
+                    if (StringUtils.isNotBlank(oauth2UserInfo.getUsername())) {
+                        newUser.setGithubUsername(oauth2UserInfo.getUsername());
+                    }
+                } else if ("orcid".equalsIgnoreCase(provider)) {
+                    newUser.setOrcidId(oauth2UserInfo.getProviderUserId());
+                    newUser.setOrcidBound(true);
+                }
+            }
+
             User savedUser = userRepository.save(newUser);
 
             // 7. 分配默认角色
@@ -308,6 +323,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
      * 更新用户信息（从OAuth2获取的最新信息）
      * 注意：新架构使用avatarData（BYTEA）存储头像，OAuth2提供的是URL，需要下载后存储
      * 这里暂时只更新其他信息，头像先不更新
+     * 同时绑定OAuth2账号（GitHub、ORCID等）
      */
     private void updateUserFromOAuth2(User user, OAuth2UserInfoDTO oauth2UserInfo) {
         // 更新昵称（如果OAuth2提供了昵称且与当前不同）
@@ -320,6 +336,24 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         // 如果用户没有邮箱，且OAuth2提供了邮箱，则更新
         if (StringUtils.isBlank(user.getEmail()) && StringUtils.isNotBlank(oauth2UserInfo.getEmail())) {
             user.setEmail(oauth2UserInfo.getEmail());
+        }
+
+        // 绑定OAuth2账号
+        String provider = oauth2UserInfo.getProvider();
+        if (StringUtils.isNotBlank(provider) && StringUtils.isNotBlank(oauth2UserInfo.getProviderUserId())) {
+            if ("github".equalsIgnoreCase(provider)) {
+                // 绑定GitHub账号
+                user.setGithubId(oauth2UserInfo.getProviderUserId());
+                if (StringUtils.isNotBlank(oauth2UserInfo.getUsername())) {
+                    user.setGithubUsername(oauth2UserInfo.getUsername());
+                }
+                log.info("绑定GitHub账号 - 用户ID: {}, GitHub ID: {}", user.getId(), oauth2UserInfo.getProviderUserId());
+            } else if ("orcid".equalsIgnoreCase(provider)) {
+                // 绑定ORCID账号
+                user.setOrcidId(oauth2UserInfo.getProviderUserId());
+                user.setOrcidBound(true);
+                log.info("绑定ORCID账号 - 用户ID: {}, ORCID ID: {}", user.getId(), oauth2UserInfo.getProviderUserId());
+            }
         }
     }
 

@@ -82,13 +82,18 @@ public class JsonUtils {
      * @throws RuntimeException 如果转换过程中发生IO异常，则抛出运行时异常
      */
     public static <T> T parseObject(byte[] bytes, Class<T> clazz) {
-        if (ArrayUtil.isEmpty(bytes)) {
+        // 显式检查null，避免ArrayUtil.isEmpty在某些情况下的问题
+        if (bytes == null) {
+            return null;
+        }
+        // 检查长度，避免空数组
+        if (bytes.length == 0) {
             return null;
         }
         try {
             return OBJECT_MAPPER.readValue(bytes, clazz);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("解析字节数组失败: " + e.getMessage(), e);
         }
     }
 

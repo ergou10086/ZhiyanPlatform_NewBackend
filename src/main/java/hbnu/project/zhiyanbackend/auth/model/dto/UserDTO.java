@@ -96,4 +96,24 @@ public class UserDTO {
      * 个人关联链接
      */
     private List<ProfileLinkDTO> profileLinks;
+
+    /**
+     * GitHub账号ID
+     */
+    private String githubId;
+
+    /**
+     * GitHub用户名
+     */
+    private String githubUsername;
+
+    /**
+     * ORCID iD（科研人员唯一标识符）
+     */
+    private String orcidId;
+
+    /**
+     * 是否已绑定ORCID账号
+     */
+    private Boolean orcidBound;
 }

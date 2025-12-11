@@ -160,6 +160,33 @@ public class User extends BaseAuditEntity {
     private Boolean twoFactorEnabled = false;
 
     /**
+     * GitHub账号ID（OAuth2绑定）
+     */
+    @Column(name = "github_id", length = 100)
+    private String githubId;
+
+    /**
+     * GitHub用户名
+     */
+    @Column(name = "github_username", length = 100)
+    private String githubUsername;
+
+    /**
+     * ORCID iD（科研人员唯一标识符）
+     * 格式：0000-0002-1825-0097
+     */
+    @Column(name = "orcid_id", length = 19)
+    private String orcidId;
+
+    /**
+     * 是否已绑定ORCID账号
+     */
+    @Builder.Default
+    @Column(name = "orcid_bound")
+    @ColumnDefault("false")
+    private Boolean orcidBound = false;
+
+    /**
      * 用户角色关联（一对多）
      * 注意：
      * - @JsonIgnore: 避免 JSON 序列化时的循环引用

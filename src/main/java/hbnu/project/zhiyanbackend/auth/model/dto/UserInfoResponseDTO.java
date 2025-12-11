@@ -106,4 +106,28 @@ public class UserInfoResponseDTO {
      */
     @Schema(description = "个人关联链接列表")
     private List<ProfileLinkDTO> profileLinks;
+
+    /**
+     * GitHub账号ID
+     */
+    @Schema(description = "GitHub账号ID", example = "12345678")
+    private String githubId;
+
+    /**
+     * GitHub用户名
+     */
+    @Schema(description = "GitHub用户名", example = "username")
+    private String githubUsername;
+
+    /**
+     * ORCID iD（科研人员唯一标识符）
+     */
+    @Schema(description = "ORCID iD", example = "0000-0002-1825-0097")
+    private String orcidId;
+
+    /**
+     * 是否已绑定ORCID账号
+     */
+    @Schema(description = "是否已绑定ORCID账号", example = "false")
+    private Boolean orcidBound;
 }

@@ -44,7 +44,7 @@ public class OAuth2Utils {
         if (StringUtils.isEmpty(provider)) {
             return false;
         }
-        // 可以根据需要扩展验证逻辑
+        // 可以根据需要扩展验证逻辑，但是我没想好
         return oAuth2Properties.isEnabled();
     }
 }

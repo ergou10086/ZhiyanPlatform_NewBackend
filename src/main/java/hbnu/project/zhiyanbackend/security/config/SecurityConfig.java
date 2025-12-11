@@ -129,8 +129,9 @@ public class SecurityConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/error",
                         "/favicon.ico",
+                        "/zhiyan.ico",
                         "/actuator/**",
-                        "/health",                    // 健康检查端点（兼容性）
+                        "/health",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/doc.html",
