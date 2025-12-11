@@ -24,6 +24,7 @@ public enum MessagePriority {
             case SYSTEM_SECURITY_ALERT:
             case PROJECT_MEMBER_INVITED:
             case USER_EMAIL_CHANGED:
+            case ACHIEVEMENT_DELETED:
                 return HIGH;
             case TASK_DEADLINE_REMIND:
             case PROJECT_ROLE_CHANGED:

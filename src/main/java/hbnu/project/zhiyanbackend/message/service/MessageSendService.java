@@ -3,6 +3,8 @@ package hbnu.project.zhiyanbackend.message.service;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.Achievement;
 import hbnu.project.zhiyanbackend.knowledge.model.entity.AchievementFile;
 import hbnu.project.zhiyanbackend.knowledge.model.enums.AchievementStatus;
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
+import hbnu.project.zhiyanbackend.tasks.model.entity.TaskSubmission;
 
 import java.util.List;
 import java.util.Map;
@@ -142,4 +144,41 @@ public interface MessageSendService {
      * @param newEmail 新邮箱
      */
     void notifyEmailChanged(Long userId, String oldEmail, String newEmail);
+
+    /**
+     * 发送任务提醒通知
+     * 从任务截止的那天那小时开始算，每截止前72小时，48小时，24小时发送一次任务提醒通知
+     *
+     * @param task 消息针对的任务
+     * @param receiverId 接收人
+     */
+    void notifyTaskNeedSubmission(Task task, Long receiverId);
+
+    /**
+     * 发送任务逾期通知
+     * 任务截止的那天开始，如果任务没有提交，发送一条任务逾期警告
+     *
+     * @param task 消息针对的任务
+     * @param receiverId 接收人
+     */
+    void notifyTaskOverSubmissionTime(Task task, Long receiverId, long overdueDays);
+
+    /**
+     * 发送待审核任务通知
+     * 当任务被提交后，通知任务创建者（审核者）有新的待审核任务
+     *
+     * @param task 任务实体
+     * @param submission 任务提交记录
+     * @param submitterId 提交者ID
+     */
+    void notifyTaskReviewRequest(Task task, TaskSubmission submission, Long submitterId);
+
+    /**
+     * 发送成果删除通知
+     * 发送给除了删除者的所有项目成员
+     *
+     * @param achievement 被删除的成果实体
+     * @param operatorId 操作者ID
+     */
+    void notifyAchievementDeleted(Achievement achievement, Long operatorId);
 }

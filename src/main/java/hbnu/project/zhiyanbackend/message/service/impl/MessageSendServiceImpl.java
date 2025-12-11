@@ -23,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -556,6 +558,273 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 发送任务提醒通知
+     * 从任务截止的那天那小时开始算，每截止前72小时，48小时，24小时发送一次任务提醒通知
+     *
+     * @param task 消息针对的任务
+     * @param receiverId 接收人
+     */
+    @Override
+    public void notifyTaskNeedSubmission(Task task, Long receiverId) {
+        if (task == null || receiverId == null || task.getDueDate() == null) {
+            log.warn("任务提醒通知参数不完整: task={}, receiverId={}", task, receiverId);
+            return;
+        }
+
+        try{
+            // 获取接收者姓名
+            String receiverName = getOperatorName(receiverId);
+            // 获取任务创建者姓名
+            String creatorName = getOperatorName(task.getCreatorId());
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(task.getProjectId())
+                    .orElse("未知项目");
+
+            // 计算距离截止日期的小时数
+            LocalDate today = LocalDate.now();
+            long daysUntilDue = ChronoUnit.DAYS.between(today, task.getDueDate());
+            long hoursUntilDue = daysUntilDue * 24;
+
+            // 构建提醒时间描述
+            String timeDesc;
+            if (hoursUntilDue <= 24) {
+                timeDesc = "24小时内";
+            } else if (hoursUntilDue <= 48) {
+                timeDesc = "48小时内";
+            } else if (hoursUntilDue <= 72) {
+                timeDesc = "72小时内";
+            } else {
+                log.info("任务[{}]距离截止日期超过72小时，不发送提醒", task.getId());
+                return;
+            }
+
+            // 构建消息内容
+            String title = "任务提交提醒";
+            String content = String.format("您有任务即将截止，请及时提交\n任务名称：「%s」\n项目：%s\n截止日期：%s\n优先级：%s\n创建者：%s\n距离截止还有%s，请尽快完成并提交",
+                    task.getTitle(),
+                    projectName,
+                    task.getDueDate().toString(),
+                    task.getPriority().name(),
+                    creatorName,
+                    timeDesc);
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildTaskReminderExtendData(task, receiverId, receiverName, projectName, timeDesc);
+
+            // 发送消息
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.TASK_DEADLINE_REMIND,
+                    task.getCreatorId(),
+                    receiverId,
+                    title,
+                    content,
+                    task.getId(),
+                    "TASK",
+                    extendDataJson
+            );
+
+            log.info("任务提醒通知发送成功: taskId={}, receiverId={}, hoursUntilDue={}",
+                    task.getId(), receiverId, hoursUntilDue);
+        }catch (ServiceException e){
+            log.error("发送任务提醒通知失败: taskId={}, receiverId={}", task.getId(), receiverId, e);
+        }
+    }
+
+    /**
+     * 发送任务逾期通知
+     * 任务截止的那天开始，如果任务没有提交，发送一条任务逾期警告
+     *
+     * @param task 消息针对的任务
+     * @param receiverId 接收人
+     */
+    @Override
+    public void notifyTaskOverSubmissionTime(Task task, Long receiverId, long overdueDays) {
+        if (task == null || receiverId == null || task.getDueDate() == null) {
+            log.warn("任务逾期通知参数不完整: task={}, receiverId={}", task, receiverId);
+            return;
+        }
+
+        // 检查是否确实逾期
+        if (LocalDate.now().isBefore(task.getDueDate())) {
+            log.info("任务[{}]尚未逾期，不发送逾期通知", task.getId());
+            return;
+        }
+
+        try {
+            // 获取接收者姓名
+            String receiverName = getOperatorName(receiverId);
+            // 获取任务创建者姓名
+            String creatorName = getOperatorName(task.getCreatorId());
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(task.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建消息内容
+            String title = "任务逾期警告";
+            String content = String.format("您有任务已逾期，请尽快处理\n任务名称：「%s」\n项目：%s\n原定截止日期：%s\n优先级：%s\n创建者：%s\n，任务已经逾期%s天，逾期三天后该消息不会再发送，请尽快完成并提交",
+                    task.getTitle(),
+                    projectName,
+                    task.getDueDate().toString(),
+                    task.getPriority().name(),
+                    creatorName,
+                    overdueDays);
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildTaskOverdueExtendData(task, receiverId, receiverName, projectName);
+
+            // 发送消息（高优先级）
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.TASK_OVERDUE,
+                    task.getCreatorId(),
+                    receiverId,
+                    title,
+                    content,
+                    task.getId(),
+                    "TASK",
+                    extendDataJson
+            );
+
+            log.info("任务逾期通知发送成功: taskId={}, receiverId={}", task.getId(), receiverId);
+        }catch (ServiceException e){
+            log.error("发送任务逾期通知失败: taskId={}, receiverId={}", task.getId(), receiverId, e);
+        }
+    }
+
+    /**
+     * 发送待审核任务通知
+     * 当任务被提交后，通知任务创建者（审核者）有新的待审核任务
+     *
+     * @param task 任务实体
+     * @param submission 任务提交记录
+     * @param submitterId 提交者ID
+     */
+    @Override
+    public void notifyTaskReviewRequest(Task task, TaskSubmission submission, Long submitterId) {
+        if (task == null || submission == null || submitterId == null) {
+            log.warn("待审核任务通知参数不完整: task={}, submission={}, submitterId={}", task, submission, submitterId);
+            return;
+        }
+
+        // 获取任务创建者ID（审核者）
+        Long reviewerId = task.getCreatorId();
+        if (reviewerId == null) {
+            log.warn("任务[{}]没有创建者，无法发送待审核通知", task.getId());
+            return;
+        }
+
+        // 如果提交者就是创建者，不需要通知自己
+        if (reviewerId.equals(submitterId)) {
+            log.info("任务[{}]的提交者是创建者，无需发送待审核通知", task.getId());
+            return;
+        }
+
+        try {
+            // 获取提交者姓名
+            String submitterName = getOperatorName(submitterId);
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(task.getProjectId()).orElse("未知项目");
+
+            // 构建消息内容
+            String title = "待审核任务提醒";
+            String content = String.format("您创建的任务「%s」有新提交，等待您的审核\n项目：%s\n提交者：%s\n提交版本：v%d\n提交内容：%s\n请及时审核",
+                    task.getTitle(),
+                    projectName,
+                    submitterName,
+                    submission.getVersion(),
+                    submission.getSubmissionContent() != null && submission.getSubmissionContent().length() > 100
+                            ? submission.getSubmissionContent().substring(0, 100) + "..."
+                            : (submission.getSubmissionContent() != null ? submission.getSubmissionContent() : "无"));
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildTaskReviewRequestExtendData(task, submission, submitterId, submitterName, projectName);
+            // 发送消息给任务创建者（审核者）
+            inboxMessageService.sendPersonalMessage(
+                    MessageScene.TASK_REVIEW_REQUEST,
+                    submitterId,
+                    reviewerId,
+                    title,
+                    content,
+                    task.getId(),
+                    "TASK",
+                    extendDataJson
+            );
+            log.info("待审核任务通知发送成功: taskId={}, submissionId={}, reviewerId={}", task.getId(), submission.getId(), reviewerId);
+        } catch (Exception e) {
+            log.error("发送待审核任务通知失败: taskId={}, submissionId={}", task.getId(), submission.getId(), e);
+            // 通知发送失败不影响主流程
+        }
+    }
+
+    /**
+     * 发送成果删除通知
+     * 发送给除了删除者的所有项目成员
+     *
+     * @param achievement 被删除的成果实体
+     * @param operatorId 操作者ID
+     */
+    @Override
+    public void notifyAchievementDeleted(Achievement achievement, Long operatorId) {
+        if (achievement == null || operatorId == null) {
+            log.warn("成果删除通知参数不完整: achievement={}, operatorId={}", achievement, operatorId);
+            return;
+        }
+
+        try {
+            // 获取项目成员ID列表
+            List<Long> projectMemberIds = projectMemberService.getProjectMemberUserIds(achievement.getProjectId());
+
+            if (projectMemberIds.isEmpty()) {
+                log.warn("项目[{}]没有成员，无法发送通知", achievement.getProjectId());
+                return;
+            }
+
+            // 过滤删除者自己
+            List<Long> filteredReceiverIds = projectMemberIds.stream()
+                    .filter(receiverId -> !receiverId.equals(operatorId))
+                    .collect(Collectors.toList());
+
+            if (filteredReceiverIds.isEmpty()) {
+                log.info("过滤后没有接收者，跳过发送");
+                return;
+            }
+
+            // 获取操作者姓名
+            String operatorName = getOperatorName(operatorId);
+            // 获取项目名称
+            String projectName = projectRepository.findProjectNameById(achievement.getProjectId())
+                    .orElse("未知项目");
+
+            // 构建扩展数据JSON
+            String extendDataJson = buildAchievementDeletedExtendData(achievement, operatorId, operatorName, projectName);
+
+            // 构建消息内容
+            String title = "成果删除通知";
+            String content = String.format("项目「%s」中的成果「%s」已被删除\n操作者：%s\n成果类型：%s\n请及时查看项目状态",
+                    projectName,
+                    achievement.getTitle(),
+                    operatorName,
+                    achievement.getType() != null ? achievement.getType().getName() : "未知类型");
+
+            // 发送批量消息
+            inboxMessageService.sendBatchPersonalMessage(
+                    MessageScene.ACHIEVEMENT_DELETED,
+                    operatorId,
+                    filteredReceiverIds,
+                    title,
+                    content,
+                    achievement.getId(),
+                    "ACHIEVEMENT",
+                    extendDataJson
+            );
+
+            log.info("成果删除通知发送成功: achievementId={}, receivers={}",
+                    achievement.getId(), filteredReceiverIds.size());
+        } catch (Exception e) {
+            log.error("发送成果删除通知失败: achievementId={}", achievement.getId(), e);
+        }
+    }
+
+    /**
      * 发送任务提交审核结果通知
      * 发送给任务提交者
      *
@@ -700,190 +969,6 @@ public class MessageSendServiceImpl implements MessageSendService {
         } catch (Exception e) {
             log.error("发送账号安全通知失败: userId={}, currentIp={}", userId, currentIp, e);
             // 通知发送失败不影响登录流程
-        }
-    }
-
-    /**
-     * 构建文件上传扩展数据JSON
-     */
-    private String buildFileUploadExtendData(Achievement achievement, AchievementFile file, Long uploaderId, String uploaderName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("fileId", file.getId());
-        extendData.put("fileName", file.getFileName());
-        extendData.put("fileUrl", file.getCosUrl());
-        extendData.put("uploaderId", uploaderId);
-        extendData.put("uploaderName", uploaderName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建文件删除扩展数据JSON
-     */
-    private String buildFileDeleteExtendData(Achievement achievement, AchievementFile file, Long operatorId, String operatorName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("fileId", file.getId());
-        extendData.put("fileName", file.getFileName());
-        extendData.put("operatorId", operatorId);
-        extendData.put("operatorName", operatorName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建批量删除扩展数据JSON
-     */
-    private String buildBatchDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("fileCount", files.size());
-        extendData.put("fileNames", files.stream()
-                .map(AchievementFile::getFileName)
-                .collect(Collectors.toList()));
-        extendData.put("operatorId", operatorId);
-        extendData.put("operatorName", operatorName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建所有文件删除扩展数据JSON
-     */
-    private String buildAllFilesDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("fileCount", files.size());
-        extendData.put("operatorId", operatorId);
-        extendData.put("operatorName", operatorName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建状态变更扩展数据JSON
-     */
-    private String buildStatusChangeExtendData(Achievement achievement, AchievementStatus oldStatus, 
-                                               AchievementStatus newStatus, Long operatorId, String operatorName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("oldStatus", oldStatus.name());
-        extendData.put("newStatus", newStatus.name());
-        extendData.put("oldStatusName", getStatusDisplayName(oldStatus));
-        extendData.put("newStatusName", getStatusDisplayName(newStatus));
-        extendData.put("operatorId", operatorId);
-        extendData.put("operatorName", operatorName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建批量上传扩展数据JSON
-     */
-    private String buildBatchUploadExtendData(Achievement achievement, List<AchievementFile> files, Long uploaderId, String uploaderName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("fileCount", files.size());
-        extendData.put("fileNames", files.stream()
-                .map(AchievementFile::getFileName)
-                .collect(Collectors.toList()));
-        extendData.put("fileIds", files.stream()
-                .map(AchievementFile::getId)
-                .collect(Collectors.toList()));
-        extendData.put("uploaderId", uploaderId);
-        extendData.put("uploaderName", uploaderName);
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建成果创建扩展数据JSON
-     */
-    private String buildAchievementCreatedExtendData(Achievement achievement, String projectName, String creatorName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("achievementId", achievement.getId());
-        extendData.put("achievementTitle", achievement.getTitle());
-        extendData.put("projectId", achievement.getProjectId());
-        extendData.put("projectName", projectName);
-        extendData.put("creatorId", achievement.getCreatorId());
-        extendData.put("creatorName", creatorName);
-        extendData.put("achievementType", achievement.getType() != null ? achievement.getType().getName() : "未知类型");
-        extendData.put("createdAt", achievement.getCreatedAt());
-        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 构建任务审核结果扩展数据JSON
-     */
-    private String buildTaskSubmissionReviewedExtendData(Task task, TaskSubmission submission,
-                                                         ReviewStatus reviewStatus, Long reviewerId,
-                                                         String reviewerName, String projectName) {
-        Map<String, Object> extendData = new HashMap<>();
-        extendData.put("taskId", task.getId());
-        extendData.put("taskTitle", task.getTitle());
-        extendData.put("submissionId", submission.getId());
-        extendData.put("submissionVersion", submission.getVersion());
-        extendData.put("projectId", task.getProjectId());
-        extendData.put("projectName", projectName);
-        extendData.put("reviewStatus", reviewStatus.name());
-        extendData.put("reviewStatusName", reviewStatus.getDescription());
-        extendData.put("reviewerId", reviewerId);
-        extendData.put("reviewerName", reviewerName);
-        extendData.put("reviewComment", submission.getReviewComment());
-        extendData.put("submitterId", submission.getSubmitterId());
-        extendData.put("redirectUrl", "/tasks/" + task.getId());
-        return JsonUtils.toJsonString(extendData);
-    }
-
-    /**
-     * 获取操作者姓名
-     * 如果查询失败或用户不存在，返回"未知用户"
-     *
-     * @param operatorId 操作者ID
-     * @return 操作者姓名
-     */
-    private String getOperatorName(Long operatorId) {
-        if (operatorId == null) {
-            return "未知用户";
-        }
-        try {
-            return userRepository.findNameById(operatorId)
-                    .orElse("未知用户");
-        } catch (Exception e) {
-            log.warn("获取操作者姓名失败: operatorId={}", operatorId, e);
-            return "未知用户";
-        }
-    }
-
-    /**
-     * 获取状态显示名称
-     *
-     * @param status 成果状态
-     * @return 状态显示名称
-     */
-    private String getStatusDisplayName(AchievementStatus status) {
-        if (status == null) {
-            return "未知状态";
-        }
-        switch (status) {
-            case draft:
-                return "草稿";
-            case under_review:
-                return "审核中";
-            case published:
-                return "已发布";
-            case obsolete:
-                return "已过时";
-            default:
-                return status.name();
         }
     }
 
@@ -1154,7 +1239,7 @@ public class MessageSendServiceImpl implements MessageSendService {
             // 发送高优先级系统消息（senderId为null表示系统消息）
             inboxMessageService.sendPersonalMessage(
                     MessageScene.USER_EMAIL_CHANGED,
-                    null, // 系统消息，发送者为null
+                    null,
                     userId,
                     title,
                     content.toString(),
@@ -1172,6 +1257,190 @@ public class MessageSendServiceImpl implements MessageSendService {
     }
 
     /**
+     * 获取操作者姓名
+     * 如果查询失败或用户不存在，返回"未知用户"
+     *
+     * @param operatorId 操作者ID
+     * @return 操作者姓名
+     */
+    private String getOperatorName(Long operatorId) {
+        if (operatorId == null) {
+            return "未知用户";
+        }
+        try {
+            return userRepository.findNameById(operatorId)
+                    .orElse("未知用户");
+        } catch (Exception e) {
+            log.warn("获取操作者姓名失败: operatorId={}", operatorId, e);
+            return "未知用户";
+        }
+    }
+
+    /**
+     * 获取状态显示名称
+     *
+     * @param status 成果状态
+     * @return 状态显示名称
+     */
+    private String getStatusDisplayName(AchievementStatus status) {
+        if (status == null) {
+            return "未知状态";
+        }
+        switch (status) {
+            case draft:
+                return "草稿";
+            case under_review:
+                return "审核中";
+            case published:
+                return "已发布";
+            case obsolete:
+                return "已过时";
+            default:
+                return status.name();
+        }
+    }
+
+    /**
+     * 构建文件上传扩展数据JSON
+     */
+    private String buildFileUploadExtendData(Achievement achievement, AchievementFile file, Long uploaderId, String uploaderName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileId", file.getId());
+        extendData.put("fileName", file.getFileName());
+        extendData.put("fileUrl", file.getCosUrl());
+        extendData.put("uploaderId", uploaderId);
+        extendData.put("uploaderName", uploaderName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建文件删除扩展数据JSON
+     */
+    private String buildFileDeleteExtendData(Achievement achievement, AchievementFile file, Long operatorId, String operatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileId", file.getId());
+        extendData.put("fileName", file.getFileName());
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建批量删除扩展数据JSON
+     */
+    private String buildBatchDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileCount", files.size());
+        extendData.put("fileNames", files.stream()
+                .map(AchievementFile::getFileName)
+                .collect(Collectors.toList()));
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建所有文件删除扩展数据JSON
+     */
+    private String buildAllFilesDeleteExtendData(Achievement achievement, List<AchievementFile> files, Long operatorId, String operatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileCount", files.size());
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建状态变更扩展数据JSON
+     */
+    private String buildStatusChangeExtendData(Achievement achievement, AchievementStatus oldStatus,
+                                               AchievementStatus newStatus, Long operatorId, String operatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("oldStatus", oldStatus.name());
+        extendData.put("newStatus", newStatus.name());
+        extendData.put("oldStatusName", getStatusDisplayName(oldStatus));
+        extendData.put("newStatusName", getStatusDisplayName(newStatus));
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建批量上传扩展数据JSON
+     */
+    private String buildBatchUploadExtendData(Achievement achievement, List<AchievementFile> files, Long uploaderId, String uploaderName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("fileCount", files.size());
+        extendData.put("fileNames", files.stream()
+                .map(AchievementFile::getFileName)
+                .collect(Collectors.toList()));
+        extendData.put("fileIds", files.stream()
+                .map(AchievementFile::getId)
+                .collect(Collectors.toList()));
+        extendData.put("uploaderId", uploaderId);
+        extendData.put("uploaderName", uploaderName);
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建成果创建扩展数据JSON
+     */
+    private String buildAchievementCreatedExtendData(Achievement achievement, String projectName, String creatorName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("projectId", achievement.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("creatorId", achievement.getCreatorId());
+        extendData.put("creatorName", creatorName);
+        extendData.put("achievementType", achievement.getType() != null ? achievement.getType().getName() : "未知类型");
+        extendData.put("createdAt", achievement.getCreatedAt());
+        extendData.put("redirectUrl", "/knowledge/achievement/" + achievement.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建任务审核结果扩展数据JSON
+     */
+    private String buildTaskSubmissionReviewedExtendData(Task task, TaskSubmission submission,
+                                                         ReviewStatus reviewStatus, Long reviewerId,
+                                                         String reviewerName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("submissionId", submission.getId());
+        extendData.put("submissionVersion", submission.getVersion());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("reviewStatus", reviewStatus.name());
+        extendData.put("reviewStatusName", reviewStatus.getDescription());
+        extendData.put("reviewerId", reviewerId);
+        extendData.put("reviewerName", reviewerName);
+        extendData.put("reviewComment", submission.getReviewComment());
+        extendData.put("submitterId", submission.getSubmitterId());
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
      * 构建Wiki页面创建扩展数据JSON
      */
     private String buildWikiPageCreatedExtendData(WikiPage wikiPage, Long creatorId, String creatorName, String projectName) {
@@ -1186,6 +1455,44 @@ public class MessageSendServiceImpl implements MessageSendService {
         extendData.put("creatorId", creatorId);
         extendData.put("creatorName", creatorName);
         extendData.put("redirectUrl", "/wiki/page/" + wikiPage.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建待审核任务扩展数据JSON
+     */
+    private String buildTaskReviewRequestExtendData(Task task, TaskSubmission submission,
+                                                    Long submitterId, String submitterName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("submissionId", submission.getId());
+        extendData.put("submissionVersion", submission.getVersion());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("submitterId", submitterId);
+        extendData.put("submitterName", submitterName);
+        extendData.put("submissionContent", submission.getSubmissionContent());
+        extendData.put("dueDate", task.getDueDate());
+        extendData.put("priority", task.getPriority().name());
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建成果删除扩展数据JSON
+     */
+    private String buildAchievementDeletedExtendData(Achievement achievement, Long operatorId,
+                                                     String operatorName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("achievementId", achievement.getId());
+        extendData.put("achievementTitle", achievement.getTitle());
+        extendData.put("projectId", achievement.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("operatorId", operatorId);
+        extendData.put("operatorName", operatorName);
+        extendData.put("achievementType", achievement.getType() != null ? achievement.getType().getName() : "未知类型");
+        extendData.put("redirectUrl", "/knowledge/project/" + achievement.getProjectId());
         return JsonUtils.toJsonString(extendData);
     }
 
@@ -1224,6 +1531,47 @@ public class MessageSendServiceImpl implements MessageSendService {
         extendData.put("operatorId", operatorId);
         extendData.put("operatorName", operatorName);
         extendData.put("redirectUrl", "/wiki/project/" + wikiPage.getProjectId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建任务提醒扩展数据JSON
+     */
+    private String buildTaskReminderExtendData(Task task, Long receiverId, String receiverName, String projectName, String timeDesc) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("dueDate", task.getDueDate());
+        extendData.put("priority", task.getPriority().name());
+        extendData.put("priorityName", task.getPriority().name());
+        extendData.put("creatorId", task.getCreatorId());
+        extendData.put("creatorName", getOperatorName(task.getCreatorId()));
+        extendData.put("receiverId", receiverId);
+        extendData.put("receiverName", receiverName);
+        extendData.put("reminderTimeDesc", timeDesc);
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
+        return JsonUtils.toJsonString(extendData);
+    }
+
+    /**
+     * 构建任务逾期扩展数据JSON
+     */
+    private String buildTaskOverdueExtendData(Task task, Long receiverId, String receiverName, String projectName) {
+        Map<String, Object> extendData = new HashMap<>();
+        extendData.put("taskId", task.getId());
+        extendData.put("taskTitle", task.getTitle());
+        extendData.put("projectId", task.getProjectId());
+        extendData.put("projectName", projectName);
+        extendData.put("dueDate", task.getDueDate());
+        extendData.put("priority", task.getPriority().name());
+        extendData.put("priorityName", task.getPriority().name());
+        extendData.put("creatorId", task.getCreatorId());
+        extendData.put("creatorName", getOperatorName(task.getCreatorId()));
+        extendData.put("receiverId", receiverId);
+        extendData.put("receiverName", receiverName);
+        extendData.put("redirectUrl", "/tasks/" + task.getId());
         return JsonUtils.toJsonString(extendData);
     }
 }

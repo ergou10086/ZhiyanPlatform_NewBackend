@@ -17,6 +17,7 @@ import hbnu.project.zhiyanbackend.knowledge.service.AchievementDetailsService;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementFileService;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementService;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementTaskService;
+import hbnu.project.zhiyanbackend.message.service.MessageSendService;
 import hbnu.project.zhiyanbackend.projects.utils.ProjectSecurityUtils;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +56,8 @@ public class AchievementManageController {
     private final ProjectSecurityUtils projectSecurityUtils;
 
     private final OperationLogHelper operationLogHelper;
+
+    private final MessageSendService messageSendService;
 
     /**
      * 创建成果
@@ -209,8 +212,9 @@ public class AchievementManageController {
         achievementRepository.deleteById(achievementId);
         log.info("成果主表记录删除完成: achievementId={}", achievementId);
 
-        // 操作成功后记录日志
+        // 操作成功后记录日志并且发送消息
         operationLogHelper.logAchievementDelete(projectId, achievementId, achievementTitle);
+        messageSendService.notifyAchievementDeleted(achievement, userId);
 
         log.info("成果删除全部完成: achievementId={}", achievementId);
         return R.ok(null, "成果删除成功");

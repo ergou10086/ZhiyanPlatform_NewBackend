@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,13 +75,14 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         }
 
         // 检查任务是否已逾期
+        boolean isOverdue = false;
         if (task.getDueDate() != null) {
             LocalDate today = LocalDate.now();
+            isOverdue = task.getDueDate().isBefore(today);
             log.info("检查任务逾期: taskId={}, dueDate={}, today={}, isOverdue={}",
-                    taskId, task.getDueDate(), today, task.getDueDate().isBefore(today));
-            if (task.getDueDate().isBefore(today)) {
-                throw new IllegalArgumentException("任务已逾期，无法提交");
-            }
+                    taskId, task.getDueDate(), today, isOverdue);
+            // 不再阻止逾期任务的提交，允许用户补交
+            // 但会发送逾期通知
         }
 
         boolean isAssignee = taskUserRepository.isUserActiveExecutor(taskId, userId);
@@ -126,6 +128,26 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
             task.setStatus(TaskStatus.PENDING_REVIEW);
             taskRepository.save(task);
             log.info("任务状态已更新为待审核: taskId={}", taskId);
+
+            // 发送待审核任务通知给任务创建者（审核者）
+            messageSendService.notifyTaskReviewRequest(task, submission, userId);
+        }
+
+        // 如果任务已逾期，发送逾期通知给任务执行者
+        long overdueDays = ChronoUnit.DAYS.between(task.getDueDate(), LocalDate.now());
+        if (isOverdue) {
+            try {
+                List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(taskId);
+                for (TaskUser executor : executors) {
+                    // 只给提交者之外的其他执行者发送逾期通知，因为提交者已经提交或者补交，无需提醒
+                    if (!executor.getUserId().equals(userId)) {
+                        messageSendService.notifyTaskOverSubmissionTime(task, executor.getUserId(), overdueDays);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("发送任务逾期通知失败: taskId={}", taskId, e);
+                // 通知发送失败不影响主流程
+            }
         }
 
         // 记录提交任务操作日志
