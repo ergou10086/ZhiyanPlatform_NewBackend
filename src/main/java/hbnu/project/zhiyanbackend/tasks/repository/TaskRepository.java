@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -95,6 +96,15 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
       AND (t.isDeleted = false OR t.isDeleted IS NULL)
     """)
     List<Task> findByIdsWithExecutors(@Param("taskIds") Collection<Long> taskIds);
+
+    @Query("""
+        SELECT t FROM Task t 
+        WHERE t.isDeleted = false 
+        AND t.status IN (hbnu.project.zhiyanbackend.tasks.model.enums.TaskStatus.TODO, hbnu.project.zhiyanbackend.tasks.model.enums.TaskStatus.IN_PROGRESS)
+        AND t.dueDate IS NOT NULL 
+        AND t.dueDate > :currentDate
+        """)
+    Page<Task> findTasksForReminder(@Param("currentDate") LocalDateTime currentDate, Pageable pageable);
 
     long countByProjectIdAndIsDeletedFalse(Long projectId);
 }

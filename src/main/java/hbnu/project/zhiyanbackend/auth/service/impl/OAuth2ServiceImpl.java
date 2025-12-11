@@ -381,4 +381,51 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             log.error("为用户分配默认角色发生异常 - 用户ID: {}", userId, e);
         }
     }
+
+    /**
+     * 解绑OAuth2账号
+     * 解除当前用户与指定第三方平台的绑定关系
+     */
+    @Override
+    @Transactional
+    public R<Void> unbindAccount(Long userId, String provider) {
+        log.info("解绑OAuth2账号 - 用户ID: {}, 提供商: {}", userId, provider);
+
+        try {
+            // 1. 查找用户
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            // 2. 根据提供商解绑
+            if ("github".equalsIgnoreCase(provider)) {
+                if (StringUtils.isBlank(user.getGithubId())) {
+                    return R.fail("未绑定GitHub账号，无需解绑");
+                }
+                user.setGithubId(null);
+                user.setGithubUsername(null);
+                log.info("解绑GitHub账号成功 - 用户ID: {}", userId);
+            } else if ("orcid".equalsIgnoreCase(provider)) {
+                if (StringUtils.isBlank(user.getOrcidId())) {
+                    return R.fail("未绑定ORCID账号，无需解绑");
+                }
+                user.setOrcidId(null);
+                user.setOrcidBound(false);
+                log.info("解绑ORCID账号成功 - 用户ID: {}", userId);
+            } else {
+                return R.fail("不支持的第三方平台: " + provider);
+            }
+
+            // 3. 保存用户信息
+            userRepository.save(user);
+
+            return R.ok(null, "解绑成功");
+        } catch (Exception e) {
+            log.error("解绑OAuth2账号失败 - 用户ID: {}, 提供商: {}", userId, provider, e);
+            return R.fail("解绑失败，请稍后重试");
+        }
+    }
 }

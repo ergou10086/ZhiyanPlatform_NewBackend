@@ -9,6 +9,7 @@ import hbnu.project.zhiyanbackend.auth.oauth.client.OAuth2Client;
 import hbnu.project.zhiyanbackend.auth.oauth.config.properties.OAuth2Properties;
 import hbnu.project.zhiyanbackend.auth.service.OAuth2Service;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
@@ -392,5 +394,35 @@ public class OAuth2Controller {
 
         return errorUrl + "?provider=" + provider +
                 "&status=ERROR&message=" + URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 解绑OAuth2账号
+     * 解除当前用户与指定第三方平台的绑定关系
+     *
+     * @param provider 第三方提供商（github, orcid等）
+     * @return 操作结果
+     */
+    @PostMapping("/unbind/{provider}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "解绑OAuth2账号", description = "解除当前用户与指定第三方平台的绑定关系")
+    public R<Void> unbindAccount(
+            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
+            @PathVariable String provider) {
+        log.info("解绑OAuth2账号请求 - 提供商: {}", provider);
+
+        try {
+            // 从SecurityContext获取当前用户ID
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null) {
+                return R.fail("用户未登录，无法解绑");
+            }
+
+            R<Void> result = oAuth2Service.unbindAccount(userId, provider);
+            return result;
+        } catch (Exception e) {
+            log.error("解绑OAuth2账号失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
+            return R.fail("解绑失败: " + e.getMessage());
+        }
     }
 }

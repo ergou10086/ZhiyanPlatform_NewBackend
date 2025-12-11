@@ -44,5 +44,15 @@ public interface OAuth2Service {
      * @return 登录结果
      */
     R<OAuth2LoginResponseDTO> supplementInfoAndCreateAccount(OAuth2SupplementInfoDTO supplementBody);
+
+    /**
+     * 解绑OAuth2账号
+     * 解除当前用户与指定第三方平台的绑定关系
+     *
+     * @param userId 用户ID
+     * @param provider 第三方提供商（github, orcid等）
+     * @return 操作结果
+     */
+    R<Void> unbindAccount(Long userId, String provider);
 }
 

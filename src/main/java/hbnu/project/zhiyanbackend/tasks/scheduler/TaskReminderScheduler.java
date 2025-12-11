@@ -18,8 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 任务提醒定时任务
@@ -37,6 +39,9 @@ public class TaskReminderScheduler {
     private final TaskSubmissionRepository taskSubmissionRepository;
     private final MessageSendService messageSendService;
 
+    // 提醒时间点（小时数）: 任务截止前 72, 48, 24 小时
+    private static final Set<Long> REMINDER_HOURS = Set.of(72L, 48L, 24L);
+
     /**
      * 每小时整点执行一次，检查任务并发送提醒通知
      * 在任务截止前72小时、48小时、24小时发送提醒
@@ -44,32 +49,24 @@ public class TaskReminderScheduler {
     @Scheduled(cron = "0 0 * * * ?")
     @Transactional(rollbackFor = Exception.class)
     public void sendTaskReminders() {
+        // 为了精确到小时，使用 LocalDateTime
+        LocalDateTime now = LocalDateTime.now();
+        int page = 0;
+        int pageSize = 100;
+        Pageable pageable = PageRequest.of(page, pageSize);
+        long totalRemindersSent = 0;
+
         try {
-            LocalDate today = LocalDate.now();
-            LocalDate threeDaysLater = today.plusDays(3);
-            
-            // 查询所有进行中的任务（TODO 和 IN_PROGRESS 状态）
-            // 由于需要查询所有任务，使用分页批量处理
-            int pageSize = 100;
-            int page = 0;
-            Pageable pageable = PageRequest.of(page, pageSize);
             Page<Task> taskPage;
-            int totalProcessed = 0;
-            int totalReminders = 0;
             
             do {
-                // 查询所有任务（使用JPA的findAll，然后过滤）
-                taskPage = taskRepository.findAll(pageable);
-                
-                // 过滤出未删除的任务
-                List<Task> activeTasks = taskPage.getContent().stream()
-                        .filter(task -> !Boolean.TRUE.equals(task.getIsDeleted()))
-                        .toList();
-                
+                // 查询所有查询未完成且有截止日期的任务，而且未删除，也就是状态为 TODO 或 IN_PROGRESS，isDeleted=false，且 dueDate 在当前时间之后的任务
+                taskPage = taskRepository.findTasksForReminder(now, pageable);
+
+                List<Task> activeTasks = taskPage.getContent();
+
                 if (activeTasks.isEmpty()) {
-                    page++;
-                    pageable = PageRequest.of(page, pageSize);
-                    continue;
+                    break;
                 }
                 
                 for (Task task : activeTasks) {
@@ -77,29 +74,31 @@ public class TaskReminderScheduler {
                     if (task.getDueDate() == null) {
                         continue;
                     }
-                    
-                    // 只处理进行中的任务（TODO 和 IN_PROGRESS）
-                    if (task.getStatus() != TaskStatus.TODO && task.getStatus() != TaskStatus.IN_PROGRESS) {
+
+                    // 检查距离截止日期的剩余小时数
+                    long remainingHours = ChronoUnit.HOURS.between(now, task.getDueDate());
+
+                    // 只处理截止日期在未来的任务 (remainingHours > 0)
+                    if (remainingHours <= 0) {
                         continue;
                     }
-                    
-                    // 检查是否在提醒时间范围内（今天到3天后）
-                    if (task.getDueDate().isBefore(today) || task.getDueDate().isAfter(threeDaysLater)) {
-                        continue;
-                    }
-                    
-                    // 计算距离截止日期的小时数
-                    long hoursUntilDue = ChronoUnit.HOURS.between(today.atStartOfDay(), task.getDueDate().atStartOfDay());
                     
                     // 只在72小时、48小时、24小时时发送提醒
-                    if (hoursUntilDue == 72 || hoursUntilDue == 48 || hoursUntilDue == 24) {
+                    long reminderHour = REMINDER_HOURS.stream()
+                            .filter(h -> remainingHours > h && remainingHours <= h + 1)
+                            .findFirst()
+                            .orElse(-1L);
+
+                    if (reminderHour != -1L) {
                         // 获取任务的所有执行者
                         List<TaskUser> executors = taskUserRepository.findActiveExecutorsByTaskId(task.getId());
                         if (!executors.isEmpty()) {
+                            // 消息描述
+                            String timeDesc = reminderHour + "小时";
                             for (TaskUser executor : executors) {
                                 try {
                                     messageSendService.notifyTaskNeedSubmission(task, executor.getUserId());
-                                    totalReminders++;
+                                    totalRemindersSent++;
                                 } catch (Exception e) {
                                     log.error("发送任务提醒通知失败: taskId={}, userId={}", 
                                             task.getId(), executor.getUserId(), e);
@@ -107,7 +106,6 @@ public class TaskReminderScheduler {
                             }
                         }
                     }
-                    totalProcessed++;
                 }
                 
                 page++;
@@ -115,7 +113,7 @@ public class TaskReminderScheduler {
             // 限制最大页数，避免无限循环
             } while (taskPage.hasNext() && page < 1000);
             
-            log.info("任务提醒定时任务执行完成: 处理任务{}个, 发送提醒{}条", totalProcessed, totalReminders);
+            log.info("任务提醒定时任务执行完成: 发送提醒{}条",totalRemindersSent);
         } catch (Exception e) {
             log.error("执行任务提醒定时任务时发生错误", e);
         }
