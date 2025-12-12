@@ -187,6 +187,14 @@ public class User extends BaseAuditEntity {
     private Boolean orcidBound = false;
 
     /**
+     * ORCID访问令牌
+     * 用于调用ORCID API获取用户详细信息，通常有效期为20年，但是谁知道什么情况呢？
+     */
+    @Column(name = "orcid_access_token", length = 500)
+    @JsonIgnore  // 不在API响应中暴露token
+    private String orcidAccessToken;
+
+    /**
      * 用户角色关联（一对多）
      * 注意：
      * - @JsonIgnore: 避免 JSON 序列化时的循环引用

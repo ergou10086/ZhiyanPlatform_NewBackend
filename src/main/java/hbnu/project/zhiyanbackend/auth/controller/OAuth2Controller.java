@@ -1,12 +1,12 @@
 package hbnu.project.zhiyanbackend.auth.controller;
 
-import hbnu.project.zhiyanbackend.auth.model.dto.AuthorizationResultDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2BindAccountDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2LoginResponseDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2SupplementInfoDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
+import hbnu.project.zhiyanbackend.auth.exeption.OAuth2Exception;
+import hbnu.project.zhiyanbackend.auth.model.dto.*;
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.oauth.client.OAuth2Client;
 import hbnu.project.zhiyanbackend.auth.oauth.config.properties.OAuth2Properties;
+import hbnu.project.zhiyanbackend.auth.oauth.provider.OrcidOAuth2Provider;
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.OAuth2Service;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 /**
  * OAuth2第三方登录控制器
@@ -45,6 +46,7 @@ public class OAuth2Controller {
     private final OAuth2Service oAuth2Service;
     private final OAuth2Properties oAuth2Properties;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     /**
      * 获取授权URL
@@ -241,15 +243,13 @@ public class OAuth2Controller {
 
     /**
      * 构建登录成功重定向URL（跳转到主页）
-     * TODO: 请在配置文件中设置 zhiyan.oauth2.frontend-home-url，或在此处填写主页URL
      * 例如：http://localhost:8080 或 http://localhost:8080/home
      */
     private String buildSuccessRedirectUrl(OAuth2LoginResponseDTO response) {
-        // TODO: 从配置文件读取主页URL，或直接填写
         String homeUrl = oAuth2Properties.getFrontendHomeUrl();
         if (StringUtils.isBlank(homeUrl)) {
             // 如果未配置，使用默认值（请根据实际情况修改）
-            homeUrl = "http://localhost:8080";  // TODO: 请修改为实际的主页URL
+            homeUrl = "http://localhost:8080";
         }
 
         // 移除末尾的斜杠
@@ -284,16 +284,14 @@ public class OAuth2Controller {
 
     /**
      * 构建补充信息页面重定向URL
-     * TODO: 请在配置文件中设置 zhiyan.oauth2.frontend-supplement-url，或在此处填写补充信息页面URL
      * 例如：http://localhost:8080/oauth2/supplement
      */
     private String buildSupplementRedirectUrl(String provider, OAuth2LoginResponseDTO response,
                                               String code, String state) {
-        // TODO: 从配置文件读取补充信息页面URL，或直接填写
         String supplementUrl = oAuth2Properties.getFrontendSupplementUrl();
         if (StringUtils.isBlank(supplementUrl)) {
             // 如果未配置，使用默认值（请根据实际情况修改）
-            supplementUrl = "http://localhost:8080/oauth2/supplement";  // TODO: 请修改为实际的补充信息页面URL
+            supplementUrl = "http://localhost:8080/oauth2/supplement";
         }
 
         // 移除末尾的斜杠
@@ -331,16 +329,14 @@ public class OAuth2Controller {
 
     /**
      * 构建绑定页面重定向URL
-     * TODO: 请在配置文件中设置 zhiyan.oauth2.frontend-bind-url，或在此处填写绑定页面URL
      * 例如：http://localhost:8080/oauth2/bind
      */
     private String buildBindRedirectUrl(String provider, OAuth2LoginResponseDTO response,
                                         String code, String state) {
-        // TODO: 从配置文件读取绑定页面URL，或直接填写
         String bindUrl = oAuth2Properties.getFrontendBindUrl();
         if (StringUtils.isBlank(bindUrl)) {
             // 如果未配置，使用默认值（请根据实际情况修改）
-            bindUrl = "http://localhost:8080/oauth2/bind";  // TODO: 请修改为实际的绑定页面URL
+            bindUrl = "http://localhost:8080/oauth2/bind";
         }
 
         // 移除末尾的斜杠
@@ -380,11 +376,10 @@ public class OAuth2Controller {
      * 构建错误页面重定向URL
      */
     private String buildErrorRedirectUrl(String provider, String errorMessage) {
-        // TODO: 从配置文件读取错误页面URL，或使用默认的错误处理页面
         String errorUrl = oAuth2Properties.getFrontendErrorUrl();
         if (StringUtils.isBlank(errorUrl)) {
             // 如果未配置，使用默认值（请根据实际情况修改）
-            errorUrl = "http://localhost:8080/oauth2/error";  // TODO: 请修改为实际的错误页面URL
+            errorUrl = "http://localhost:8080/oauth2/error";
         }
 
         // 移除末尾的斜杠
@@ -423,6 +418,57 @@ public class OAuth2Controller {
         } catch (Exception e) {
             log.error("解绑OAuth2账号失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
             return R.fail("解绑失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取ORCID用户详细信息
+     * 包括Keywords、Employment和Education
+     *
+     * @return ORCID详细信息
+     */
+    @GetMapping("/orcid/detail")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "获取ORCID详细信息", description = "获取当前用户的ORCID Keywords、工作经历和教育经历")
+    public R<OrcidDetailDTO> getOrcidDetail() {
+        try{
+            // 1. 获取当前用户
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null) {
+                return R.fail("用户未登录");
+            }
+
+            // 2.查询用户的ORCID的绑定信息
+            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
+            if (userOpt.isEmpty()) {
+                return R.fail("用户不存在");
+            }
+            User user = userOpt.get();
+            String orcidId = user.getOrcidId();
+            if (StringUtils.isBlank(orcidId)) {
+                return R.fail("未获取到ORCID，可能是用户未绑定ORCID账号");
+            }
+
+            // 3. 检查OAuth2Client是否为OrcidOAuth2Provider
+            if (!(oAuth2Client instanceof OrcidOAuth2Provider)) {
+                return R.fail("ORCID功能未启用");
+            }
+            OrcidOAuth2Provider orcidProvider = (OrcidOAuth2Provider) oAuth2Client;
+
+            // 4. 这里需要ORCID的accessToken，因为ORCID的访问令牌20年有效期，所以说存储到数据库里就可以，如果失效了就重新授权获得ORCID的accessToken
+            String accessToken = user.getOrcidAccessToken();
+
+            // 5. 获取详细信息
+            OrcidDetailDTO detail = orcidProvider.getOrcidDetailInfo(orcidId, accessToken);
+
+            log.info("成功获取ORCID详细信息 - 用户ID: {}, ORCID: {}", userId, orcidId);
+            return R.ok(detail);
+        }catch (OAuth2Exception e) {
+            log.error("获取ORCID详细信息失败: {}", e.getMessage());
+            return R.fail(e.getMessage());
+        } catch (Exception e) {
+            log.error("获取ORCID详细信息异常", e);
+            return R.fail("获取失败,请稍后重试");
         }
     }
 }

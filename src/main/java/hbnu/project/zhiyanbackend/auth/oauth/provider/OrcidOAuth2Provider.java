@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.auth.oauth.provider;
 
 import cn.hutool.core.lang.Dict;
+import hbnu.project.zhiyanbackend.auth.model.dto.OrcidDetailDTO;
 import hbnu.project.zhiyanbackend.auth.oauth.config.properties.OAuth2Properties;
 import hbnu.project.zhiyanbackend.auth.exeption.OAuth2Exception;
 import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
@@ -13,14 +14,15 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
  * ORCID OAuth2提供商实现
  * ORCID是用于唯一标识科研人员的国际标准
+ * 支持获取Keywords、Employment和Education信息
  *
  * Token请求必须使用 application/x-www-form-urlencoded 格式，且client_id 和 client_secret 必须作为请求体参数
  * 不使用 Basic Auth，使用表单
@@ -121,9 +123,6 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
 
-            log.debug("ORCID token请求头: Content-Type=application/x-www-form-urlencoded, Accept=application/json");
-            log.debug("ORCID token请求体参数: grant_type=authorization_code, code={}, redirect_uri={}", code, redirectUri);
-
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
             // 发送请求
@@ -136,8 +135,6 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 String body = response.getBody();
-                log.info("ORCID获取访问令牌响应状态: {}, 响应体长度: {}", response.getStatusCode(), body != null ? body.length() : 0);
-                log.debug("ORCID获取访问令牌完整响应: {}", body);
 
                 if (StringUtils.isBlank(body)) {
                     log.error("ORCID token响应为空");
@@ -145,17 +142,9 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                 }
 
                 // 解析响应（使用Dict类型）
-                Dict tokenMap = null;
-                try {
-                    tokenMap = JsonUtils.parseMap(body);
-                } catch (Exception e) {
-                    log.error("ORCID token响应JSON解析异常: {}", e.getMessage(), e);
-                    throw new OAuth2Exception("ORCID token响应JSON解析失败: " + e.getMessage(), e);
-                }
-
+                Dict tokenMap = JsonUtils.parseMap(body);
                 if (tokenMap == null) {
-                    log.error("ORCID token响应解析结果为null，响应体: {}", body);
-                    throw new OAuth2Exception("ORCID token响应解析失败：解析结果为null");
+                    throw new OAuth2Exception("ORCID token响应解析失败");
                 }
 
                 // 保存token响应，用于后续提取ORCID iD
@@ -174,8 +163,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
                 String errorBody = response.getBody();
                 int statusCode = response.getStatusCode().value();
                 log.error("获取ORCID访问令牌失败，状态码: {}, 响应体: {}", statusCode, errorBody);
-                throw new OAuth2Exception("获取ORCID访问令牌失败: " + response.getStatusCode() +
-                        (errorBody != null ? ", " + errorBody : ""));
+                throw new OAuth2Exception("获取ORCID访问令牌失败: " + response.getStatusCode() + (errorBody != null ? ", " + errorBody : ""));
             }
         } catch (Exception e) {
             log.error("获取ORCID访问令牌异常", e);
@@ -203,7 +191,7 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             // 设置请求头
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
-            headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
             HttpEntity<Void> request = new HttpEntity<>(headers);
 
             // 发送请求
@@ -469,4 +457,337 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
             throw new OAuth2Exception("从JWT提取ORCID iD失败: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * 获取ORCID详细信息 (Keywords, Employment, Education)
+     *
+     * @param orcidId ORCID iD
+     * @param accessToken 访问令牌
+     * @return ORCID详细信息
+     */
+    public OrcidDetailDTO getOrcidDetailInfo(String orcidId, String accessToken) {
+        log.info("开始获取ORCID详细信息 - orcidId: {}", orcidId);
+
+        try {
+            OrcidDetailDTO.OrcidDetailDTOBuilder builder = OrcidDetailDTO.builder().orcidId(orcidId);
+
+            // 1. 获取Keywords
+            List<String> keywords = fetchKeywords(orcidId, accessToken);
+            builder.keywords(keywords);
+            log.debug("获取到 {} 个关键词", keywords.size());
+
+            // 2. 获取Employment
+            List<OrcidDetailDTO.EmploymentInfo> employments = fetchEmployments(orcidId, accessToken);
+            builder.employments(employments);
+            log.debug("获取到 {} 条工作经历", employments.size());
+
+            // 3. 获取Education
+            List<OrcidDetailDTO.EducationInfo> educations = fetchEducations(orcidId, accessToken);
+            builder.educations(educations);
+            log.debug("获取到 {} 条教育经历", educations.size());
+
+            OrcidDetailDTO result = builder.build();
+            log.info("ORCID详细信息获取完成 - Keywords: {}, Employments: {}, Educations: {}",
+                    keywords.size(), employments.size(), educations.size());
+
+            return result;
+        }catch (Exception e) {
+            log.error("获取ORCID详细信息失败 - orcidId: {}", orcidId, e);
+            throw new OAuth2Exception("获取ORCID详细信息失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 获取Keywords
+     */
+    private List<String> fetchKeywords(String orcidId, String accessToken) {
+        List<String> keywords = new ArrayList<>();
+        String url = getUserInfoUri() + "/" + orcidId + "/keywords";
+        try {
+            String responseBody = fetchOrcidData(url, accessToken);
+            Dict data = JsonUtils.parseMap(responseBody);
+
+            if (data != null && data.containsKey("keyword")) {
+                Object keywordObj = data.get("keyword");
+                if (keywordObj instanceof List) {
+                    List<?> keywordList = (List<?>) keywordObj;
+                    for (Object item : keywordList) {
+                        if (item instanceof Dict) {
+                            String content = ((Dict) item).getStr("content");
+                            if (StringUtils.isNotBlank(content)) {
+                                keywords.add(content);
+                            }
+                        } else if (item instanceof Map) {
+                            Object content = ((Map<?, ?>) item).get("content");
+                            if (content != null) {
+                                keywords.add(content.toString());
+                            }
+                        }
+                    }
+                }
+            }
+        }catch (Exception e) {
+            log.warn("获取ORCID Keywords失败: {}", e.getMessage());
+        }
+
+        return keywords;
+    }
+
+    /**
+     * 获取Employment信息
+     */
+    private List<OrcidDetailDTO.EmploymentInfo> fetchEmployments(String orcidId, String accessToken) {
+        List<OrcidDetailDTO.EmploymentInfo> employments = new ArrayList<>();
+        String url = getUserInfoUri() + "/" + orcidId + "/employments";
+
+        try {
+            String responseBody = fetchOrcidData(url, accessToken);
+            Dict data = JsonUtils.parseMap(responseBody);
+
+            if (data != null && data.containsKey("affiliation-group")) {
+                Object groupObj = data.get("affiliation-group");
+                if (groupObj instanceof List) {
+                    for (Object group : (List<?>) groupObj) {
+                        if (group instanceof Dict) {
+                            employments.addAll(parseEmploymentGroup((Dict) group));
+                        } else if (group instanceof Map) {
+                            employments.addAll(parseEmploymentGroup(Dict.create().parseBean(group)));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取ORCID Employments失败: {}", e.getMessage());
+        }
+
+        return employments;
+    }
+
+    /**
+     * 解析Employment组
+     */
+    private List<OrcidDetailDTO.EmploymentInfo> parseEmploymentGroup(Dict group) {
+        List<OrcidDetailDTO.EmploymentInfo> list = new ArrayList<>();
+
+        Object summariesObj = group.get("summaries");
+        if (!(summariesObj instanceof List)) {
+            return list;
+        }
+
+        for (Object summaryObj : (List<?>) summariesObj) {
+            Dict summary = null;
+            if (summaryObj instanceof Dict) {
+                summary = (Dict) summaryObj;
+            } else if (summaryObj instanceof Map) {
+                summary = Dict.create().parseBean(summaryObj);
+            }
+
+            if (summary == null || !summary.containsKey("employment-summary")) {
+                continue;
+            }
+
+            Object empObj = summary.get("employment-summary");
+            Dict employment = null;
+            if (empObj instanceof Dict) {
+                employment = (Dict) empObj;
+            } else if (empObj instanceof Map) {
+                employment = Dict.create().parseBean(empObj);
+            }
+
+            if (employment == null) {
+                continue;
+            }
+
+            OrcidDetailDTO.EmploymentInfo info = OrcidDetailDTO.EmploymentInfo.builder()
+                    .organization(extractOrganizationName(employment.get("organization")))
+                    .department(extractString(employment.get("department-name")))
+                    .roleTitle(extractString(employment.get("role-title")))
+                    .startDate(extractDate(employment.get("start-date")))
+                    .endDate(extractDate(employment.get("end-date")))
+                    .city(extractCity(employment.get("organization")))
+                    .country(extractCountry(employment.get("organization")))
+                    .build();
+
+            list.add(info);
+        }
+
+        return list;
+    }
+
+    /**
+     * 获取Education信息
+     */
+    private List<OrcidDetailDTO.EducationInfo> fetchEducations(String orcidId, String accessToken) {
+        List<OrcidDetailDTO.EducationInfo> educations = new ArrayList<>();
+        String url = getUserInfoUri() + "/" + orcidId + "/educations";
+
+        try {
+            String responseBody = fetchOrcidData(url, accessToken);
+            Dict data = JsonUtils.parseMap(responseBody);
+
+            if (data != null && data.containsKey("affiliation-group")) {
+                Object groupObj = data.get("affiliation-group");
+                if (groupObj instanceof List) {
+                    for (Object group : (List<?>) groupObj) {
+                        if (group instanceof Dict) {
+                            educations.addAll(parseEducationGroup((Dict) group));
+                        } else if (group instanceof Map) {
+                            educations.addAll(parseEducationGroup(Dict.create().parseBean(group)));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取ORCID Educations失败: {}", e.getMessage());
+        }
+
+        return educations;
+    }
+
+    /**
+     * 解析Education组
+     */
+    private List<OrcidDetailDTO.EducationInfo> parseEducationGroup(Dict group) {
+        List<OrcidDetailDTO.EducationInfo> list = new ArrayList<>();
+
+        Object summariesObj = group.get("summaries");
+        if (!(summariesObj instanceof List)) {
+            return list;
+        }
+
+        for (Object summaryObj : (List<?>) summariesObj) {
+            Dict summary = null;
+            if (summaryObj instanceof Dict) {
+                summary = (Dict) summaryObj;
+            } else if (summaryObj instanceof Map) {
+                summary = Dict.create().parseBean(summaryObj);
+            }
+
+            if (summary == null || !summary.containsKey("education-summary")) {
+                continue;
+            }
+
+            Object eduObj = summary.get("education-summary");
+            Dict education = null;
+            if (eduObj instanceof Dict) {
+                education = (Dict) eduObj;
+            } else if (eduObj instanceof Map) {
+                education = Dict.create().parseBean(eduObj);
+            }
+
+            if (education == null) {
+                continue;
+            }
+
+            OrcidDetailDTO.EducationInfo info = OrcidDetailDTO.EducationInfo.builder()
+                    .organization(extractOrganizationName(education.get("organization")))
+                    .department(extractString(education.get("department-name")))
+                    .startDate(extractDate(education.get("start-date")))
+                    .endDate(extractDate(education.get("end-date")))
+                    .city(extractCity(education.get("organization")))
+                    .country(extractCountry(education.get("organization")))
+                    .build();
+
+            list.add(info);
+        }
+
+        return list;
+    }
+
+    /**
+     * 通用的ORCID数据获取方法
+     */
+    private String fetchOrcidData(String url, String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return response.getBody();
+        } else {
+            throw new OAuth2Exception("获取ORCID数据失败: " + response.getStatusCode());
+        }
+    }
+
+
+    private String extractOrganizationName(Object orgObj) {
+        if (orgObj instanceof Dict) {
+            return ((Dict) orgObj).getStr("name");
+        } else if (orgObj instanceof Map) {
+            Object name = ((Map<?, ?>) orgObj).get("name");
+            return name != null ? name.toString() : null;
+        }
+        return null;
+    }
+
+    private String extractCity(Object orgObj) {
+        if (orgObj instanceof Dict) {
+            Object address = ((Dict) orgObj).get("address");
+            if (address instanceof Dict) {
+                return ((Dict) address).getStr("city");
+            }
+        } else if (orgObj instanceof Map) {
+            Object address = ((Map<?, ?>) orgObj).get("address");
+            if (address instanceof Map) {
+                Object city = ((Map<?, ?>) address).get("city");
+                return city != null ? city.toString() : null;
+            }
+        }
+        return null;
+    }
+
+    private String extractCountry(Object orgObj) {
+        if (orgObj instanceof Dict) {
+            Object address = ((Dict) orgObj).get("address");
+            if (address instanceof Dict) {
+                return ((Dict) address).getStr("country");
+            }
+        } else if (orgObj instanceof Map) {
+            Object address = ((Map<?, ?>) orgObj).get("address");
+            if (address instanceof Map) {
+                Object country = ((Map<?, ?>) address).get("country");
+                return country != null ? country.toString() : null;
+            }
+        }
+        return null;
+    }
+
+    private String extractString(Object obj) {
+        if (obj == null) return null;
+        return obj.toString();
+    }
+
+    private String extractDate(Object dateObj) {
+        if (dateObj instanceof Dict) {
+            Dict date = (Dict) dateObj;
+            // 先获取year，若为null则取value的值
+            String year = date.getStr("year");
+            if (year == null) {
+                year = date.getStr("value");
+            }
+            // 先获取month，若为null则取value的值
+            String month = date.getStr("month");
+            if (month == null) {
+                month = date.getStr("value");
+            }
+            if (year != null) {
+                String yearStr = year.toString();
+                String monthStr = month != null ? month.toString() : null;
+                return monthStr != null ? yearStr + "-" + monthStr : yearStr;
+            }
+
+        } else if (dateObj instanceof Map) {
+            Map<?, ?> date = (Map<?, ?>) dateObj;
+            Object year = date.get("year");
+            Object month = date.get("month");
+            if (year != null) {
+                return month != null ? year + "-" + month : year.toString();
+            }
+        }
+        return null;
+    }
+
 }

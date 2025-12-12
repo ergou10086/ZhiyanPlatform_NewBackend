@@ -353,6 +353,11 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                 user.setOrcidId(oauth2UserInfo.getProviderUserId());
                 user.setOrcidBound(true);
                 log.info("绑定ORCID账号 - 用户ID: {}, ORCID ID: {}", user.getId(), oauth2UserInfo.getProviderUserId());
+
+                // 保存ORCID访问令牌，用于后续获取详细信息
+                if (StringUtils.isNotBlank(oauth2UserInfo.getAccessToken())) {
+                    user.setOrcidAccessToken(oauth2UserInfo.getAccessToken());
+                }
             }
         }
     }

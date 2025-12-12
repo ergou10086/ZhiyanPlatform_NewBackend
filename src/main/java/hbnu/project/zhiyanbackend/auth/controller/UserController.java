@@ -257,11 +257,10 @@ public class UserController {
 
     /**
      * 软删除用户(销号)
-     * 需登录，只有自己和开发者可以销号
-     * 角色: DEVELOPER（只有开发者可以删除用户）
+     * 需登录，只有自己和开发者（日后引入）可以销号
      */
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('DEVELOPER')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "删除用户", description = "软删除指定用户（管理员功能）")
     public R<Void> deleteUser(
             @Parameter(description = "用户ID", required = true)
@@ -269,13 +268,17 @@ public class UserController {
         log.info("删除用户: 用户ID={}", userId);
 
         try {
-            // 可以自己删除自己
             Long currentUserId = SecurityUtils.getUserId();
+            if (currentUserId == null) {
+                return R.fail("用户未登录");
+            }
+
+            // 可以自己删除自己
             if (userId.equals(currentUserId)) {
                 return userService.deleteUser(userId);
             }
 
-            return userService.deleteUser(userId);
+            return R.fail("只能删除自己的账号");
         } catch (Exception e) {
             log.error("删除用户失败: userId={}", userId, e);
             return R.fail("删除用户失败");
