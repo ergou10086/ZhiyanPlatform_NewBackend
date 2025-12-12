@@ -245,7 +245,10 @@ zhiyan:
       # 注意：生产环境建议使用环境变量 ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
       client-secret: ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
       # 授权范围
-      scope: "/authenticate openid /read-limited"
+      # 注意：/authenticate 和 openid 不能同时使用，它们具有相同的授权
+      # 使用 openid 可以获取 id_token（包含 ORCID iD），同时支持 OpenID Connect
+      # /read-limited 用于读取用户的公开信息（教育经历、就业经历、关键词等）
+      scope: "openid /read-limited"
       # ORCID API端点（生产环境）
       authorization-uri: https://orcid.org/oauth/authorize
       token-uri: https://orcid.org/oauth/token
