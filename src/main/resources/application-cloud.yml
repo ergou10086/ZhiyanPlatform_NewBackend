@@ -254,7 +254,7 @@ zhiyan:
       # ORCID Pub API基础端点（读取公开数据）
       user-info-uri: https://pub.orcid.org/v3.0
       api-version: v3.0
-      # 请求头配置（官方要求）
-      request-headers:
-        Accept: application/json
-        User-Agent: ZhiyanBackend/1.0 (https://zyplatform.xyz; zjm88822201@126.com)
+#      # 请求头配置（官方要求）
+#      request-headers:
+#        Accept: application/json
+#        User-Agent: ZhiyanBackend/1.0 (https://zyplatform.xyz; zjm88822201@126.com)

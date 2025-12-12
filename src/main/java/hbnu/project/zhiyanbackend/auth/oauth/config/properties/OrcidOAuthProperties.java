@@ -67,9 +67,9 @@ public class OrcidOAuthProperties {
      */
     private String apiVersion = "v3.0";
 
-    /**
-     * 请求ORCID API时需要携带的头信息
-     * 官方要求必须包含Accept和User-Agent等头信息
-     */
-    private Map<String, String> requestHeaders = new HashMap<>();
+//    /**
+//     * 请求ORCID API时需要携带的头信息
+//     * 官方要求必须包含Accept和User-Agent等头信息
+//     */
+//    private Map<String, String> requestHeaders = new HashMap<>();
 }
