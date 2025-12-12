@@ -81,13 +81,9 @@ public class OAuth2Controller {
      * - NEED_SUPPLEMENT: 跳转到补充信息页面，通过URL参数传递OAuth2用户信息
      * - NEED_BIND: 跳转到绑定页面，通过URL参数传递OAuth2用户信息
      *
-     * 注意：ORCID在授权失败时可能传递error参数而不是code参数，需要处理这种情况
-     *
      * @param provider 提供商名称
-     * @param code     授权码（可选，授权成功时才有）
-     * @param state    状态参数（可选，用于防CSRF攻击）
-     * @param error    错误码（可选，授权失败时才有）
-     * @param errorDescription 错误描述（可选，授权失败时才有）
+     * @param code     授权码
+     * @param state    状态参数（用于防CSRF攻击）
      * @return 重定向到前端对应页面
      */
     @GetMapping("/callback/{provider}")
@@ -95,55 +91,26 @@ public class OAuth2Controller {
     public void callback(
             @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
             @PathVariable String provider,
-            @Parameter(description = "授权码（授权成功时提供）")
-            @RequestParam(required = false) String code,
-            @Parameter(description = "状态参数（用于防CSRF攻击）")
-            @RequestParam(required = false) String state,
-            @Parameter(description = "错误码（授权失败时提供）")
-            @RequestParam(required = false) String error,
-            @Parameter(description = "错误描述（授权失败时提供）")
-            @RequestParam(required = false) String error_description,
+            @Parameter(description = "授权码", required = true)
+            @RequestParam String code,
+            @Parameter(description = "状态参数（用于防CSRF攻击）", required = true)
+            @RequestParam String state,
             HttpServletResponse response) {
-        log.info("OAuth2回调请求 - 提供商: {}, code: {}, state: {}, error: {}, error_description: {}", 
-                provider, code, state, error, error_description);
+        log.info("OAuth2回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
 
         try {
-            // 1. 检查是否有错误参数（ORCID授权失败时会传递error参数）
-            if (StringUtils.isNotBlank(error)) {
-                String errorMsg = StringUtils.isNotBlank(error_description) 
-                        ? error_description 
-                        : "ORCID授权失败: " + error;
-                log.warn("OAuth2授权失败 - 提供商: {}, 错误: {}", provider, errorMsg);
-                String errorUrl = buildErrorRedirectUrl(provider, errorMsg);
-                response.sendRedirect(errorUrl);
-                return;
-            }
-
-            // 2. 验证必要参数
-            if (StringUtils.isBlank(code)) {
-                log.error("OAuth2回调缺少授权码 - 提供商: {}", provider);
-                String errorUrl = buildErrorRedirectUrl(provider, "缺少授权码，授权可能已失败");
-                response.sendRedirect(errorUrl);
-                return;
-            }
-
-            if (StringUtils.isBlank(state)) {
-                log.warn("OAuth2回调缺少state参数 - 提供商: {}, 这可能影响安全性验证", provider);
-                // state可以为空，但会记录警告
-            }
-
-            // 3. 构建回调URL
+            // 1. 构建回调URL
             String redirectUri = buildCallbackUrl(provider);
 
-            // 4. 通过授权码获取用户信息
+            // 2. 通过授权码获取用户信息
             OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
             log.info("获取OAuth2用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
                     provider, userInfo.getProviderUserId(), userInfo.getEmail());
 
-            // 5. 处理登录（可能返回登录成功、需要绑定、需要补充信息等状态）
+            // 3. 处理登录（可能返回登录成功、需要绑定、需要补充信息等状态）
             R<OAuth2LoginResponseDTO> loginResult = oAuth2Service.handleOAuth2Login(userInfo);
 
-            // 6. 根据登录状态重定向到不同的前端页面
+            // 4. 根据登录状态重定向到不同的前端页面
             String redirectUrl = buildRedirectUrlByStatus(provider, loginResult, code, state);
             log.info("重定向到前端页面: {}", redirectUrl);
             response.sendRedirect(redirectUrl);
