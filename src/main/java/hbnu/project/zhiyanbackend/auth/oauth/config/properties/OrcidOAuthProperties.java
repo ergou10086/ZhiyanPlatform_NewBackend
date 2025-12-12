@@ -36,7 +36,7 @@ public class OrcidOAuthProperties {
      * 
      * 默认使用 /authenticate openid 以获取基本身份信息
      */
-    private String scope = "/authenticate openid /read-limited";
+    private String scope = "/authenticate /read-limited";
 
     /**
      * ORCID 授权服务器的授权端点URL
