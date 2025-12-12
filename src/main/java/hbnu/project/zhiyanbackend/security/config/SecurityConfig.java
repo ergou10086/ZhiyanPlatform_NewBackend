@@ -68,15 +68,24 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // 允许的源：包括本地开发环境和生产环境
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:8001",
-                "http://zyplatform.xyz",   // 新域名
-                "https://zyplatform.xyz"
+                "http://127.0.0.1:8001",
+                "http://zyplatform.xyz",      // HTTP生产环境
+                "https://zyplatform.xyz",      // HTTPS生产环境
+                "http://api.zyplatform.xyz",    // API域名
+                "https://api.zyplatform.xyz"    // API域名
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        // 允许所有HTTP方法，包括OPTIONS预检请求
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
+        // 允许所有请求头
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        // 暴露的响应头
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition", "X-Total-Count"));
+        // 允许携带凭证（cookies等）
         configuration.setAllowCredentials(true);
+        // 预检请求缓存时间（秒）
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
