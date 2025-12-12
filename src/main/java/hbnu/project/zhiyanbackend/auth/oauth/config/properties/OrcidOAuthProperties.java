@@ -29,16 +29,14 @@ public class OrcidOAuthProperties {
     /**
      * 授权范围（scope）
      * ORCID支持的scope：
-     * - /authenticate: 只获取ORCID iD（旧方式，不推荐）
-     * - openid: OpenID Connect认证，获取ORCID iD和id_token（推荐）
-     * - /read-limited: 读取公开信息（教育、就业、研究资源、关键词等）
+     * - /authenticate: 只获取ORCID iD
+     * - /read-limited: 读取受限信息（教育、就业、研究资源等）
      * - /person/update: 更新个人信息
      * - /activities/update: 更新活动信息
-     * 
-     * 注意：/authenticate 和 openid 不能同时使用，它们具有相同的授权
-     * 推荐使用 openid /read-limited 以获取身份信息和公开数据
+     *
+     * 默认使用 /authenticate openid 以获取基本身份信息
      */
-    private String scope = "openid /read-limited";
+    private String scope = "/authenticate openid";
 
     /**
      * ORCID 授权服务器的授权端点URL
