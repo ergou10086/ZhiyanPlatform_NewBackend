@@ -245,7 +245,7 @@ zhiyan:
       # 注意：生产环境建议使用环境变量 ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
       client-secret: ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
       # 授权范围
-      scope: "/authenticate read-public openid"
+      scope: "/authenticate openid /read-limited"
       # ORCID API端点（生产环境）
       # ORCID OAuth2授权端点（官方固定）
       authorization-uri: https://orcid.org/oauth/authorize

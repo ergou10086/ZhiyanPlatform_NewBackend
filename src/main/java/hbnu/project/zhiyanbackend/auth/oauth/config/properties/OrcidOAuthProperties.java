@@ -2,9 +2,6 @@ package hbnu.project.zhiyanbackend.auth.oauth.config.properties;
 
 import lombok.Data;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * ORCID 平台的 OAuth2 配置属性
  * ORCID是用于唯一标识科研人员的国际标准
@@ -39,7 +36,7 @@ public class OrcidOAuthProperties {
      * 
      * 默认使用 /authenticate openid 以获取基本身份信息
      */
-    private String scope = "/authenticate openid";
+    private String scope = "/authenticate openid /read-limited";
 
     /**
      * ORCID 授权服务器的授权端点URL
