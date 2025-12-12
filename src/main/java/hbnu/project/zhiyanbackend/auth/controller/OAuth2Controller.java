@@ -5,6 +5,7 @@ import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.oauth.client.OAuth2Client;
 import hbnu.project.zhiyanbackend.auth.oauth.config.properties.OAuth2Properties;
+import hbnu.project.zhiyanbackend.auth.oauth.provider.OAuth2Provider;
 import hbnu.project.zhiyanbackend.auth.oauth.provider.OrcidOAuth2Provider;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.OAuth2Service;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,14 @@ public class OAuth2Controller {
     private final OAuth2Properties oAuth2Properties;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    
+    /**
+     * OAuth2提供商Map（从OAuth2AutoConfiguration注入）
+     * 用于获取特定的provider实例（如OrcidOAuth2Provider）
+     * required = false: 如果OAuth2未启用，此bean可能不存在，避免启动失败
+     */
+    @Autowired(required = false)
+    private java.util.Map<String, OAuth2Provider> oauth2Providers;
 
     /**
      * 获取授权URL
@@ -449,14 +459,27 @@ public class OAuth2Controller {
                 return R.fail("未获取到ORCID，可能是用户未绑定ORCID账号");
             }
 
-            // 3. 检查OAuth2Client是否为OrcidOAuth2Provider
-            if (!(oAuth2Client instanceof OrcidOAuth2Provider)) {
-                return R.fail("ORCID功能未启用");
+            // 3. 从providers Map中获取ORCID provider
+            OAuth2Provider orcidProviderObj = oauth2Providers != null ? oauth2Providers.get("orcid") : null;
+            if (orcidProviderObj == null || !(orcidProviderObj instanceof OrcidOAuth2Provider)) {
+                log.warn("ORCID功能未启用或未找到ORCID provider，已启用的providers: {}", 
+                        oauth2Providers != null ? oauth2Providers.keySet() : "null");
+                return R.fail("ORCID功能未启用，请检查配置文件中 zhiyan.oauth2.orcid.enabled 是否为 true");
             }
-            OrcidOAuth2Provider orcidProvider = (OrcidOAuth2Provider) oAuth2Client;
+            OrcidOAuth2Provider orcidProvider = (OrcidOAuth2Provider) orcidProviderObj;
+            
+            // 检查ORCID provider是否启用
+            if (!orcidProvider.isEnabled()) {
+                log.warn("ORCID provider已注册但未启用");
+                return R.fail("ORCID功能未启用，请检查配置文件中 zhiyan.oauth2.orcid.enabled 是否为 true");
+            }
 
             // 4. 这里需要ORCID的accessToken，因为ORCID的访问令牌20年有效期，所以说存储到数据库里就可以，如果失效了就重新授权获得ORCID的accessToken
             String accessToken = user.getOrcidAccessToken();
+            if (StringUtils.isBlank(accessToken)) {
+                log.warn("用户ORCID访问令牌为空 - 用户ID: {}, ORCID: {}", userId, orcidId);
+                return R.fail("ORCID访问令牌已失效，请重新绑定ORCID账号以获取访问权限");
+            }
 
             // 5. 获取详细信息
             OrcidDetailDTO detail = orcidProvider.getOrcidDetailInfo(orcidId, accessToken);
