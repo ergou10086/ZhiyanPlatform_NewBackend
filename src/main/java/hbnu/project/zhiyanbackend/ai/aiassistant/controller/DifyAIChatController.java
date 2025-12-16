@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * DifyAIChatController
+ * DifyAI对话控制器
  * 处理与Dify AI相关的HTTP请求，包括文件上传和流式对话等功能
  *
  * @author Tokito

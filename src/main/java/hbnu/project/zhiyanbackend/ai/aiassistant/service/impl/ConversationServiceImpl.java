@@ -14,6 +14,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
+/**
+ * Dify的AI实验分析助手的对话服务实现
+ *
+ * @author Tokito
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -2,8 +2,10 @@ package hbnu.project.zhiyanbackend.basic.utils;
 
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -20,7 +22,6 @@ public final class ValidationUtils {
      * 校验ID不能为空
      *
      * @param id ID值
-     * @param fieldName 字段名称（用于异常提示）
      * @return 校验通过的ID
      * @throws ServiceException ID为空时抛出
      */
@@ -141,5 +142,42 @@ public final class ValidationUtils {
             throw new ServiceException(fieldName + "的数量必须在" + min + "到" + max + "之间");
         }
         return collection;
+    }
+
+    /**
+     * 校验MultipartFile不能为空且不是空文件
+     *
+     * @param file 文件对象
+     * @return 校验通过的文件对象
+     * @throws ServiceException 文件为空或空文件时抛出
+     */
+    public static MultipartFile requireNonEmptyFile(MultipartFile file) {
+        // 先校验文件对象是否为null
+        requireNonNull(file, file.getOriginalFilename() + "不能为空");
+        // 再校验文件是否为空文件（大小为0）
+        if (file.isEmpty()) {
+            throw new ServiceException(file.getOriginalFilename() + "不能是空文件");
+        }
+        return file;
+    }
+
+    /**
+     * 校验MultipartFile列表不能为空，且列表中的每个文件都不能为空、不是空文件
+     *
+     * @param fileList 文件列表
+     * @param fieldName 字段名称（用于异常提示）
+     * @return 校验通过的文件列表
+     * @throws ServiceException 列表为空或列表中有空文件时抛出
+     */
+    public static List<MultipartFile> requireNonEmptyFileList(List<MultipartFile> fileList, String fieldName) {
+        // 先校验列表是否为空
+        requireNonEmpty(fileList, fieldName);
+        // 遍历校验每个文件是否为空或空文件
+        for (int i = 0; i < fileList.size(); i++) {
+            MultipartFile file = fileList.get(i);
+            // 异常提示中添加索引，便于定位具体错误文件
+            requireNonEmptyFile(file);
+        }
+        return fileList;
     }
 }
