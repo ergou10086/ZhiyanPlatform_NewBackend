@@ -24,7 +24,7 @@ import java.util.UUID;
  * 知识库AI对话控制器
  * 提供与知识库相关的AI对话功能，支持流式响应和文件上传
  *
- *
+ * @author Tokito
  */
 @Slf4j
 @RestController
@@ -160,7 +160,10 @@ public class KnowledgeAIChatController {
         // 构建请求体
         Map<String, Object> body = new HashMap<>();
         body.put("query", query);
-        body.put("conversation_id", "");
+        // ⭐ 使用实际的会话ID，避免为空导致 Dify 直接结束
+        body.put("conversation_id", convId);
+        // 兼容部分版本字段命名
+        body.put("conversationId", convId);
         body.put("user", String.valueOf(userId));
 
         // 构建输入参数

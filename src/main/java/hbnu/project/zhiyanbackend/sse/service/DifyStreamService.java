@@ -101,6 +101,9 @@ public class DifyStreamService {
 
             String jsonData = chunk.trim();
 
+            // 调试：记录原始数据块，便于排查无回复问题
+            log.info("[Dify Stream] chunk: {}", jsonData);
+
             // 兼容带有 "data:" 前缀的情况
             if (jsonData.startsWith("data:")) {
                 jsonData = jsonData.substring(5).trim();
