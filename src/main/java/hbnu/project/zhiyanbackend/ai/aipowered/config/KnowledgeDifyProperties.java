@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 /**
  * 知识库Dify配置属性类
  * 用于映射配置文件中以"dify.knowledge"为前缀的配置项
+ *
+ * @author Tokito
  */
 @Data
 @Component
