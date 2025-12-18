@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectMemberDetailDTO;
@@ -11,8 +12,6 @@ import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
-import hbnu.project.zhiyanbackend.auth.service.UserService;
-import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -22,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -45,7 +44,6 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     private final ProjectMemberRepository projectMemberRepository;
     private final ProjectRepository projectRepository;
     private final InboxMessageService inboxMessageService;
-    private final UserService userService;
     private final UserRepository userRepository;
 
     /**
@@ -495,13 +493,28 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         // 查询用户信息
         String username = "未知用户";
         String email = "";
+        String avatar = null;
         if (member.getUserId() != null) {
             try {
-                R<UserDTO> userResult = userService.getCurrentUser(member.getUserId());
-                if (R.isSuccess(userResult) && userResult.getData() != null) {
-                    UserDTO user = userResult.getData();
-                    username = user.getName();
-                    email = user.getEmail();
+                // 直接从 UserRepository 获取用户信息，避免调用服务层（服务层会忽略头像）
+                Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(member.getUserId());
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    username = user.getName() != null ? user.getName() : "未知用户";
+                    email = user.getEmail() != null ? user.getEmail() : "";
+                    
+                    // 处理头像：将二进制数据转换为 Base64 Data URL
+                    if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
+                        try {
+                            String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
+                            String contentType = user.getAvatarContentType() != null 
+                                ? user.getAvatarContentType() 
+                                : "image/jpeg";
+                            avatar = "data:" + contentType + ";base64," + base64;
+                        } catch (Exception e) {
+                            log.warn("转换头像数据失败: userId={}", member.getUserId(), e);
+                        }
+                    }
                 }
             } catch (Exception e) {
                 log.warn("查询用户信息失败: userId={}", member.getUserId(), e);
@@ -528,6 +541,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 .userId(member.getUserId())
                 .username(username)
                 .email(email)
+                .avatar(avatar)
                 .projectRole(member.getProjectRole())
                 .roleName(member.getProjectRole() != null ? member.getProjectRole().getDescription() : "")
                 .joinedAt(member.getJoinedAt())
