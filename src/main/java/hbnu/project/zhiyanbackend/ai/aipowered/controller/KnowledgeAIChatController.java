@@ -3,7 +3,6 @@ package hbnu.project.zhiyanbackend.ai.aipowered.controller;
 import hbnu.project.zhiyanbackend.ai.aiassistant.service.DifyFileService;
 import hbnu.project.zhiyanbackend.ai.aipowered.config.KnowledgeDifyProperties;
 import hbnu.project.zhiyanbackend.ai.aiassistant.model.response.DifyFileUploadResponse;
-import hbnu.project.zhiyanbackend.basic.exception.DifyException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.sse.core.DifyStreamEmitter;
 import hbnu.project.zhiyanbackend.sse.service.DifyStreamService;
@@ -17,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import static io.micrometer.common.util.StringUtils.truncate;
 
@@ -53,8 +51,7 @@ public class KnowledgeAIChatController {
 
         try {
             DifyFileUploadResponse response = difyFileService.uploadFile(file, userId);
-            log.info("[Knowledge Dify 文件上传] 上传成功, fileName={}, difyFileId={}",
-                    file.getOriginalFilename(), response.getFileId());
+            log.info("[Knowledge Dify 文件上传] 上传成功, fileName={}, difyFileId={}", file.getOriginalFilename(), response.getFileId());
             return R.ok(response, "文件上传成功");
         } catch (Exception e) {
             log.error("[Knowledge Dify 文件上传] 上传失败, fileName={}, userId={}",
@@ -105,9 +102,27 @@ public class KnowledgeAIChatController {
     public R<Map<String, Object>> uploadKnowledgeFiles(@RequestBody Map<String, Object> request) {
         Long userId = validateAndGetUserId();
 
-        List<Long> knowledgeFileIds = parseFileIds(request.get("knowledgeFileIds"));
+        List<Long> knowledgeFileIds = new ArrayList<>();
+        Object fileObject = request.get("knowledgeFileIds");
+
+        if(fileObject instanceof List){
+            List<?> list = (List<?>) fileObject;
+            for(Object object : list){
+                try{
+                    if(object instanceof Number){
+                        knowledgeFileIds.add(((Number) object).longValue());
+                    } else if (object instanceof String) {
+                        // 前端可能传递字符串格式的ID
+                        knowledgeFileIds.add(Long.parseLong((String) object));
+                    }
+                }catch (NumberFormatException e) {
+                    log.warn("[Knowledge Dify] 无法解析文件ID: {}", object);
+                }
+            }
+        }
+
         if (knowledgeFileIds.isEmpty()) {
-            return R.fail("文件ID列表为空");
+            return R.fail("文件ID列表为空或格式错误");
         }
 
         log.info("[Knowledge Dify 知识库上传] 开始上传知识库文件, userId={}, fileIds={}", userId, knowledgeFileIds);
@@ -155,8 +170,10 @@ public class KnowledgeAIChatController {
 
         // 创建SSE发射器
         SseEmitter emitter = DifyStreamEmitter.createEmitter(internalEmitterId, userId);
+
         // 构建不带文件的请求体
-        Map<String, Object> body = buildDifyRequestBody(query, conversationId, userId, Collections.emptyList());
+        Map<String, Object> body = buildBasicRequestBody(query, conversationId, userId);
+
         // 调用Dify流式服务
         callDifyStreamWithLogging(conversationId, body);
 
@@ -208,13 +225,17 @@ public class KnowledgeAIChatController {
 
             if (!validFileIds.isEmpty()) {
                 log.info("[Knowledge Dify 对话] 附加文件, count={}, ids={}", validFileIds.size(), validFileIds);
+            }else {
+                log.warn("[Knowledge Dify 对话] 警告：未收到有效的文件ID");
             }
 
             // 构建请求体（使用 Dify 的 conversation_id）
-            Map<String, Object> body = buildDifyRequestBody(query, conversationId, userId, validFileIds);
+            Map<String, Object> body = buildRequestBodyWithFiles(query, conversationId, userId, validFileIds);
 
-            log.info("[Knowledge Dify 对话] 请求体构建完成 - conversationId={}, filesCount={}",
-                    conversationId.isEmpty() ? "新对话" : conversationId, validFileIds.size());
+            log.info("[Knowledge Dify 对话] 请求体构建完成:");
+            log.info("  - conversationId: {}", conversationId.isEmpty() ? "新对话" : conversationId);
+            log.info("  - filesCount: {}", validFileIds.size());
+            log.info("  - files详情: {}", body.get("inputs"));
 
             // 调用Dify流式服务
             callDifyStreamWithLogging(internalEmitterId, body);
@@ -227,83 +248,50 @@ public class KnowledgeAIChatController {
         return emitter;
     }
 
+    // ==================== 私有辅助方法 ====================
+
     /**
-     * 流式AI对话（即时上传文件 - 不推荐，会影响响应速度，先使用异步的）
-     * 此接口会在对话时即时上传文件，可能导致响应延迟
-     * 建议使用预上传方式（先调用异步上传接口，再使用 chatStreamWithPreloadedFiles）
-     * 这个接口就是保留，毕竟是最基础的方式
-     *
-     * @param query 用户查询内容
-     * @param conversationId Dify 返回的会话ID（可选，首次对话传空字符串）
-     * @param knowledgeFileIds 知识库文件ID列表（会即时上传）
-     * @param localFiles 本地文件列表（会即时上传）
-     * @return SSE流式响应
+     * 构建基础请求体
      */
-    @PostMapping(value = "/chat/stream-with-instant-upload", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStreamWithInstantUpload(
-            @RequestParam String query,
-            @RequestParam(required = false, defaultValue = "") String conversationId,
-            @RequestParam(required = false, name = "knowledgeFileIds") List<Long> knowledgeFileIds,
-            @RequestParam(required = false, name = "localFiles") List<MultipartFile> localFiles) {
-
-        Long userId = validateAndGetUserId();
-
-        // 使用临时ID用于内部管理SSE连接
-        String internalEmitterId = UUID.randomUUID().toString();
-
-        log.warn("[Knowledge Dify 对话] 使用即时上传模式（不推荐），建议改用预上传方式");
-        log.info("[Knowledge Dify 对话] 即时上传对话:");
-        log.info("  - userId: {}", userId);
-        log.info("  - difyConversationId: {}", conversationId.isEmpty() ? "新对话" : conversationId);
-        log.info("  - query前50字符: {}", truncate(query, 50));
-        log.info("  - knowledgeFileIds: {}", knowledgeFileIds);
-        log.info("  - localFiles count: {}", localFiles != null ? localFiles.size() : 0);
-
-        // 创建SSE发射器
-        SseEmitter emitter = DifyStreamEmitter.createEmitter(internalEmitterId, userId);
-
-        try {
-            // 即时上传文件并收集 Dify 文件ID
-            List<String> uploadedFileIds = new ArrayList<>();
-
-            // 上传知识库文件
-            if (knowledgeFileIds != null && !knowledgeFileIds.isEmpty()) {
-                log.info("[Knowledge Dify 对话] 即时上传知识库文件, count={}", knowledgeFileIds.size());
-                List<DifyFileUploadResponse> responses = difyFileService.uploadKnowledgeFiles(knowledgeFileIds, userId);
-                responses.stream()
-                        .filter(r -> r != null && r.getFileId() != null)
-                        .forEach(r -> uploadedFileIds.add(r.getFileId()));
-                log.info("[Knowledge Dify 对话] 知识库文件上传完成, 成功={}/{}", uploadedFileIds.size(), knowledgeFileIds.size());
-            }
-
-            // 上传本地文件
-            if (localFiles != null && !localFiles.isEmpty()) {
-                log.info("[Knowledge Dify 对话] 即时上传本地文件, count={}", localFiles.size());
-                List<DifyFileUploadResponse> responses = difyFileService.uploadFiles(localFiles, userId);
-                int beforeSize = uploadedFileIds.size();
-                responses.stream()
-                        .filter(r -> r != null && r.getFileId() != null)
-                        .forEach(r -> uploadedFileIds.add(r.getFileId()));
-                log.info("[Knowledge Dify 对话] 本地文件上传完成, 成功={}/{}", uploadedFileIds.size() - beforeSize, localFiles.size());
-            }
-
-            log.info("[Knowledge Dify 对话] 所有文件上传完成, 总计成功={}", uploadedFileIds.size());
-
-            // 构建请求体（使用 Dify 的 conversation_id）
-            Map<String, Object> body = buildDifyRequestBody(query, conversationId, userId, uploadedFileIds);
-
-            // 调用Dify流式服务
-            callDifyStreamWithLogging(internalEmitterId, body);
-
-        } catch (Exception e) {
-            log.error("[Knowledge Dify 对话] 即时上传失败", e);
-            DifyStreamEmitter.sendError(internalEmitterId, "文件上传失败: " + e.getMessage());
-        }
-
-        return emitter;
+    private Map<String, Object> buildBasicRequestBody(String query, String conversationId, Long userId) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("query", query);
+        body.put("conversation_id", conversationId != null ? conversationId : "");
+        body.put("user", String.valueOf(userId));
+        body.put("inputs", new HashMap<>());
+        body.put("response_mode", "streaming");
+        return body;
     }
 
-    // ==================== 私有辅助方法 ====================
+    /**
+     * 构建带文件的请求体
+     */
+    private Map<String, Object> buildRequestBodyWithFiles(String query, String conversationId,
+                                                          Long userId, List<String> difyFileIds) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("query", query);
+        body.put("conversation_id", conversationId != null ? conversationId : "");
+        body.put("user", String.valueOf(userId));
+
+        Map<String, Object> inputs = new HashMap<>();
+        List<Map<String, Object>> fileList = new ArrayList<>();
+        if(difyFileIds != null && !difyFileIds.isEmpty()) {
+            for(String fileId : difyFileIds) {
+                // 过滤空的文件ID，避免无效参数
+                if (fileId == null || fileId.trim().isEmpty()) {
+                    continue;
+                }
+                Map<String, Object> file = new HashMap<>();
+                file.put("type", "document");
+                file.put("transfer_method", "local_file");
+                file.put("upload_file_id", fileId.trim());
+                fileList.add(file);
+            }
+        }
+        inputs.put("file", fileList);
+        body.put("inputs", inputs);
+        return body;
+    }
 
     /**
      * 解析文件ID列表
@@ -352,55 +340,7 @@ public class KnowledgeAIChatController {
         return userId;
     }
 
-    /**
-     * 构建 Dify 请求体（使用官方 conversation_id 管理）
-     * <p>
-     * 关键点：
-     * 1. 首次对话时 conversation_id 传空字符串 ""
-     * 2. 后续对话使用 Dify 返回的 conversation_id
-     * 3. Dify 会在流式响应中返回 conversation_id，前端需要保存
-     *
-     * @param query 查询内容
-     * @param difyConversationId Dify 的会话ID（空字符串表示新对话）
-     * @param userId 用户ID
-     * @param difyFileIds Dify文件ID列表
-     * @return 请求体
-     */
-    private Map<String, Object> buildDifyRequestBody(String query, String difyConversationId, Long userId, List<String> difyFileIds) {
-        Map<String, Object> body = new HashMap<>();
 
-        // 核心参数
-        body.put("query", query);
-        body.put("response_mode", "streaming");
-        body.put("user", String.valueOf(userId));
-
-        // Dify 官方 conversation_id 管理，空字符串表示新对话，Dify 会自动创建并在响应中返回 conversation_id
-        body.put("conversation_id", difyConversationId != null ? difyConversationId.trim() : "");
-
-        // 输入参数
-        Map<String, Object> inputs = new HashMap<>();
-
-        // 构建文件参数
-        if (difyFileIds != null && !difyFileIds.isEmpty()) {
-            List<Map<String, Object>> files = difyFileIds.stream()
-                    .filter(id -> id != null && !id.trim().isEmpty())
-                    .map(fileId -> {
-                        Map<String, Object> file = new HashMap<>();
-                        file.put("type", "document");
-                        file.put("transfer_method", "local_file");
-                        file.put("upload_file_id", fileId);
-                        return file;})
-                    .toList();
-            inputs.put("files", files);
-        } else {
-            // 根据 Dify 工作流要求,即使没有文件也传空数组
-            inputs.put("files", Collections.emptyList());
-        }
-
-        body.put("inputs", inputs);
-
-        return body;
-    }
 
     /**
      * 调用Dify流式服务并记录日志
