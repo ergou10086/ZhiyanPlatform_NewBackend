@@ -133,5 +133,13 @@ public class Project extends BaseAuditEntity {
             this.id = SnowflakeIdUtils.nextId();
         }
     }
-}
 
+    /**
+     * 提供字符串形式的项目ID，避免前端在处理长整型ID时出现精度丢失问题
+     * 该属性不参与持久化，仅用于序列化输出
+     */
+    @Transient
+    public String getIdStr() {
+        return this.id == null ? null : String.valueOf(this.id);
+    }
+}
