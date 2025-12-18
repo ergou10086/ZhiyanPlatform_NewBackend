@@ -40,8 +40,29 @@ public class DifyStreamService {
             String apiKey,
             Map<String, Object> requestBody
     ){
+        // 创建请求体的副本，避免修改原始对象
+        Map<String, Object> bodyCopy = new java.util.HashMap<>(requestBody);
+        callDifyStreamInternal(conversationId, apiUrl, apiKey, bodyCopy, false);
+    }
 
-        log.info("[Dify Stream] 开始流式调用: conversationId={}", conversationId);
+    /**
+     * 内部调用方法，支持自动重试
+     *
+     * @param conversationId 对话 ID
+     * @param apiUrl Dify API 地址
+     * @param apiKey API Key
+     * @param requestBody 请求体（会被修改）
+     * @param isRetry 是否为重试调用
+     */
+    private void callDifyStreamInternal(
+            String conversationId,
+            String apiUrl,
+            String apiKey,
+            Map<String, Object> requestBody,
+            boolean isRetry
+    ){
+
+        log.info("[Dify Stream] 开始流式调用: conversationId={}, isRetry={}", conversationId, isRetry);
 
         WebClient webClient = webClientBuilder
                 .baseUrl(apiUrl)
@@ -67,6 +88,23 @@ public class DifyStreamService {
                     if (error instanceof WebClientResponseException) {
                         WebClientResponseException ex = (WebClientResponseException) error;
                         String responseBody = ex.getResponseBodyAsString();
+                        
+                        // 检测 "Conversation Not Exists" 错误，自动重试作为新会话
+                        if (ex.getStatusCode().value() == 404 && 
+                            responseBody != null && 
+                            responseBody.contains("Conversation Not Exists") &&
+                            !isRetry && 
+                            requestBody.get("conversation_id") != null &&
+                            !requestBody.get("conversation_id").toString().isEmpty()) {
+                            
+                            log.warn("[Dify Stream] 会话不存在，自动重试作为新会话: conversationId={}", conversationId);
+                            // 将 conversation_id 设置为空字符串，作为新会话重试
+                            requestBody.put("conversation_id", "");
+                            // 重新调用（只重试一次）
+                            callDifyStreamInternal(conversationId, apiUrl, apiKey, requestBody, true);
+                            return;
+                        }
+                        
                         log.error("[Dify Stream] 调用错误: conversationId={}, status={}, body={}",
                                 conversationId,
                                 ex.getStatusCode(),

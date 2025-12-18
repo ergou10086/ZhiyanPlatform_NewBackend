@@ -288,7 +288,10 @@ public class KnowledgeAIChatController {
                 fileList.add(file);
             }
         }
-        inputs.put("file", fileList);
+        // Dify API 要求使用 doc_files 字段，而不是 file
+        if (!fileList.isEmpty()) {
+            inputs.put("doc_files", fileList);
+        }
         body.put("inputs", inputs);
         return body;
     }

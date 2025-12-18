@@ -1,5 +1,7 @@
 package hbnu.project.zhiyanbackend.knowledge.model.dto;
 
+import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,16 +19,21 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "成果文件信息")
 public class AchievementFileDTO {
 
     /**
      * 文件ID
      */
+    @LongToString
+    @Schema(description = "文件ID")
     private Long id;
 
     /**
      * 所属成果ID
      */
+    @LongToString
+    @Schema(description = "所属成果ID")
     private Long achievementId;
 
     /**
@@ -52,6 +59,8 @@ public class AchievementFileDTO {
     /**
      * 上传者ID
      */
+    @LongToString
+    @Schema(description = "上传者ID")
     private Long uploadBy;
 
     /**
