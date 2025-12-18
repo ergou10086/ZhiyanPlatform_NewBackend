@@ -125,6 +125,12 @@ public class Project extends BaseAuditEntity {
     private Boolean isDraft = false;
 
     /**
+     * 创建者名称（仅用于前端展示，不参与持久化）
+     */
+    @Transient
+    private String creatorName;
+
+    /**
      * 持久化前自动生成雪花ID
      */
     @PrePersist
