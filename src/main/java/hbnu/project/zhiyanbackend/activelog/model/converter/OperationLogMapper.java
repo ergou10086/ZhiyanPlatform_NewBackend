@@ -25,6 +25,7 @@ public interface OperationLogMapper {
     @Mapping(target = "relatedId", expression = "java(null)")
     @Mapping(target = "time", source = "operationTime")
     @Mapping(target = "title", source = "projectName")
+    @Mapping(target = "projectName", source = "projectName")
     UnifiedOperationLogVO mapProject(ProjectOperationLog e);
 
     @Mapping(target = "operationType", source = "operationType", qualifiedByName = "enumName")

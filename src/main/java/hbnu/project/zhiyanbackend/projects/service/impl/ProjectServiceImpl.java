@@ -372,6 +372,19 @@ public class ProjectServiceImpl implements ProjectService {
             if (project == null) {
                 return R.fail("项目不存在");
             }
+            // 填充创建者名称，便于前端展示项目负责人，与 DTO 逻辑保持一致
+            String creatorName = "未知用户";
+            if (project.getCreatorId() != null) {
+                try {
+                    R<UserDTO> userResult = userService.getCurrentUser(project.getCreatorId());
+                    if (R.isSuccess(userResult) && userResult.getData() != null) {
+                        creatorName = userResult.getData().getName();
+                    }
+                } catch (Exception e) {
+                    log.warn("查询创建者名称失败: creatorId={}", project.getCreatorId(), e);
+                }
+            }
+            project.setCreatorName(creatorName);
             return R.ok(project);
         } catch (Exception e) {
             log.error("获取项目失败: projectId={}", projectId, e);
