@@ -7,6 +7,7 @@ import hbnu.project.zhiyanbackend.activelog.repository.*;
 import hbnu.project.zhiyanbackend.activelog.service.OperationLogMyselfActionService;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
     private final WikiOperationLogRepository wikiLogRepository;
     private final AchievementOperationLogRepository achievementLogRepository;
     private final OperationLogConverter operationLogConverter;
+    private final ProjectRepository projectRepository;
 
     // ========== 内部记录类 ==========
     /**
@@ -138,6 +140,9 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
 
             // 第七步：按时间倒序排序
             result.sort(Comparator.comparing(UnifiedOperationLogVO::getTime).reversed());
+
+            // 第八步：批量填充项目名称
+            fillProjectNames(result);
 
             return new PageImpl<>(result, pageable, total);
         } catch (Exception e) {
@@ -409,5 +414,45 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
             return "ACHIEVEMENT";
         }
         throw new ServiceException("未知的实体类型: " + task.entityClass().getName());
+    }
+
+    /**
+     * 批量填充项目名称
+     * 对于没有项目名称的日志（Task、Wiki、Achievement），通过 projectId 批量查询并填充
+     */
+    private void fillProjectNames(List<UnifiedOperationLogVO> logs) {
+        if (logs == null || logs.isEmpty()) {
+            return;
+        }
+
+        // 收集所有需要查询项目名称的 projectId（排除已有项目名称的日志）
+        Set<Long> projectIds = logs.stream()
+                .filter(log -> log.getProjectId() != null && log.getProjectName() == null)
+                .map(UnifiedOperationLogVO::getProjectId)
+                .collect(Collectors.toSet());
+
+        if (projectIds.isEmpty()) {
+            return;
+        }
+
+        // 批量查询项目名称
+        Map<Long, String> projectNameMap = new HashMap<>();
+        for (Long projectId : projectIds) {
+            try {
+                String projectName = projectRepository.findProjectNameById(projectId)
+                        .orElse("未知项目");
+                projectNameMap.put(projectId, projectName);
+            } catch (Exception e) {
+                log.warn("查询项目名称失败: projectId={}, error={}", projectId, e.getMessage());
+                projectNameMap.put(projectId, "未知项目");
+            }
+        }
+
+        // 填充项目名称
+        logs.forEach(log -> {
+            if (log.getProjectName() == null && log.getProjectId() != null) {
+                log.setProjectName(projectNameMap.getOrDefault(log.getProjectId(), "未知项目"));
+            }
+        });
     }
 }

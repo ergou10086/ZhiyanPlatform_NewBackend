@@ -28,6 +28,11 @@ public class UnifiedOperationLogVO {
     private Long projectId;
 
     /**
+     * 项目名称
+     */
+    private String projectName;
+
+    /**
      * 用户id
      */
     private Long userId;
