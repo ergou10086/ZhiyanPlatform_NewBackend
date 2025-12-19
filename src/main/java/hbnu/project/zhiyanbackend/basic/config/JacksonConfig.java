@@ -33,7 +33,7 @@ import java.time.format.DateTimeFormatter;
  * <p>
  * 可通过配置项 zhiyan.jackson.long-to-string-global=false 来禁用全局配置
  *
- * @author ErgouTree
+ * @author ErgouTree,asddjv
  */
 @Configuration
 public class JacksonConfig {
@@ -57,7 +57,7 @@ public class JacksonConfig {
     @Bean("globalLongToStringObjectMapper")
     @Primary
     @ConditionalOnMissingBean(ObjectMapper.class)
-    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
+    //@ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
     public ObjectMapper globalLongToStringObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
 

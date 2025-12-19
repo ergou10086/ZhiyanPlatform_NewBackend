@@ -1,8 +1,15 @@
 # 云服务器环境（服务器环境）
+# 生产级环境
 # 新架构：使用PostgreSQL + Schema隔离
 
 server:
   port: 9006
+
+  # 响应压缩
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,application/json,application/xml,application/javascript,image/svg+xml
+    min-response-size: 1024 # 超过1KB才压缩
 
 spring:
   application:
@@ -11,21 +18,21 @@ spring:
   # PostgreSQL数据库配置（使用Schema进行逻辑隔离）
   datasource:
     # 在searchPath中包含所有schema，按优先级排序
-    url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
+    url: jdbc:postgresql://152.136.245.180:5432/zyplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage,zhiyanactivelog,zhiyanknowledge,zhiyanwiki
     username: postgres
-    password: zjm10086
+    password: ${DB_PASSWORD:zjm10086}
     driver-class-name: org.postgresql.Driver
     # HikariCP连接池配置
     hikari:
       pool-name: ZhiyanBackendHikariPool
-      minimum-idle: 5
-      maximum-pool-size: 20
-      idle-timeout: 300000
+      minimum-idle: 10
+      maximum-pool-size: 50
+      idle-timeout: 600000
       max-lifetime: 1200000
-      connection-timeout: 20000
-
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
       # PostgreSQL Schema配置，包含所有业务schema
-      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage, zhiyanwiki
+      connection-init-sql: SET search_path TO zhiyanauth, zhiyanproject, zhiyantasks, zhiyanmessage, zhiyanwiki, zhiyanactivelog, zhiyanknowledge, zhiyanwiki
 
   # JPA配置
   jpa:
@@ -36,27 +43,27 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         # 格式化SQL
-        format_sql: true
+        format_sql: false
         # 显示SQL
         show_sql: false
-        use_sql_comments: true
+        use_sql_comments: false
         # 命名策略
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         # JDBC批处理
         jdbc:
-          batch_size: 50
-          fetch_size: 50
+          batch_size: 100
+          fetch_size: 100
         order_inserts: true
         order_updates: true
-    show-sql: true
-    open-in-view: true
+    show-sql: false
+    open-in-view: false
 
   # 邮件配置 - 网易163邮箱
   mail:
     host: smtp.163.com
     port: 465
-    username: zhiyan163verif@163.com
-    password: UJrssfvfNrMJKvD4
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -74,6 +81,7 @@ spring:
     multipart:
       max-file-size: 512MB
       max-request-size: 512MB
+      file-size-threshold: 10MB
 
   # Jackson配置
   jackson:
@@ -91,13 +99,13 @@ spring:
       port: 6379
       # Redis 服务器连账密
       username: default
-      password: zjm10086
+      password: ${REDIS_PASSWORD:zjm10086}
       # 连接超时时间（毫秒）
       timeout: 30000
       # 命令超时时间
       connect-timeout: 10000
       # 数据库索引（0-15）
-      database: 0
+      database: 2
       lettuce:
         pool:
           # 连接池最大连接数
@@ -110,6 +118,42 @@ spring:
           min-idle: 2
         # 关闭超时时间
         shutdown-timeout: 100ms
+
+    # 生产环境开启Actuator监控（核心）
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,hikari,persistence # 暴露核心监控端点
+          base-path: /actuator # 统一监控路径
+        enabled-by-default: false # 禁用默认端点，只暴露需要的
+      endpoint:
+        health:
+          enabled: true
+          show-details: when_authorized # 仅授权用户查看健康详情
+          probes:
+            enabled: true
+        info:
+          enabled: true
+        metrics:
+          enabled: true
+        prometheus:
+          enabled: true
+        hikari:
+          enabled: true
+        persistence:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true # 支持Prometheus采集指标
+        tags:
+          application: ${spring.application.name} # 为指标添加应用标签
+      health:
+        livenessstate:
+          enabled: true
+        readinessstate:
+          enabled: true
 
 # 验证码配置
 app:
@@ -125,7 +169,7 @@ app:
 
 # JWT配置
 jwt:
-  secret: "zhiyan-platform-2025-this-is-a-very-long-secret-key-for-jwt-tokens-256-bits"
+  secret: ${JWT_SECRET}
   issuer: "zhiyan-platform"
   access-token-expire-minutes: 1440  # 1天 = 24小时 = 1440分钟
   refresh-token-expire-minutes: 10080  # 7天
@@ -150,15 +194,17 @@ logging:
   config: ""  # 覆盖Nacos中可能存在的log4j2配置
   level:
     root: INFO
-    hbnu.project.zhiyanbackend: DEBUG
-    org.springframework.security: DEBUG
+    hbnu.project.zhiyanbackend: INFO
+    org.springframework.security: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: INFO
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
     com.zaxxer.hikari: INFO
     # 关闭特定框架的冗余日志
     org.springframework.data.redis.repository: WARN
     org.springframework.data.redis: INFO
+    # 生产环境开启慢SQL日志（Hibernate）
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -168,6 +214,11 @@ logging:
     rollingpolicy:
       max-file-size: 50MB
       max-history: 30
+      total-size-cap: 1GB
+    async:
+      enabled: true
+      queue-size: 10240
+      discarding-threshold: 0
 
 # Swagger配置
 swagger:
@@ -184,12 +235,12 @@ dify:
   # Dify API 基础地址（注意：必须带协议 https://，并且以 /v1 结尾）
   api-url: "https://dify.aipfuture.com/v1"
   # Dify 应用的 API Key（你给的 app- 开头那串）
-  api-key: "app-Z0Uo6XAytf94sGkSO7oYMQV5"
+  api-key: ${DIFY_API_KEY}
   # 其它参数按需保留
   stream-enabled: true
   knowledge:
     api-url: "https://dify.aipfuture.com/v1"
-    api-key: "app-iuvOL1bW8iaKM17iOMaZgRdl"
+    api-key: ${DIFY_KNOWLEDGE_API_KEY}
     stream-enabled: true
 
 # 腾讯云 COS 配置（使用环境变量注入）
@@ -235,3 +286,20 @@ zhiyan:
       token-uri: https://github.com/login/oauth/access_token
       user-info-uri: https://api.github.com/user
       user-email-uri: https://api.github.com/user/emails
+
+    orcid:
+      # 是否启用ORCID登录
+      enabled: true
+      # ORCID应用的Client ID
+      client-id: APP-GRP904LYKJZPI54F
+      # ORCID应用的Client Secret
+      # 注意：生产环境建议使用环境变量 ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
+      client-secret: ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
+      # 授权范围
+      # TODO：经过本人探索，ORCID的授权范围不能多写，只能写一个，/authenticate openid就负责登录，/read-limited就是读取个人信息，这两者单独拿出来都能正常工作，现在就是考虑如何分开分别生效
+      scope: "/authenticate openid"
+      # ORCID API端点（生产环境）
+      authorization-uri: https://orcid.org/oauth/authorize
+      token-uri: https://orcid.org/oauth/token
+      user-info-uri: https://pub.orcid.org/v3.0
+      api-version: v3.0

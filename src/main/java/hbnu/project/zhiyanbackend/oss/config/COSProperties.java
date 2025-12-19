@@ -42,7 +42,6 @@ public class COSProperties {
 
     /**
      * COS公网访问域名
-     * TODO:先用创建桶给的默认的，之后备案过了换成自己的
      */
     @NotBlank(message = "COS 公网访问域名不能为空")
     private String publicDomain;

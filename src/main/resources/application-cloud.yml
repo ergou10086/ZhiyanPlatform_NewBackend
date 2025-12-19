@@ -79,8 +79,6 @@ spring:
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
-    deserialization:
-      fail-on-unknown-properties: false
 
   # Redis配置（生产环境）
   data:
@@ -199,7 +197,8 @@ tencent:
     secret-key: ${TENCENT_COS_SECRET_KEY}
     region: ${TENCENT_COS_REGION}
     bucket-name: ${TENCENT_COS_BUCKET}
-    public-domain: ${TENCENT_COS_PUBLIC_DOMAIN}
+    # public-domain: ${TENCENT_COS_PUBLIC_DOMAIN}
+    public-domain: https://bucket.zyplatform.xyz
     default-directory: uploads
 
 # OAuth2第三方登录配置
