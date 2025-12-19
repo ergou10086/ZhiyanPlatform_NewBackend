@@ -79,7 +79,7 @@ spring:
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
-    long-to-string-global: true
+    #long-to-string-global: true
 
   # Redis配置（生产环境）
   data:
