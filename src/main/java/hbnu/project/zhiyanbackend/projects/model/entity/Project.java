@@ -36,22 +36,21 @@ public class Project extends BaseAuditEntity {
      * 项目ID（雪花ID）
      */
     @Id
-    @LongToString
+    @JsonSerialize(using = ToStringSerializer.class)
+    //@LongToString
     @Column(name = "id", nullable = false)
     private Long id;
 
     /**
      * 项目名称
      */
-    @Column(name = "name", nullable = false, length = 200,
-            columnDefinition = "VARCHAR(200)")
+    @Column(name = "name", nullable = false, length = 200, columnDefinition = "VARCHAR(200)")
     private String name;
 
     /**
      * 项目描述
      */
-    @Column(name = "description",
-            columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     /**
@@ -73,15 +72,13 @@ public class Project extends BaseAuditEntity {
     /**
      * 开始日期
      */
-    @Column(name = "start_date",
-            columnDefinition = "DATE")
+    @Column(name = "start_date", columnDefinition = "DATE")
     private LocalDate startDate;
 
     /**
      * 结束日期
      */
-    @Column(name = "end_date",
-            columnDefinition = "DATE")
+    @Column(name = "end_date", columnDefinition = "DATE")
     private LocalDate endDate;
 
     /**
@@ -114,8 +111,7 @@ public class Project extends BaseAuditEntity {
      * 软删除标记
      */
     @Builder.Default
-    @Column(name = "is_deleted", nullable = false,
-            columnDefinition = "BOOLEAN DEFAULT FALSE")
+    @Column(name = "is_deleted", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean isDeleted = false;
 
     /**

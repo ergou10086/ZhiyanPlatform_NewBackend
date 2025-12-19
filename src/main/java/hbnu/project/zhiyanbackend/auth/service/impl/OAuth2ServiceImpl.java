@@ -57,21 +57,28 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             validateOAuth2UserInfo(oauth2UserInfo);
 
             // 2. 检查邮箱是否匹配到已有账号
-            Optional<User> userOpt = userRepository.findByEmailAndIsDeletedFalse(oauth2UserInfo.getEmail());
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            if (StringUtils.isNotBlank(oauth2UserInfo.getEmail())) {
+                Optional<User> userOpt = userRepository.findByEmailAndIsDeletedFalse(oauth2UserInfo.getEmail());
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
 
-                // 检查用户状态
-                if (Boolean.TRUE.equals(user.getIsLocked())) {
-                    return R.fail("账户已被锁定，请联系管理员");
+                    // 检查用户状态
+                    if (Boolean.TRUE.equals(user.getIsLocked())) {
+                        return R.fail("账户已被锁定，请联系管理员");
+                    }
+
+                    // 邮箱匹配到账号，直接登录
+                    log.info("邮箱匹配到已有账号，直接登录 - 用户ID: {}, 邮箱: {}", user.getId(), user.getEmail());
+                    return doLogin(user, oauth2UserInfo);
+                } else {
+                    // 邮箱未匹配到账号，引导用户绑定已有账号或创建新账号
+                    log.info("邮箱未匹配到账号，需要绑定或创建 - 邮箱: {}", oauth2UserInfo.getEmail());
+                    return R.ok(OAuth2LoginResponseDTO.needBind(oauth2UserInfo, oauth2UserInfo.getEmail()));
                 }
-
-                // 邮箱匹配到账号，直接登录
-                log.info("邮箱匹配到已有账号，直接登录 - 用户ID: {}, 邮箱: {}", user.getId(), user.getEmail());
-                return doLogin(user, oauth2UserInfo);
             } else {
-                // 邮箱未匹配到账号，引导用户设置密码后创建账号
-                log.info("邮箱未匹配到账号，需要设置密码创建新账号 - 邮箱: {}", oauth2UserInfo.getEmail());
+                // OAuth2未提供邮箱，必须补充信息
+                log.info("OAuth2未提供邮箱，需要补充信息 - 提供商: {}, 用户ID: {}",
+                        oauth2UserInfo.getProvider(), oauth2UserInfo.getProviderUserId());
                 return R.ok(OAuth2LoginResponseDTO.needSupplement(oauth2UserInfo));
             }
 
@@ -139,9 +146,10 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             throw new OAuth2Exception("OAuth2用户ID不能为空");
         }
 
-        // 当前使用的OAuth2提供商都会返回邮箱，视为必填
-        if (StringUtils.isBlank(oauth2UserInfo.getEmail())) {
-            throw new OAuth2Exception("OAuth2用户信息不完整：缺少邮箱");
+        // 邮箱可以为空（某些OAuth2提供商可能不提供邮箱）
+        // 但如果邮箱为空，我们需要使用其他方式标识用户
+        if (StringUtils.isBlank(oauth2UserInfo.getEmail()) && StringUtils.isBlank(oauth2UserInfo.getUsername())) {
+            throw new OAuth2Exception("OAuth2用户信息不完整：缺少邮箱或用户名");
         }
     }
 
@@ -237,11 +245,6 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             OAuth2UserInfoDTO oauth2UserInfo = supplementBody.getOauth2UserInfo();
             if (oauth2UserInfo == null) {
                 return R.fail("OAuth2用户信息不能为空");
-            }
-
-            // 邮箱以OAuth2返回为准，防止篡改
-            if (StringUtils.isNotBlank(oauth2UserInfo.getEmail())) {
-                supplementBody.setEmail(oauth2UserInfo.getEmail());
             }
 
             // 4. 验证OAuth2用户ID是否匹配

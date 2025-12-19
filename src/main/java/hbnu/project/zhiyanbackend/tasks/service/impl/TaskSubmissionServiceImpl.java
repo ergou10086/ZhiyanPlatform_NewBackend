@@ -22,6 +22,7 @@ import hbnu.project.zhiyanbackend.tasks.repository.TaskRepository;
 import hbnu.project.zhiyanbackend.tasks.repository.TaskSubmissionRepository;
 import hbnu.project.zhiyanbackend.tasks.repository.TaskUserRepository;
 import hbnu.project.zhiyanbackend.tasks.service.TaskSubmissionService;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

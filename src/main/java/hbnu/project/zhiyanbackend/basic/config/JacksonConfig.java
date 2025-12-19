@@ -11,7 +11,6 @@ import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,8 +55,8 @@ public class JacksonConfig {
      */
     @Bean("globalLongToStringObjectMapper")
     @Primary
-    @ConditionalOnMissingBean(ObjectMapper.class)
-    //@ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
+    //@ConditionalOnMissingBean(ObjectMapper.class)
+    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
     public ObjectMapper globalLongToStringObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -97,45 +96,45 @@ public class JacksonConfig {
     }
 
 
-    /**
-     * 默认ObjectMapper配置
-     * 当禁用全局Long转String时使用，只有标注@LongToString注解的字段才会转换
-     * 仍然支持Java 8日期时间类型
-     *
-     * @return 默认的ObjectMapper
-     */
-    @Bean("defaultObjectMapper")
-    @ConditionalOnMissingBean(ObjectMapper.class)
-    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "false")
-    public ObjectMapper defaultObjectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        // Java 8日期时间模块
-        JavaTimeModule javaTimeModule = new JavaTimeModule();
-
-        // LocalDateTime
-        javaTimeModule.addSerializer(LocalDateTime.class,
-                new LocalDateTimeSerializer(DateTimeFormatter.ofPattern(DATE_TIME_PATTERN)));
-        javaTimeModule.addDeserializer(LocalDateTime.class,
-                new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DATE_TIME_PATTERN)));
-
-        // LocalDate
-        javaTimeModule.addSerializer(LocalDate.class,
-                new LocalDateSerializer(DateTimeFormatter.ofPattern(DATE_PATTERN)));
-        javaTimeModule.addDeserializer(LocalDate.class,
-                new LocalDateDeserializer(DateTimeFormatter.ofPattern(DATE_PATTERN)));
-
-        // LocalTime
-        javaTimeModule.addSerializer(LocalTime.class,
-                new LocalTimeSerializer(DateTimeFormatter.ofPattern(TIME_PATTERN)));
-        javaTimeModule.addDeserializer(LocalTime.class,
-                new LocalTimeDeserializer(DateTimeFormatter.ofPattern(TIME_PATTERN)));
-
-        objectMapper.registerModule(javaTimeModule);
-
-        // 禁用将日期序列化为时间戳
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        return objectMapper;
-    }
+//    /**
+//     * 默认ObjectMapper配置
+//     * 当禁用全局Long转String时使用，只有标注@LongToString注解的字段才会转换
+//     * 仍然支持Java 8日期时间类型
+//     *
+//     * @return 默认的ObjectMapper
+//     */
+//    @Bean("defaultObjectMapper")
+//    //@ConditionalOnMissingBean(ObjectMapper.class)
+//    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "false")
+//    public ObjectMapper defaultObjectMapper() {
+//        ObjectMapper objectMapper = new ObjectMapper();
+//
+//        // Java 8日期时间模块
+//        JavaTimeModule javaTimeModule = new JavaTimeModule();
+//
+//        // LocalDateTime
+//        javaTimeModule.addSerializer(LocalDateTime.class,
+//                new LocalDateTimeSerializer(DateTimeFormatter.ofPattern(DATE_TIME_PATTERN)));
+//        javaTimeModule.addDeserializer(LocalDateTime.class,
+//                new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DATE_TIME_PATTERN)));
+//
+//        // LocalDate
+//        javaTimeModule.addSerializer(LocalDate.class,
+//                new LocalDateSerializer(DateTimeFormatter.ofPattern(DATE_PATTERN)));
+//        javaTimeModule.addDeserializer(LocalDate.class,
+//                new LocalDateDeserializer(DateTimeFormatter.ofPattern(DATE_PATTERN)));
+//
+//        // LocalTime
+//        javaTimeModule.addSerializer(LocalTime.class,
+//                new LocalTimeSerializer(DateTimeFormatter.ofPattern(TIME_PATTERN)));
+//        javaTimeModule.addDeserializer(LocalTime.class,
+//                new LocalTimeDeserializer(DateTimeFormatter.ofPattern(TIME_PATTERN)));
+//
+//        objectMapper.registerModule(javaTimeModule);
+//
+//        // 禁用将日期序列化为时间戳
+//        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+//
+//        return objectMapper;
+//    }
 }
