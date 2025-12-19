@@ -36,6 +36,12 @@
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- Explicit autoconfigure so Jackson2ObjectMapperBuilderCustomizer is available -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
         <!--Spring Security-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -90,19 +96,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
-            <version>4.0.0</version>
         </dependency>
 
         <!--jackson-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.20.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.20.0</version>
         </dependency>
 
         <!-- Markdown 解析/文本提取-->

@@ -4,12 +4,14 @@ package hbnu.project.zhiyanbackend.basic.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import hbnu.project.zhiyanbackend.basic.constants.GeneralConstants;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
@@ -37,8 +39,8 @@ import java.util.Map;
  * @author yui
  */
 public class ServletUtils {
-    // Jackson 实例：静态常量全局复用，避免重复创建
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    // Jackson 实例：从 Spring 容器获取，确保复用全局配置（含 Long->String、JavaTime 等）
+    private static final ObjectMapper OBJECT_MAPPER = SpringUtils.getBean(ObjectMapper.class);
 
     /**
      * 获取String参数
@@ -134,7 +136,7 @@ public class ServletUtils {
     /**
      * 获取当前请求的 HttpSession
      */
-    public static HttpSession getSession() {
+    public static jakarta.servlet.http.HttpSession getSession() {
         HttpServletRequest request = getRequest();
         return request != null ? request.getSession() : null; // 避免NPE
     }

@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.wiki.model.dto;
 
+import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

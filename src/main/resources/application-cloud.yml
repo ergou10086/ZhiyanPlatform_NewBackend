@@ -79,6 +79,7 @@ spring:
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
+    long-to-string-global: true
     deserialization:
       fail-on-unknown-properties: false
 
