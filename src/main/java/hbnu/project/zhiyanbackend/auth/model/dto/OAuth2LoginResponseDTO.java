@@ -96,10 +96,7 @@ public class OAuth2LoginResponseDTO {
      * 创建需要补充信息的响应
      */
     public static OAuth2LoginResponseDTO needSupplement(OAuth2UserInfoDTO oauth2UserInfo) {
-        String message = "请补充必要信息创建账号";
-        if (oauth2UserInfo.getEmail() == null || oauth2UserInfo.getEmail().isEmpty()) {
-            message = "请补充邮箱和密码创建账号";
-        }
+        String message = "请设置登录密码以完成注册";
         return OAuth2LoginResponseDTO.builder()
                 .status(OAuth2LoginStatus.NEED_SUPPLEMENT)
                 .oauth2UserInfo(oauth2UserInfo)
