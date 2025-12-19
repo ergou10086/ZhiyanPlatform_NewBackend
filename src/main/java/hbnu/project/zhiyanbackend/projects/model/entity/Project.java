@@ -1,5 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.model.entity;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.basic.domain.BaseAuditEntity;
 import hbnu.project.zhiyanbackend.basic.utils.SnowflakeIdUtils;
@@ -35,8 +37,7 @@ public class Project extends BaseAuditEntity {
      */
     @Id
     @LongToString
-    @Column(name = "id", nullable = false,
-            columnDefinition = "BIGINT")
+    @Column(name = "id", nullable = false)
     private Long id;
 
     /**
@@ -144,8 +145,8 @@ public class Project extends BaseAuditEntity {
      * 提供字符串形式的项目ID，避免前端在处理长整型ID时出现精度丢失问题
      * 该属性不参与持久化，仅用于序列化输出
      */
-    @Transient
-    public String getIdStr() {
-        return this.id == null ? null : String.valueOf(this.id);
-    }
+//    @Transient
+//    public String getIdStr() {
+//        return this.id == null ? null : String.valueOf(this.id);
+//    }
 }

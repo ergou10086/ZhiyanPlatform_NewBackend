@@ -94,7 +94,9 @@ public class AchievementFileController {
      */
     @PostMapping("/upload/batch")
     @Operation(summary = "批量上传成果文件", description = "为指定成果批量上传多个文件，使用COS批量上传功能")
-    @BizOperationLog(module = BizOperationModule.ACHIEVEMENT, type = "FILE_UPLOAD", description = "批量上传文件")
+    // 说明：这里已在方法内部通过 OperationLogHelper 手动记录批量上传日志。
+    // 若继续使用 @BizOperationLog，AOP 会尝试插入缺少 projectId 的通用日志，导致 achievement_operation_log 的非空约束报错。
+    // 因此移除该注解，避免重复且字段不完整的日志写入。
     public R<List<AchievementFileDTO>> uploadFilesBatch(
             @Parameter(description = "文件列表") @RequestParam("files") MultipartFile[] files,
             @Parameter(description = "成果ID") @RequestParam("achievementId") Long achievementId){

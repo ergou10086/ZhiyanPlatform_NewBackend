@@ -194,7 +194,7 @@ public class ProjectController {
     @GetMapping("/public/active")
     @Operation(summary = "获取公开且活跃的项目")
     public R<Page<ProjectDTO>> getPublicActiveProjects(@RequestParam(defaultValue = "0") int page,
-                                                    @RequestParam(defaultValue = "10") int size) {
+                                                       @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
         // 使用ProjectServiceImpl的getPublicActiveProjectsDTO方法，返回包含创建者名称的DTO
         return ((ProjectServiceImpl) projectService).getPublicActiveProjectsDTO(pageable);
