@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.model.dto;
 
+import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
 import io.swagger.v3.oas.annotations.media.Schema;

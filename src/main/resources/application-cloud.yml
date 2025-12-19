@@ -79,7 +79,7 @@ spring:
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
-    long-to-string-global: true
+    #long-to-string-global: true
 
   # Redis配置（生产环境）
   data:
@@ -214,7 +214,7 @@ zhiyan:
     # 前端页面URL配置（根据登录状态跳转到不同页面）
     frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
     frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL
-    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL
+#    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL
     frontend-error-url: https://zyplatform.xyz/oauth2/error  # 错误页面URL
 
     github:

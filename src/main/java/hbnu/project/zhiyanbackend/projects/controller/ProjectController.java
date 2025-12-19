@@ -1,7 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.controller;
 
 import hbnu.project.zhiyanbackend.activelog.annotation.BizOperationLog;
-import hbnu.project.zhiyanbackend.activelog.core.OperationLogContext;
 import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
 import hbnu.project.zhiyanbackend.activelog.model.enums.BizOperationModule;
 import hbnu.project.zhiyanbackend.basic.domain.R;
@@ -181,6 +180,38 @@ public class ProjectController {
         Pageable pageable = PageRequest.of(page, size);
         return projectService.getUserProjects(userId, pageable);
     }
+
+//    @GetMapping("/my-projects")
+//    @Operation(summary = "分页获取当前用户参与的项目")
+//    public R<Page<ProjectDTO>> getMyProjects(
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size) {
+//        Long userId = SecurityUtils.getUserId();
+//        if (userId == null) {
+//            return R.fail("未登录或Token无效,无法获取我的项目");
+//        }
+//
+//        Pageable pageable = PageRequest.of(page, size);
+//        Page<Project> projectPage = projectService.getUserProjects(userId, pageable).getData();
+//
+//        // 转换为DTO
+//        Page<ProjectDTO> dtoPage = projectPage.map(project -> ProjectDTO.builder()
+//                .id(String.valueOf(project.getId())) // 手动转为String
+//                .name(project.getName())
+//                .description(project.getDescription())
+//                .status(project.getStatus())
+//                .visibility(project.getVisibility())
+//                .startDate(project.getStartDate())
+//                .endDate(project.getEndDate())
+//                .imageUrl(project.getImageUrl())
+//                .creatorId(String.valueOf(project.getCreatorId()))
+//                .creatorName(project.getCreatorName())
+//                .createdAt(project.getCreatedAt())
+//                .updatedAt(project.getUpdatedAt())
+//                .build());
+//
+//        return R.ok(dtoPage);
+//    }
 
     @GetMapping("/search")
     @Operation(summary = "搜索项目")

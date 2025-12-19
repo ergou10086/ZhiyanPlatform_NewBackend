@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 /**
  * Long转String注解
  * 用于标记需要将Long类型序列化为String的字段（主要用于ID字段）
- * 
+ *
  * 使用示例：
  * @LongToString
  * private Long id;

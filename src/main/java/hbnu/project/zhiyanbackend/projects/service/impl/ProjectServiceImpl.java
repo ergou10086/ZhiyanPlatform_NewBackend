@@ -432,7 +432,7 @@ public class ProjectServiceImpl implements ProjectService {
             return R.ok(projects);
         } catch (Exception e) {
             log.error("获取用户参与的项目列表失败: userId={}", userId, e);
-            return R.fail("获取项目列表失败: " + e.getMessage());
+            return R.fail("用户参与的项目列表失败: " + e.getMessage());
         }
     }
 
@@ -784,12 +784,8 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             Optional<Project> draft = projectRepository.findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(userId);
-            
-            if (draft.isPresent()) {
-                return R.ok(draft.get(), "获取草稿成功");
-            } else {
-                return R.ok(null, "暂无草稿");
-            }
+
+            return draft.map(project -> R.ok(project, "获取草稿成功")).orElseGet(() -> R.ok(null, "暂无草稿"));
         } catch (Exception e) {
             log.error("获取项目草稿失败: userId={}", userId, e);
             return R.fail("获取草稿失败: " + e.getMessage());
