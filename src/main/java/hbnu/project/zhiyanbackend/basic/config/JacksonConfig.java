@@ -106,7 +106,7 @@ public class JacksonConfig {
      */
     @Bean("defaultObjectMapper")
     @ConditionalOnMissingBean(ObjectMapper.class)
-    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "false")
+    @ConditionalOnProperty(name = "spring.jackson.long-to-string-global", havingValue = "false")
     public ObjectMapper defaultObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
 
