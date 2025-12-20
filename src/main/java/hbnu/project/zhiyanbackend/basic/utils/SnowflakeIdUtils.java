@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 完全脱离了Hutool的雪花id算法，完全重写
  *
  * @author ErgouTree
- * @date 2025-09-23
+ * @date 2025-12-20
  */
 public class SnowflakeIdUtils {
 
@@ -86,32 +86,60 @@ public class SnowflakeIdUtils {
     private static final long DEFAULT_WORKER_ID = getWorkerId();
 
     /**
-     * 单例的雪花ID生成器实例
+     * 全局雪花ID生成器实例
      */
-    private static volatile SnowflakeIdGenerator defaultGenerator;
+    private static volatile SnowflakeIdGenerator globalGenerator;
 
-    // 静态初始化默认生成器
-    static {
-        defaultGenerator = new SnowflakeIdGenerator(DEFAULT_DATACENTER_ID, DEFAULT_WORKER_ID);
-    }
+//    // 静态初始化默认生成器
+//    static {
+//        defaultGenerator = new SnowflakeIdGenerator(DEFAULT_DATACENTER_ID, DEFAULT_WORKER_ID);
+//    }
 
     // ====================== 对外API（保持和原代码一致，平滑过渡）======================
+//    /**
+//     * 获取默认的雪花ID (Long类型)
+//     *
+//     * @return 缩短后的雪花ID
+//     */
+//    public static long nextId() {
+//        return defaultGenerator.nextId();
+//    }
+
+//    /**
+//     * 获取默认的雪花ID (String类型)
+//     *
+//     * @return 雪花ID字符串
+//     */
+//    public static String nextIdStr() {
+//        return String.valueOf(defaultGenerator.nextId());
+//    }
+
     /**
-     * 获取默认的雪花ID (Long类型)
+     * 获取下一个雪花ID (Long类型)，使用全局生成器（基于默认数据中心ID和自动工作机器ID）
+     * 支持直接调用：SnowflakeIdUtils.nextId()
      *
      * @return 缩短后的雪花ID
      */
     public static long nextId() {
-        return defaultGenerator.nextId();
+        // 懒加载初始化全局生成器，双重校验锁保证线程安全
+        if (globalGenerator == null) {
+            synchronized (SnowflakeIdUtils.class) {
+                if (globalGenerator == null) {
+                    globalGenerator = new SnowflakeIdGenerator(DEFAULT_DATACENTER_ID, DEFAULT_WORKER_ID);
+                }
+            }
+        }
+        return globalGenerator.nextId();
     }
 
     /**
-     * 获取默认的雪花ID (String类型)
+     * 替换全局雪花ID生成器（用于自定义数据中心ID和工作机器ID，全局生效）
      *
-     * @return 雪花ID字符串
+     * @param datacenterId 数据中心ID (0-7)
+     * @param workerId     工作机器ID (0-7)
      */
-    public static String nextIdStr() {
-        return String.valueOf(defaultGenerator.nextId());
+    public static void setGlobalGenerator(long datacenterId, long workerId) {
+        globalGenerator = new SnowflakeIdGenerator(datacenterId, workerId);
     }
 
     /**
@@ -127,6 +155,7 @@ public class SnowflakeIdUtils {
 
     /**
      * 使用指定的数据中心ID和工作机器ID生成雪花ID
+     * 每次创建新生成器，不推荐
      *
      * @param datacenterId 数据中心ID (0-7)
      * @param workerId     工作机器ID (0-7)
@@ -138,6 +167,7 @@ public class SnowflakeIdUtils {
 
     /**
      * 使用指定的数据中心ID和工作机器ID生成雪花ID字符串
+     * 每次创建新生成器，不推荐
      *
      * @param datacenterId 数据中心ID (0-7)
      * @param workerId     工作机器ID (0-7)
@@ -163,17 +193,17 @@ public class SnowflakeIdUtils {
         return new SnowflakeInfo(timestamp, datacenterId, workerId, sequence);
     }
 
-    /**
-     * 重置默认雪花ID生成器
-     *
-     * @param datacenterId 数据中心ID
-     * @param workerId     工作机器ID
-     */
-    public static void resetDefaultSnowflake(long datacenterId, long workerId) {
-        synchronized (SnowflakeIdUtils.class) {
-            defaultGenerator = new SnowflakeIdGenerator(datacenterId, workerId);
-        }
-    }
+//    /**
+//     * 重置默认雪花ID生成器
+//     *
+//     * @param datacenterId 数据中心ID
+//     * @param workerId     工作机器ID
+//     */
+//    public static void resetDefaultSnowflake(long datacenterId, long workerId) {
+//        synchronized (SnowflakeIdUtils.class) {
+//            defaultGenerator = new SnowflakeIdGenerator(datacenterId, workerId);
+//        }
+//    }
 
     // ====================== 内部工具方法 ======================
     /**
