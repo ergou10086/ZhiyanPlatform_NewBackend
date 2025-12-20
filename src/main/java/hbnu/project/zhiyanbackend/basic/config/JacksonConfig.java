@@ -11,6 +11,7 @@ import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -56,8 +57,8 @@ public class JacksonConfig {
      */
     @Bean("globalLongToStringObjectMapper")
     @Primary
-    //@ConditionalOnMissingBean(ObjectMapper.class)
-    @ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnMissingBean(ObjectMapper.class)
+    //@ConditionalOnProperty(name = "zhiyan.jackson.long-to-string-global", havingValue = "true", matchIfMissing = true)
     public ObjectMapper globalLongToStringObjectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
 

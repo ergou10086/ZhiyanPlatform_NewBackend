@@ -109,7 +109,7 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             // 1. 邮箱唯一性校验，一个邮箱只能注册一个用户
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            if (userRepository.findByEmailAndIsDeletedFalse(request.getEmail()).isPresent()) {
                 return R.fail("该邮箱已被注册");
             }
 
@@ -422,7 +422,7 @@ public class AuthServiceImpl implements AuthService {
                 return R.fail("邮箱格式不正确");
             }
 
-            boolean exists = userRepository.findByEmail(email).isPresent();
+            boolean exists = userRepository.findByEmailAndIsDeletedFalse(email).isPresent();
             return exists ? R.fail("邮箱已被注册") : R.ok(true, "邮箱可用");
 
         } catch (Exception e) {
