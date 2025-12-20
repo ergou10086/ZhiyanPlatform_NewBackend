@@ -204,8 +204,8 @@ public class AuthServiceImpl implements AuthService {
         log.info("处理用户登录: 邮箱={}, 是否提供密码={}, 是否提供2FA={}", loginDTO.getEmail(), StringUtils.isNotBlank(loginDTO.getPassword()), StringUtils.isNotBlank(loginDTO.getTwoFactorCode()));
 
         try {
-            // 先查找用户，检查是否启用2FA
-            Optional<User> userOpt = userRepository.findByEmail(loginDTO.getEmail());
+            // 先查找用户，检查是否启用2FA（仅查询未被软删除的用户，避免重复邮箱导致异常）
+            Optional<User> userOpt = userRepository.findByEmailAndIsDeletedFalse(loginDTO.getEmail());
             if (userOpt.isEmpty()) {
                 return R.fail("邮箱或密码错误");
             }
@@ -968,8 +968,8 @@ public class AuthServiceImpl implements AuthService {
                 return R.fail("旧邮箱不正确，请确认后重试");
             }
 
-            // 3. 检查新邮箱是否已被使用
-            Optional<User> existingUser = userRepository.findByEmail(changeEmailDTO.getNewEmail());
+            // 3. 检查新邮箱是否已被使用（仅考虑未被软删除的用户）
+            Optional<User> existingUser = userRepository.findByEmailAndIsDeletedFalse(changeEmailDTO.getNewEmail());
             if (existingUser.isPresent() && !existingUser.get().getId().equals(userId)) {
                 return R.fail("该邮箱已被使用");
             }
