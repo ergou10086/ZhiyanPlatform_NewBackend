@@ -262,6 +262,8 @@ zhiyan:
     # 开发环境：本地运行，使用localhost
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: https://api.zyplatform.xyz
+    # 前端回调页面URL（OAuth2登录成功后统一重定向到的前端回调页面）
+    frontend-callback-url: https://zyplatform.xyz/oauth2/callback
     # 前端页面URL配置（根据登录状态跳转到不同页面）
     frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
     frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL

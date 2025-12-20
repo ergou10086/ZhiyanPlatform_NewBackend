@@ -211,6 +211,8 @@ zhiyan:
     # 开发环境：本地运行，使用localhost
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: https://api.zyplatform.xyz
+    # 前端回调页面URL（OAuth2登录成功后统一重定向到的前端回调页面）
+    frontend-callback-url: https://zyplatform.xyz/oauth2/callback
     # 前端页面URL配置（根据登录状态跳转到不同页面）
     frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
     frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL
@@ -225,16 +227,16 @@ zhiyan:
       client-id: ${GITHUB_CLIENT_ID:Ov23liNSEUAOKgBl1xBA}
       # GitHub应用的Client Secret（从GitHub开发者平台获取）
       # 建议使用环境变量：${GITHUB_CLIENT_SECRET:your-github-client-secret}
-      client-secret: ${GITHUB_CLIENT_SECRET:760d26f6727b47dd9ed6e24e08532480136052ba}
+      client-secret: ${GITHUB_CLIENT_SECRET}
       # 授权范围（scope）
       # read:user - 读取用户基本信息
       # user:email - 读取用户邮箱（需要此权限才能获取邮箱）
       scope: read:user,user:email
       # 以下URL为GitHub固定值，一般不需要修改
-      authorization-uri: https://github.com/login/oauth/authorize
-      token-uri: https://github.com/login/oauth/access_token
-      user-info-uri: https://api.github.com/user
-      user-email-uri: https://api.github.com/user/emails
+#      authorization-uri: https://github.com/login/oauth/authorize
+#      token-uri: https://github.com/login/oauth/access_token
+#      user-info-uri: https://api.github.com/user
+#      user-email-uri: https://api.github.com/user/emails
 
     orcid:
       # 是否启用ORCID登录
@@ -248,7 +250,7 @@ zhiyan:
       # TODO：经过本人探索，ORCID的授权范围不能多写，只能写一个，/authenticate openid就负责登录，/read-limited就是读取个人信息，这两者单独拿出来都能正常工作，现在就是考虑如何分开分别生效
       scope: "/authenticate openid"
       # ORCID API端点（生产环境）
-      authorization-uri: https://orcid.org/oauth/authorize
-      token-uri: https://orcid.org/oauth/token
-      user-info-uri: https://pub.orcid.org/v3.0
+#      authorization-uri: https://orcid.org/oauth/authorize
+#      token-uri: https://orcid.org/oauth/token
+#      user-info-uri: https://pub.orcid.org/v3.0
       api-version: v3.0

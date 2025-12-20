@@ -128,6 +128,46 @@ public class OAuth2Controller {
     }
 
     /**
+     * OAuth2回调处理接口（供前端调用）
+     * 前端从URL参数获取code和state后，调用此接口处理回调
+     * 与上面的callback方法不同，此方法返回JSON数据而不是重定向
+     *
+     * @param provider 提供商名称
+     * @param code     授权码
+     * @param state    状态参数
+     * @return 登录结果
+     */
+    @GetMapping("/callback/{provider}/process")
+    @Operation(summary = "处理OAuth2回调", description = "前端调用此接口处理OAuth2回调，返回JSON数据")
+    public R<OAuth2LoginResponseDTO> processCallback(
+            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
+            @PathVariable String provider,
+            @Parameter(description = "授权码", required = true)
+            @RequestParam String code,
+            @Parameter(description = "状态参数（用于防CSRF攻击）", required = true)
+            @RequestParam String state) {
+        log.info("前端处理OAuth2回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
+
+        try {
+            // 1. 构建回调URL
+            String redirectUri = buildCallbackUrl(provider);
+
+            // 2. 通过授权码获取用户信息
+            OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
+            log.info("获取OAuth2用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
+                    provider, userInfo.getProviderUserId(), userInfo.getEmail());
+
+            // 3. 处理登录（可能返回登录成功、需要绑定、需要补充信息等状态）
+            R<OAuth2LoginResponseDTO> loginResult = oAuth2Service.handleOAuth2Login(userInfo);
+            return loginResult;
+
+        } catch (Exception e) {
+            log.error("处理OAuth2回调失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
+            return R.fail("处理回调失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 绑定已有账号
      * 当OAuth2邮箱匹配到已有账号时，用户输入密码验证后绑定
      *
@@ -211,35 +251,53 @@ public class OAuth2Controller {
 
     /**
      * 根据登录状态构建重定向URL
-     * 根据不同状态跳转到不同的前端页面
+     * 统一重定向到前端回调页面，由前端处理后续逻辑
      */
     private String buildRedirectUrlByStatus(String provider, R<OAuth2LoginResponseDTO> loginResult,
                                             String code, String state) {
+        // 统一重定向到前端回调页面，传递code和state，让前端调用API处理
+        String frontendCallbackUrl = oAuth2Properties.getFrontendCallbackUrl();
+        if (StringUtils.isBlank(frontendCallbackUrl)) {
+            // 如果未配置，尝试从其他配置推断
+            String homeUrl = oAuth2Properties.getFrontendHomeUrl();
+            if (StringUtils.isNotBlank(homeUrl)) {
+                // 从主页URL推断前端基础URL
+                try {
+                    java.net.URL url = new java.net.URL(homeUrl);
+                    frontendCallbackUrl = url.getProtocol() + "://" + url.getHost() + 
+                        (url.getPort() != -1 ? ":" + url.getPort() : "") + "/oauth2/callback";
+                } catch (Exception e) {
+                    log.warn("无法从主页URL推断回调URL，使用默认值", e);
+                    frontendCallbackUrl = "http://localhost:8080/oauth2/callback";
+                }
+            } else {
+                frontendCallbackUrl = "http://localhost:8080/oauth2/callback";
+            }
+        }
+
+        // 移除末尾的斜杠
+        if (frontendCallbackUrl.endsWith("/")) {
+            frontendCallbackUrl = frontendCallbackUrl.substring(0, frontendCallbackUrl.length() - 1);
+        }
+
+        // 构建URL参数
+        StringBuilder urlBuilder = new StringBuilder(frontendCallbackUrl);
+        urlBuilder.append("/").append(provider);
+        urlBuilder.append("?code=").append(URLEncoder.encode(code, StandardCharsets.UTF_8));
+        urlBuilder.append("&state=").append(URLEncoder.encode(state, StandardCharsets.UTF_8));
+
+        // 如果登录失败，传递错误信息
         if (!R.isSuccess(loginResult) || loginResult.getData() == null) {
-            // 登录失败，跳转到错误页面
-            return buildErrorRedirectUrl(provider, loginResult != null ? loginResult.getMsg() : "登录失败");
+            urlBuilder.append("&status=ERROR");
+            String errorMsg = loginResult != null ? loginResult.getMsg() : "登录失败";
+            urlBuilder.append("&message=").append(URLEncoder.encode(errorMsg, StandardCharsets.UTF_8));
+        } else {
+            // 登录成功或需要进一步处理，传递状态信息
+            OAuth2LoginResponseDTO response = loginResult.getData();
+            urlBuilder.append("&status=").append(response.getStatus().name());
         }
 
-        OAuth2LoginResponseDTO response = loginResult.getData();
-        OAuth2LoginResponseDTO.OAuth2LoginStatus status = response.getStatus();
-
-        switch (status) {
-            case SUCCESS:
-                // 登录成功，跳转到主页
-                return buildSuccessRedirectUrl(response);
-
-            case NEED_SUPPLEMENT:
-                // 需要补充信息，跳转到补充信息页面
-                return buildSupplementRedirectUrl(provider, response, code, state);
-
-            case NEED_BIND:
-                // 需要绑定账号，跳转到绑定页面
-                return buildBindRedirectUrl(provider, response, code, state);
-
-            default:
-                // 未知状态，跳转到错误页面
-                return buildErrorRedirectUrl(provider, "未知的登录状态: " + status);
-        }
+        return urlBuilder.toString();
     }
 
     /**

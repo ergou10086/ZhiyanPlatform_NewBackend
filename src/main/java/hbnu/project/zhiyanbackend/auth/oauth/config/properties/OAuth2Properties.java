@@ -24,10 +24,9 @@ public class OAuth2Properties {
     private String callbackBaseUrl;
 
     /**
-     * 前端回调页面URL（OAuth2登录成功后重定向到的前端页面）
-     * 注意：此配置已废弃，请使用下面的具体页面URL配置
+     * 前端回调页面URL（OAuth2登录成功后统一重定向到的前端回调页面）
+     * 例如：https://zyplatform.xyz/oauth2/callback
      */
-    @Deprecated
     private String frontendCallbackUrl;
 
     /**
