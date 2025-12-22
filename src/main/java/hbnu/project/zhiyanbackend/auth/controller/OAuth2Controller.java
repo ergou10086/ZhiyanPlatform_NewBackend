@@ -1,38 +1,40 @@
 package hbnu.project.zhiyanbackend.auth.controller;
 
-import hbnu.project.zhiyanbackend.auth.exeption.OAuth2Exception;
 import hbnu.project.zhiyanbackend.auth.model.dto.*;
-import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.oauth.client.OAuth2Client;
 import hbnu.project.zhiyanbackend.auth.oauth.config.properties.OAuth2Properties;
 import hbnu.project.zhiyanbackend.auth.oauth.provider.OrcidOAuth2Provider;
+import hbnu.project.zhiyanbackend.auth.repository.UserConnectionRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.OAuth2Service;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
+import java.util.List;
 
 /**
  * OAuth2第三方登录控制器
- * 处理OAuth2授权和回调
+ * 处理OAuth2授权和回调，重构后采用"主账号 + 绑定关系"模式
  *
  * @author ErgouTree
- * @rewrite yui
+ * @modify yui
+ * @rewrite ErgouTree
  */
 @Slf4j
 @RestController
@@ -48,75 +50,68 @@ public class OAuth2Controller {
     private final ObjectMapper objectMapper;
     private final OrcidOAuth2Provider orcidOAuth2Provider;
     private final UserRepository userRepository;
+    private final UserConnectionRepository userConnectionRepository;
 
     /**
-     * 获取授权URL
-     * 前端调用此接口获取第三方登录的授权URL，然后跳转到该URL进行授权
-     *
-     * @param provider 提供商名称（如：github）
-     * @return 授权URL和state
+     * 获取授权 URL（前端跳转用）
      */
     @GetMapping("/authorize/{provider}")
-    @Operation(summary = "获取OAuth2授权URL", description = "获取第三方登录的授权URL，用户需要跳转到该URL完成授权")
+    @Operation(summary = "获取 OAuth2 授权 URL", description = "获取第三方登录的授权 URL，用户需要跳转到该 URL 完成授权")
     public R<AuthorizationResultDTO> getAuthorizationUrl(
-            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
             @PathVariable String provider) {
-        log.info("获取OAuth2授权URL请求 - 提供商: {}", provider);
+        log.info("获取 OAuth2 授权 URL 请求 - 提供商: {}", provider);
 
         try {
             String redirectUri = buildCallbackUrl(provider);
             AuthorizationResultDTO result = oAuth2Client.getAuthorizationUrl(provider, redirectUri);
-            return R.ok(result, "获取授权URL成功");
+            return R.ok(result, "获取授权 URL 成功");
         } catch (Exception e) {
-            log.error("获取OAuth2授权URL失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
-            return R.fail("获取授权URL失败: " + e.getMessage());
+            log.error("获取 OAuth2 授权 URL 失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
+            return R.fail("获取授权 URL 失败: " + e.getMessage());
         }
     }
 
+
     /**
-     * OAuth2回调接口
-     * 第三方平台授权成功后，会回调到此接口，携带授权码code和state
-     * 后端根据登录状态重定向到不同的前端页面：
-     * - SUCCESS: 跳转到主页，通过URL参数传递token
-     * - NEED_SUPPLEMENT: 跳转到补充信息页面，通过URL参数传递OAuth2用户信息
-     * - NEED_BIND: 跳转到绑定页面，通过URL参数传递OAuth2用户信息
+     * OAuth2 回调接口（第三方平台授权后跳转）
      *
-     * @param provider 提供商名称
-     * @param code     授权码
-     * @param state    状态参数（用于防CSRF攻击）
-     * @return 重定向到前端对应页面
+     * 核心逻辑：
+     * 1. 获取 OAuth2 用户信息
+     * 2. 调用 OAuth2Service.handleOAuth2Login 处理登录/注册
+     * 3. 重定向到前端（携带 token 或错误信息）
      */
     @GetMapping("/callback/{provider}")
-    @Operation(summary = "OAuth2回调", description = "第三方平台授权成功后的回调接口，根据登录状态重定向到不同前端页面")
+    @Operation(summary = "OAuth2 回调", description = "第三方平台授权成功后的回调接口")
     public void callback(
-            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
             @PathVariable String provider,
             @Parameter(description = "授权码", required = true)
             @RequestParam String code,
-            @Parameter(description = "状态参数（用于防CSRF攻击）", required = true)
+            @Parameter(description = "状态参数（用于防 CSRF 攻击）", required = true)
             @RequestParam String state,
             HttpServletResponse response) {
-        log.info("OAuth2回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
+        log.info("OAuth2 回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
 
         try {
-            // 1. 构建回调URL
+            // 1. 构建回调 URL
             String redirectUri = buildCallbackUrl(provider);
 
             // 2. 通过授权码获取用户信息
             OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
-            log.info("获取OAuth2用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
+            log.info("获取 OAuth2 用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
                     provider, userInfo.getProviderUserId(), userInfo.getEmail());
 
-            // 3. 处理登录（可能返回登录成功、需要绑定、需要补充信息等状态）
+            // 3. 处理登录/注册
             R<OAuth2LoginResponseDTO> loginResult = oAuth2Service.handleOAuth2Login(userInfo);
 
-            // 4. 根据登录状态重定向到不同的前端页面
-            String redirectUrl = buildRedirectUrlByStatus(provider, loginResult, code, state);
+            // 4. 重定向到前端
+            String redirectUrl = buildSuccessRedirectUrl(loginResult);
             log.info("重定向到前端页面: {}", redirectUrl);
             response.sendRedirect(redirectUrl);
 
         } catch (Exception e) {
-            log.error("OAuth2回调处理失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
+            log.error("OAuth2 回调处理失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
             // 重定向到前端错误页面
             try {
                 String errorUrl = buildErrorRedirectUrl(provider, e.getMessage());
@@ -127,358 +122,108 @@ public class OAuth2Controller {
         }
     }
 
+
     /**
-     * OAuth2回调处理接口（供前端调用）
-     * 前端从URL参数获取code和state后，调用此接口处理回调
-     * 与上面的callback方法不同，此方法返回JSON数据而不是重定向
+     * 已登录用户手动绑定第三方账号
      *
-     * @param provider 提供商名称
-     * @param code     授权码
-     * @param state    状态参数
-     * @return 登录结果
+     * 流程：
+     * 1. 用户点击"绑定 GitHub"
+     * 2. 跳转到 /oauth2/authorize/github
+     * 3. 授权完成后回调到 /oauth2/bind/callback/{provider}
+     * 4. 调用此接口完成绑定
      */
-    @GetMapping("/callback/{provider}/process")
-    @Operation(summary = "处理OAuth2回调", description = "前端调用此接口处理OAuth2回调，返回JSON数据")
-    public R<OAuth2LoginResponseDTO> processCallback(
-            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
+    @GetMapping("/bind/callback/{provider}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "手动绑定第三方账号回调", description = "已登录用户绑定第三方账号的回调接口")
+    public void bindCallback(
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
             @PathVariable String provider,
             @Parameter(description = "授权码", required = true)
             @RequestParam String code,
-            @Parameter(description = "状态参数（用于防CSRF攻击）", required = true)
-            @RequestParam String state) {
-        log.info("前端处理OAuth2回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
+            @Parameter(description = "状态参数", required = true)
+            @RequestParam String state,
+            HttpServletResponse response) {
+        log.info("手动绑定回调 - 提供商: {}", provider);
 
-        try {
-            // 1. 构建回调URL
-            String redirectUri = buildCallbackUrl(provider);
-
-            // 2. 通过授权码获取用户信息
-            OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
-            log.info("获取OAuth2用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
-                    provider, userInfo.getProviderUserId(), userInfo.getEmail());
-
-            // 3. 处理登录（可能返回登录成功、需要绑定、需要补充信息等状态）
-            R<OAuth2LoginResponseDTO> loginResult = oAuth2Service.handleOAuth2Login(userInfo);
-            return loginResult;
-
-        } catch (Exception e) {
-            log.error("处理OAuth2回调失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
-            return R.fail("处理回调失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 绑定已有账号
-     * 当OAuth2邮箱匹配到已有账号时，用户输入密码验证后绑定
-     *
-     * @param bindBody 绑定请求体
-     * @return 登录结果
-     */
-    @PostMapping("/bind")
-    @Operation(summary = "绑定已有账号", description = "将OAuth2账号绑定到已有账号（需要验证密码）")
-    public R<OAuth2LoginResponseDTO> bindAccount(
-            @Valid @RequestBody OAuth2BindAccountDTO bindBody) {
-        log.info("绑定OAuth2账号请求 - 提供商: {}, 邮箱: {}",
-                bindBody.getProvider(), bindBody.getEmail());
-
-        try {
-            R<OAuth2LoginResponseDTO> result = oAuth2Service.bindAccount(bindBody);
-
-            // 如果绑定成功，返回登录响应，前端可以根据状态跳转到主页
-            if (R.isSuccess(result) && result.getData() != null
-                    && result.getData().getStatus() == OAuth2LoginResponseDTO.OAuth2LoginStatus.SUCCESS) {
-                log.info("OAuth2绑定成功，返回登录响应");
-            }
-
-            return result;
-        } catch (Exception e) {
-            log.error("绑定OAuth2账号失败 - 提供商: {}, 错误: {}",
-                    bindBody.getProvider(), e.getMessage(), e);
-            return R.fail("绑定失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 补充信息创建账号
-     * 当OAuth2信息不足（如缺少邮箱）时，用户补充必要信息（邮箱、密码）后创建账号
-     *
-     * @param supplementBody 补充信息请求体
-     * @return 登录结果
-     */
-    @PostMapping("/supplement")
-    @Operation(summary = "补充信息创建账号", description = "补充必要信息（邮箱、密码）后创建新账号")
-    public R<OAuth2LoginResponseDTO> supplementInfo(
-            @Valid @RequestBody OAuth2SupplementInfoDTO supplementBody) {
-        log.info("补充信息创建账号请求 - 提供商: {}, 邮箱: {}",
-                supplementBody.getProvider(), supplementBody.getEmail());
-
-        try {
-            R<OAuth2LoginResponseDTO> result = oAuth2Service.supplementInfoAndCreateAccount(supplementBody);
-
-            // 如果创建成功，返回登录响应，前端可以根据状态跳转到主页
-            if (R.isSuccess(result) && result.getData() != null
-                    && result.getData().getStatus() == OAuth2LoginResponseDTO.OAuth2LoginStatus.SUCCESS) {
-                log.info("OAuth2账号创建成功，返回登录响应");
-            }
-
-            return result;
-        } catch (Exception e) {
-            log.error("补充信息创建账号失败 - 提供商: {}, 错误: {}",
-                    supplementBody.getProvider(), e.getMessage(), e);
-            return R.fail("创建账号失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 构建回调URL
-     * 根据配置的回调基础路径和提供商名称构建完整的回调URL
-     */
-    private String buildCallbackUrl(String provider) {
-        String baseUrl = oAuth2Properties.getCallbackBaseUrl();
-        if (StringUtils.isBlank(baseUrl)) {
-            throw new IllegalArgumentException("OAuth2回调地址基础路径未配置，请在配置文件中设置 zhiyan.oauth2.callback-base-url");
-        }
-
-        // 移除末尾的斜杠
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
-
-        // 构建完整的回调URL
-        // 例如：http://localhost:8090/zhiyan/auth/oauth2/callback/github
-        return baseUrl + "/zhiyan/auth/oauth2/callback/" + provider;
-    }
-
-    /**
-     * 根据登录状态构建重定向URL
-     * 统一重定向到前端回调页面，由前端处理后续逻辑
-     */
-    private String buildRedirectUrlByStatus(String provider, R<OAuth2LoginResponseDTO> loginResult,
-                                            String code, String state) {
-        // 统一重定向到前端回调页面，传递code和state，让前端调用API处理
-        String frontendCallbackUrl = oAuth2Properties.getFrontendCallbackUrl();
-        if (StringUtils.isBlank(frontendCallbackUrl)) {
-            // 如果未配置，尝试从其他配置推断
-            String homeUrl = oAuth2Properties.getFrontendHomeUrl();
-            if (StringUtils.isNotBlank(homeUrl)) {
-                // 从主页URL推断前端基础URL
-                try {
-                    java.net.URL url = new java.net.URL(homeUrl);
-                    frontendCallbackUrl = url.getProtocol() + "://" + url.getHost() + 
-                        (url.getPort() != -1 ? ":" + url.getPort() : "") + "/oauth2/callback";
-                } catch (Exception e) {
-                    log.warn("无法从主页URL推断回调URL，使用默认值", e);
-                    frontendCallbackUrl = "http://localhost:8080/oauth2/callback";
-                }
-            } else {
-                frontendCallbackUrl = "http://localhost:8080/oauth2/callback";
-            }
-        }
-
-        // 移除末尾的斜杠
-        if (frontendCallbackUrl.endsWith("/")) {
-            frontendCallbackUrl = frontendCallbackUrl.substring(0, frontendCallbackUrl.length() - 1);
-        }
-
-        // 构建URL参数
-        StringBuilder urlBuilder = new StringBuilder(frontendCallbackUrl);
-        urlBuilder.append("/").append(provider);
-        urlBuilder.append("?code=").append(URLEncoder.encode(code, StandardCharsets.UTF_8));
-        urlBuilder.append("&state=").append(URLEncoder.encode(state, StandardCharsets.UTF_8));
-
-        // 如果登录失败，传递错误信息
-        if (!R.isSuccess(loginResult) || loginResult.getData() == null) {
-            urlBuilder.append("&status=ERROR");
-            String errorMsg = loginResult != null ? loginResult.getMsg() : "登录失败";
-            urlBuilder.append("&message=").append(URLEncoder.encode(errorMsg, StandardCharsets.UTF_8));
-        } else {
-            // 登录成功或需要进一步处理，传递状态信息
-            OAuth2LoginResponseDTO response = loginResult.getData();
-            urlBuilder.append("&status=").append(response.getStatus().name());
-        }
-
-        return urlBuilder.toString();
-    }
-
-    /**
-     * 构建登录成功重定向URL（跳转到主页）
-     * 例如：http://localhost:8080 或 http://localhost:8080/home
-     */
-    private String buildSuccessRedirectUrl(OAuth2LoginResponseDTO response) {
-        String homeUrl = oAuth2Properties.getFrontendHomeUrl();
-        if (StringUtils.isBlank(homeUrl)) {
-            // 如果未配置，使用默认值（请根据实际情况修改）
-            homeUrl = "http://localhost:8080";
-        }
-
-        // 移除末尾的斜杠
-        if (homeUrl.endsWith("/")) {
-            homeUrl = homeUrl.substring(0, homeUrl.length() - 1);
-        }
-
-        // 构建URL参数，传递token等信息
-        StringBuilder urlBuilder = new StringBuilder(homeUrl);
-        urlBuilder.append("?oauth2=success");
-
-        if (response.getLoginResponse() != null) {
-            urlBuilder.append("&token=").append(URLEncoder.encode(
-                    response.getLoginResponse().getAccessToken(), StandardCharsets.UTF_8));
-
-            if (response.getLoginResponse().getRefreshToken() != null) {
-                urlBuilder.append("&refreshToken=").append(URLEncoder.encode(
-                        response.getLoginResponse().getRefreshToken(), StandardCharsets.UTF_8));
-            }
-
-            // 将完整的登录响应数据编码为JSON，通过URL参数传递（用于前端打印）
-            try {
-                String responseJson = objectMapper.writeValueAsString(response);
-                urlBuilder.append("&response=").append(URLEncoder.encode(responseJson, StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                log.warn("序列化登录响应失败", e);
-            }
-        }
-
-        return urlBuilder.toString();
-    }
-
-    /**
-     * 构建补充信息页面重定向URL
-     * 例如：http://localhost:8080/oauth2/supplement
-     */
-    private String buildSupplementRedirectUrl(String provider, OAuth2LoginResponseDTO response,
-                                              String code, String state) {
-        String supplementUrl = oAuth2Properties.getFrontendSupplementUrl();
-        if (StringUtils.isBlank(supplementUrl)) {
-            // 如果未配置，使用默认值（请根据实际情况修改）
-            supplementUrl = "http://localhost:8080/oauth2/supplement";
-        }
-
-        // 移除末尾的斜杠
-        if (supplementUrl.endsWith("/")) {
-            supplementUrl = supplementUrl.substring(0, supplementUrl.length() - 1);
-        }
-
-        // 构建URL参数，传递OAuth2用户信息和状态
-        StringBuilder urlBuilder = new StringBuilder(supplementUrl);
-        urlBuilder.append("?provider=").append(provider);
-        urlBuilder.append("&code=").append(code);
-        urlBuilder.append("&state=").append(state);
-        urlBuilder.append("&status=").append(response.getStatus().name());
-
-        // 将OAuth2用户信息编码为JSON，通过URL参数传递（用于前端打印和填充表单）
-        if (response.getOauth2UserInfo() != null) {
-            try {
-                String userInfoJson = objectMapper.writeValueAsString(response.getOauth2UserInfo());
-                urlBuilder.append("&oauth2UserInfo=").append(URLEncoder.encode(userInfoJson, StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                log.warn("序列化OAuth2用户信息失败", e);
-            }
-        }
-
-        // 将完整的响应数据编码为JSON（用于前端打印）
-        try {
-            String responseJson = objectMapper.writeValueAsString(response);
-            urlBuilder.append("&response=").append(URLEncoder.encode(responseJson, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            log.warn("序列化响应数据失败", e);
-        }
-
-        return urlBuilder.toString();
-    }
-
-    /**
-     * 构建绑定页面重定向URL
-     * 例如：http://localhost:8080/oauth2/bind
-     */
-    private String buildBindRedirectUrl(String provider, OAuth2LoginResponseDTO response,
-                                        String code, String state) {
-        String bindUrl = oAuth2Properties.getFrontendBindUrl();
-        if (StringUtils.isBlank(bindUrl)) {
-            // 如果未配置，使用默认值（请根据实际情况修改）
-            bindUrl = "http://localhost:8080/oauth2/bind";
-        }
-
-        // 移除末尾的斜杠
-        if (bindUrl.endsWith("/")) {
-            bindUrl = bindUrl.substring(0, bindUrl.length() - 1);
-        }
-
-        // 构建URL参数，传递OAuth2用户信息和状态
-        StringBuilder urlBuilder = new StringBuilder(bindUrl);
-        urlBuilder.append("?provider=").append(provider);
-        urlBuilder.append("&code=").append(code);
-        urlBuilder.append("&state=").append(state);
-        urlBuilder.append("&status=").append(response.getStatus().name());
-
-        // 将OAuth2用户信息编码为JSON，通过URL参数传递（用于前端打印和填充表单）
-        if (response.getOauth2UserInfo() != null) {
-            try {
-                String userInfoJson = objectMapper.writeValueAsString(response.getOauth2UserInfo());
-                urlBuilder.append("&oauth2UserInfo=").append(URLEncoder.encode(userInfoJson, StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                log.warn("序列化OAuth2用户信息失败", e);
-            }
-        }
-
-        // 将完整的响应数据编码为JSON（用于前端打印）
-        try {
-            String responseJson = objectMapper.writeValueAsString(response);
-            urlBuilder.append("&response=").append(URLEncoder.encode(responseJson, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            log.warn("序列化响应数据失败", e);
-        }
-
-        return urlBuilder.toString();
-    }
-
-    /**
-     * 构建错误页面重定向URL
-     */
-    private String buildErrorRedirectUrl(String provider, String errorMessage) {
-        String errorUrl = oAuth2Properties.getFrontendErrorUrl();
-        if (StringUtils.isBlank(errorUrl)) {
-            // 如果未配置，使用默认值（请根据实际情况修改）
-            errorUrl = "http://localhost:8080/oauth2/error";
-        }
-
-        // 移除末尾的斜杠
-        if (errorUrl.endsWith("/")) {
-            errorUrl = errorUrl.substring(0, errorUrl.length() - 1);
-        }
-
-        return errorUrl + "?provider=" + provider +
-                "&status=ERROR&message=" + URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * 解绑OAuth2账号
-     * 解除当前用户与指定第三方平台的绑定关系
-     *
-     * @param provider 第三方提供商（github, orcid等）
-     * @return 操作结果
-     */
-    @PostMapping("/unbind/{provider}")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "解绑OAuth2账号", description = "解除当前用户与指定第三方平台的绑定关系")
-    public R<Void> unbindAccount(
-            @Parameter(description = "OAuth2提供商名称", example = "github", required = true)
-            @PathVariable String provider) {
-        log.info("解绑OAuth2账号请求 - 提供商: {}", provider);
-
-        try {
-            // 从SecurityContext获取当前用户ID
+        try{
+            // 1. 获取当前用户ID
             Long userId = SecurityUtils.getUserId();
             if (userId == null) {
-                return R.fail("用户未登录，无法解绑");
+                throw new IllegalStateException("用户未登录");
             }
 
-            R<Void> result = oAuth2Service.unbindAccount(userId, provider);
-            return result;
+            // 2. 获取 OAuth2 用户信息
+            String redirectUri = buildBindCallbackUrl(provider);
+            OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
+
+            // 3.执行绑定
+            R<Void> bindResult = oAuth2Service.bindOAuth2Account(userId, userInfo);
+
+            // 4.重定向到前端
+            String redirectUrl;
+            if(R.isSuccess(bindResult)){
+                redirectUrl = buildBindSuccessRedirectUrl(provider);
+            } else {
+                redirectUrl = buildBindErrorRedirectUrl(provider, bindResult.getMsg());
+            }
+            response.sendRedirect(redirectUrl);
+        }catch (ControllerException | IOException e){
+            log.error("手动绑定失败 - 提供商: {}", provider, e);
+            try {
+                String errorUrl = buildBindErrorRedirectUrl(provider, e.getMessage());
+                response.sendRedirect(errorUrl);
+            } catch (Exception ex) {
+                log.error("重定向失败", ex);
+            }
+        }
+    }
+
+
+    /**
+     * 解绑第三方账号
+     */
+    @DeleteMapping("/unbind/{provider}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "解绑第三方账号", description = "解除当前用户与指定第三方平台的绑定关系")
+    public R<Void> unbindAccount(
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
+            @PathVariable String provider) {
+        log.info("解绑第三方账号请求 - 提供商: {}", provider);
+
+        try {
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null) {
+                return R.fail("用户未登录");
+            }
+
+            return oAuth2Service.unbindOAuth2Account(userId, provider);
         } catch (Exception e) {
-            log.error("解绑OAuth2账号失败 - 提供商: {}, 错误: {}", provider, e.getMessage(), e);
+            log.error("解绑第三方账号失败 - 提供商: {}", provider, e);
             return R.fail("解绑失败: " + e.getMessage());
         }
     }
+
+
+    /**
+     * 获取当前用户的绑定列表
+     */
+    @GetMapping("/connections")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "获取绑定列表", description = "获取当前用户的所有第三方账号绑定关系")
+    public R<List<UserConnectionDTO>> getUserConnections() {
+        try{
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null) {
+                return R.fail("用户未登录");
+            }
+
+            return oAuth2Service.getUserConnections(userId);
+        }catch (Exception e){
+            log.error("获取绑定列表失败", e);
+            return R.fail("获取失败");
+        }
+    }
+
 
     /**
      * 获取ORCID用户详细信息
@@ -490,47 +235,120 @@ public class OAuth2Controller {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "获取ORCID详细信息", description = "获取当前用户的ORCID Keywords、工作经历和教育经历")
     public R<OrcidDetailDTO> getOrcidDetail() {
-        try{
-            // 1. 获取当前用户
+        try {
+            // 1. 获取当前用户ID
             Long userId = SecurityUtils.getUserId();
             if (userId == null) {
                 return R.fail("用户未登录");
             }
 
-            // 2.查询用户的ORCID的绑定信息
-            Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
-            if (userOpt.isEmpty()) {
-                return R.fail("用户不存在");
-            }
-            User user = userOpt.get();
-            String orcidId = user.getOrcidId();
-            if (StringUtils.isBlank(orcidId)) {
-                return R.fail("未获取到ORCID，可能是用户未绑定ORCID账号");
-            }
+            // 2. 调用服务层方法获取详细信息
+            return oAuth2Service.getOrcidDetail(userId);
 
-            // 3. 直接检查 ORCID Provider 是否启用，不再依赖 oAuth2Client 的类型转换
-            if (!orcidOAuth2Provider.isEnabled()) {
-                return R.fail("后端配置未启用 ORCID 功能");
-            }
-
-            // 4. 这里需要ORCID的accessToken，因为ORCID的访问令牌20年有效期，所以说存储到数据库里就可以，如果失效了就重新授权获得ORCID的accessToken
-            String accessToken = user.getOrcidAccessToken();
-            // 如果 AccessToken 为空，可能需要处理（ORCID Token 有效期很长，通常数据库会有）
-            if (StringUtils.isBlank(accessToken)) {
-                return R.fail("未获取到有效的 ORCID 授权 Token，请尝试重新绑定账号");
-            }
-
-            // 5. 使用显式注入的 Provider 获取详细信息
-            OrcidDetailDTO detail = orcidOAuth2Provider.getOrcidDetailInfo(orcidId, accessToken);
-
-            log.info("成功获取ORCID详细信息 - 用户ID: {}, ORCID: {}", userId, orcidId);
-            return R.ok(detail);
-        }catch (OAuth2Exception e) {
-            log.error("获取ORCID详细信息失败: {}", e.getMessage());
-            return R.fail(e.getMessage());
         } catch (Exception e) {
             log.error("获取ORCID详细信息异常", e);
-            return R.fail("获取失败,请稍后重试");
+            return R.fail("获取失败，请稍后重试");
         }
+    }
+
+    // ==================== 私有辅助方法 ====================
+
+    /**
+     * 构建回调 URL（用于 OAuth2 登录）
+     */
+    private String buildCallbackUrl(String provider) {
+        String baseUrl = oAuth2Properties.getCallbackBaseUrl();
+        if (StringUtils.isBlank(baseUrl)) {
+            throw new IllegalArgumentException("OAuth2 回调地址基础路径未配置");
+        }
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + "/zhiyan/auth/oauth2/callback/" + provider;
+    }
+
+    /**
+     * 构建绑定回调 URL（用于手动绑定）
+     */
+    private String buildBindCallbackUrl(String provider) {
+        String baseUrl = oAuth2Properties.getCallbackBaseUrl();
+        if (StringUtils.isBlank(baseUrl)) {
+            throw new IllegalArgumentException("OAuth2 回调地址基础路径未配置");
+        }
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + "/zhiyan/auth/oauth2/bind/callback/" + provider;
+    }
+
+    /**
+     * 构建登录成功重定向 URL
+     */
+    private String buildSuccessRedirectUrl(R<OAuth2LoginResponseDTO> loginResult) {
+        String homeUrl = oAuth2Properties.getFrontendHomeUrl();
+        if (StringUtils.isBlank(homeUrl)) {
+            homeUrl = "http://localhost:8080";
+        }
+        if (homeUrl.endsWith("/")) {
+            homeUrl = homeUrl.substring(0, homeUrl.length() - 1);
+        }
+
+        if (!R.isSuccess(loginResult) || loginResult.getData() == null) {
+            return homeUrl + "?oauth2=error&message=" +
+                    URLEncoder.encode(loginResult.getMsg(), StandardCharsets.UTF_8);
+        }
+
+        OAuth2LoginResponseDTO response = loginResult.getData();
+        StringBuilder url = new StringBuilder(homeUrl);
+        url.append("?oauth2=success");
+
+        if (response.getLoginResponse() != null) {
+            url.append("&token=").append(URLEncoder.encode(
+                    response.getLoginResponse().getAccessToken(), StandardCharsets.UTF_8));
+            if (response.getLoginResponse().getRefreshToken() != null) {
+                url.append("&refreshToken=").append(URLEncoder.encode(
+                        response.getLoginResponse().getRefreshToken(), StandardCharsets.UTF_8));
+            }
+        }
+
+        return url.toString();
+    }
+
+    /**
+     * 构建错误重定向 URL
+     */
+    private String buildErrorRedirectUrl(String provider, String errorMessage) {
+        String errorUrl = oAuth2Properties.getFrontendErrorUrl();
+        if (StringUtils.isBlank(errorUrl)) {
+            errorUrl = "http://localhost:8080/login";
+        }
+        if (errorUrl.endsWith("/")) {
+            errorUrl = errorUrl.substring(0, errorUrl.length() - 1);
+        }
+        return errorUrl + "?oauth2=error&provider=" + provider +
+                "&message=" + URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 构建绑定成功重定向 URL
+     */
+    private String buildBindSuccessRedirectUrl(String provider) {
+        String settingsUrl = oAuth2Properties.getFrontendHomeUrl();
+        if (StringUtils.isBlank(settingsUrl)) {
+            settingsUrl = "http://localhost:8080/settings";
+        }
+        return settingsUrl + "?bind=success&provider=" + provider;
+    }
+
+    /**
+     * 构建绑定失败重定向 URL
+     */
+    private String buildBindErrorRedirectUrl(String provider, String errorMessage) {
+        String settingsUrl = oAuth2Properties.getFrontendHomeUrl();
+        if (StringUtils.isBlank(settingsUrl)) {
+            settingsUrl = "http://localhost:8080/settings";
+        }
+        return settingsUrl + "?bind=error&provider=" + provider +
+                "&message=" + URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
     }
 }

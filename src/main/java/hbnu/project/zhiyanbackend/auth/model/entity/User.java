@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
  * 用户实体类
  *
  * @author ErgouTree
+ * @rewrite ErgouTree
  */
 @Entity
 @Table(name = "users", schema = "zhiyanauth")
@@ -43,14 +44,16 @@ public class User extends BaseAuditEntity {
 
     /**
      * 用户邮箱（登录账号）
+     * 可以为空，允许纯 OAuth2 注册的用户没有邮箱，因为不是什么时候，OAuth2都能拿到其第三方平台的邮箱的
      */
-    @Column(name = "email", nullable = false, unique = true, length = 255)
+    @Column(name = "email", length = 255)
     private String email;
 
     /**
      * 用户密码哈希值
+     * 可以为空，纯 OAuth2 注册的用户可能没有密码
      */
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     /**
@@ -160,33 +163,6 @@ public class User extends BaseAuditEntity {
     private Boolean twoFactorEnabled = false;
 
     /**
-     * GitHub账号ID（OAuth2绑定）
-     */
-    @Column(name = "github_id", length = 100)
-    private String githubId;
-
-    /**
-     * GitHub用户名
-     */
-    @Column(name = "github_username", length = 100)
-    private String githubUsername;
-
-    /**
-     * ORCID iD（科研人员唯一标识符）
-     * 格式：0000-0002-1825-0097
-     */
-    @Column(name = "orcid_id", length = 19)
-    private String orcidId;
-
-    /**
-     * 是否已绑定ORCID账号
-     */
-    @Builder.Default
-    @Column(name = "orcid_bound")
-    @ColumnDefault("false")
-    private Boolean orcidBound = false;
-
-    /**
      * ORCID访问令牌
      * 用于调用ORCID API获取用户详细信息，通常有效期为20年，但是谁知道什么情况呢？
      */
@@ -205,6 +181,16 @@ public class User extends BaseAuditEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<UserRole> userRoles = new ArrayList<>();
+
+    /**
+     * 第三方账号绑定关系（一对多）
+     * 通过 UserConnection 表关联
+     */
+    @JsonIgnore
+    @ToString.Exclude
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<UserConnection> connections = new ArrayList<>();
 
     /**
      * 在持久化之前生成雪花ID
@@ -286,5 +272,21 @@ public class User extends BaseAuditEntity {
         } catch (Exception e) {
             this.profileLinks = null;
         }
+    }
+
+    /**
+     * 检查是否有密码（用于判断是否纯 OAuth2 用户）
+     */
+    @Transient
+    public boolean hasPassword() {
+        return this.passwordHash != null && !this.passwordHash.isEmpty();
+    }
+
+    /**
+     * 检查是否有邮箱
+     */
+    @Transient
+    public boolean hasEmail() {
+        return this.email != null && !this.email.isEmpty();
     }
 }

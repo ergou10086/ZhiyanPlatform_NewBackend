@@ -5,6 +5,7 @@ import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import hbnu.project.zhiyanbackend.auth.model.entity.Permission;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.PermissionRepository;
+import hbnu.project.zhiyanbackend.auth.repository.UserConnectionRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
@@ -35,10 +36,9 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-
     private final PermissionRepository permissionRepository;
-
     private final UserConverter userConverter;
+    private final UserConnectionRepository userConnectionRepository;
 
     /**
      * 获取当前用户的基本信息（不含角色和权限）
@@ -65,21 +65,10 @@ public class UserServiceImpl implements UserService {
             // 手动设置2FA状态，确保MapStruct正确映射（如果MapStruct没有自动映射）
             if (userDTO != null) {
                 userDTO.setTwoFactorEnabled(user.getTwoFactorEnabled());
-                log.debug("设置2FA状态 - userId: {}, twoFactorEnabled: {}", userId, user.getTwoFactorEnabled());
-                
-                // 手动设置OAuth2绑定信息，确保MapStruct正确映射
-                userDTO.setGithubId(user.getGithubId());
-                userDTO.setGithubUsername(user.getGithubUsername());
-                userDTO.setOrcidId(user.getOrcidId());
-                userDTO.setOrcidBound(user.getOrcidBound());
-                log.debug("设置OAuth2绑定信息 - userId: {}, githubId: {}, githubUsername: {}, orcidId: {}, orcidBound: {}", 
-                        userId, user.getGithubId(), user.getGithubUsername(), user.getOrcidId(), user.getOrcidBound());
+                fillOAuthBindings(user, userDTO);
             }
 
-            log.debug("成功获取用户信息 - userId: {}, email: {}, twoFactorEnabled: {}, githubId: {}, orcidId: {}", 
-                    userId, user.getEmail(), user.getTwoFactorEnabled(), user.getGithubId(), user.getOrcidId());
             return R.ok(userDTO);
-
         } catch (Exception e) {
             log.error("获取用户信息异常 - userId: {}, 错误: {}", userId, e.getMessage(), e);
             return R.fail("获取用户信息失败");
@@ -129,7 +118,6 @@ public class UserServiceImpl implements UserService {
             log.debug("成功获取用户详细信息 - userId: {}, 角色数: {}, 权限数: {}",
                     userId, roles.size(), permissionNames.size());
             return R.ok(userDTO);
-
         } catch (Exception e) {
             log.error("获取用户详细信息异常 - userId: {}, 错误: {}", userId, e.getMessage(), e);
             return R.fail("获取用户信息失败");
@@ -558,5 +546,24 @@ public class UserServiceImpl implements UserService {
             log.error("搜索用户异常 - 关键词: {}, 错误: {}", keyword, e.getMessage(), e);
             return R.fail("搜索用户失败");
         }
+    }
+
+
+    /**
+     * OAuth2信息填充方法
+     */
+    private void fillOAuthBindings(User user, UserDTO dto) {
+        if (dto == null || user == null) return;
+        var connections = userConnectionRepository.findByUserIdAndIsUnboundFalse(user.getId());
+        connections.forEach(c -> {
+            String provider = c.getProvider();
+            if ("github".equalsIgnoreCase(provider)) {
+                dto.setGithubId(c.getProviderUserId());
+                dto.setGithubUsername(c.getProviderUsername());
+            } else if ("orcid".equalsIgnoreCase(provider)) {
+                dto.setOrcidId(c.getProviderUserId());
+                dto.setOrcidBound(true);
+            }
+        });
     }
 }

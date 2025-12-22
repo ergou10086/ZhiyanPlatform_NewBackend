@@ -30,7 +30,7 @@ public interface UserConverter {
     @Mapping(target = "avatarData", ignore = true)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
-    @Mapping(target = "researchTags", ignore = true)
+    @Mapping(target = "researchTags", expression = "java(user.getResearchTagList())")
     @Mapping(target = "profileLinks", expression = "java(user.getProfileLinkList())")
     UserDTO toDTO(User user);
 
@@ -40,7 +40,7 @@ public interface UserConverter {
     @Mapping(target = "avatarData", expression = "java(convertAvatarToBase64(user))")
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
-    @Mapping(target = "researchTags", ignore = true)
+    @Mapping(target = "researchTags", expression = "java(user.getResearchTagList())")
     @Mapping(target = "profileLinks", expression = "java(user.getProfileLinkList())")
     UserDTO toDTOWithAvatar(User user);
 

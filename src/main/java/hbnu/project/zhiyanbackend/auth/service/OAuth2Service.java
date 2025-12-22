@@ -1,10 +1,8 @@
 package hbnu.project.zhiyanbackend.auth.service;
 
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2BindAccountDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2LoginResponseDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2SupplementInfoDTO;
-import hbnu.project.zhiyanbackend.auth.model.dto.OAuth2UserInfoDTO;
+import hbnu.project.zhiyanbackend.auth.model.dto.*;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import java.util.List;
 
 /**
  * OAuth2第三方登录服务接口
@@ -16,43 +14,73 @@ import hbnu.project.zhiyanbackend.basic.domain.R;
 public interface OAuth2Service {
 
     /**
-     * 处理OAuth2登录
-     * 策略：
-     * 1. 如果邮箱匹配到已有账号，直接登录
-     * 2. 如果邮箱匹配到已有账号但需要验证，返回需要绑定状态
-     * 3. 如果邮箱未匹配且OAuth2信息不足，返回需要补充信息状态
+     * 处理 OAuth2 登录/注册
      *
-     * @param oauth2UserInfo OAuth2用户信息
-     * @return 登录响应（可能包含登录成功、需要绑定、需要补充信息等状态）
+     * 核心逻辑：
+     * 1. 先查 UserConnection 表，看这个第三方账号是否已绑定
+     * 2. 如果已绑定 -> 直接登录
+     * 3. 如果未绑定：
+     *    a. 尝试邮箱匹配（如果有邮箱）
+     *    b. 匹配成功 -> 自动绑定 + 登录
+     *    c. 匹配失败 -> 静默注册新账号 + 自动绑定 + 登录
+     *
+     * @param oauth2UserInfo OAuth2 提供商返回的用户信息
+     * @return 登录响应
      */
     R<OAuth2LoginResponseDTO> handleOAuth2Login(OAuth2UserInfoDTO oauth2UserInfo);
 
     /**
-     * 绑定已有账号
-     * 将OAuth2账号绑定到已有的本地账号（通过邮箱和密码验证）
+     * 已登录用户手动绑定第三方账号
      *
-     * @param bindBody 绑定请求体
-     * @return 登录结果
+     * 场景：用户在个人中心点击"绑定 GitHub"
+     *
+     * 验证逻辑：
+     * 1. 检查该第三方账号是否已被其他用户绑定
+     * 2. 检查当前用户是否已绑定过该提供商
+     * 3. 验证通过后创建绑定关系
+     *
+     * @param userId         当前登录用户ID
+     * @param oauth2UserInfo OAuth2 用户信息
+     * @return 绑定结果
      */
-    R<OAuth2LoginResponseDTO> bindAccount(OAuth2BindAccountDTO bindBody);
+    R<Void> bindOAuth2Account(Long userId, OAuth2UserInfoDTO oauth2UserInfo);
 
     /**
-     * 补充信息创建账号
-     * 当OAuth2信息不足时，用户补充必要信息（邮箱、密码）后创建账号
+     * 解绑第三方账号
      *
-     * @param supplementBody 补充信息请求体
-     * @return 登录结果
+     * 安全检查：
+     * 1. 如果用户没有密码，且只剩一个绑定，不允许解绑（会导致无法登录）
+     * 2. 否则允许解绑
+     *
+     * @param userId   用户ID
+     * @param provider 提供商名称
+     * @return 解绑结果
      */
-    R<OAuth2LoginResponseDTO> supplementInfoAndCreateAccount(OAuth2SupplementInfoDTO supplementBody);
+    R<Void> unbindOAuth2Account(Long userId, String provider);
 
     /**
-     * 解绑OAuth2账号
-     * 解除当前用户与指定第三方平台的绑定关系
+     * 查询用户的所有绑定关系
      *
      * @param userId 用户ID
-     * @param provider 第三方提供商（github, orcid等）
-     * @return 操作结果
+     * @return 绑定关系列表
      */
-    R<Void> unbindAccount(Long userId, String provider);
+    R<List<UserConnectionDTO>> getUserConnections(Long userId);
+
+    /**
+     * 检查第三方账号是否已被绑定
+     *
+     * @param provider       提供商名称
+     * @param providerUserId 提供商用户ID
+     * @return 是否已绑定
+     */
+    boolean isOAuth2AccountBound(String provider, String providerUserId);
+
+    /**
+     * 获取ORCID用户详细信息
+     *
+     * @param userId 用户ID
+     * @return ORCID详细信息
+     */
+    R<OrcidDetailDTO> getOrcidDetail(Long userId);
 }
 
