@@ -61,8 +61,7 @@ public class AchievementFileController {
 
         // 从安全上下文获取当前登录用户ID
         Long userId = SecurityUtils.getUserId();
-        log.info("上传成果文件: achievementId={}, fileName={}, size={}, userId={}",
-                achievementId, file.getOriginalFilename(), file.getSize(), userId);
+        log.info("上传成果文件: achievementId={}, fileName={}, size={}, userId={}", achievementId, file.getOriginalFilename(), file.getSize(), userId);
 
         UploadFileDTO uploadDTO = UploadFileDTO.builder()
                 .achievementId(achievementId)

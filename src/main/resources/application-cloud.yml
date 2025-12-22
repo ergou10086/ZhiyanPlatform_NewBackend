@@ -213,9 +213,6 @@ zhiyan:
     callback-base-url: https://api.zyplatform.xyz
     # 前端页面URL配置（根据登录状态跳转到不同页面）
     frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
-    frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL
-#    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL
-    frontend-error-url: https://zyplatform.xyz/oauth2/error  # 错误页面URL
 
     github:
       # 是否启用GitHub登录
@@ -231,10 +228,10 @@ zhiyan:
       # user:email - 读取用户邮箱（需要此权限才能获取邮箱）
       scope: read:user,user:email
       # 以下URL为GitHub固定值，一般不需要修改
-#      authorization-uri: https://github.com/login/oauth/authorize
-#      token-uri: https://github.com/login/oauth/access_token
-#      user-info-uri: https://api.github.com/user
-#      user-email-uri: https://api.github.com/user/emails
+      authorization-uri: https://github.com/login/oauth/authorize
+      token-uri: https://github.com/login/oauth/access_token
+      user-info-uri: https://api.github.com/user
+      user-email-uri: https://api.github.com/user/emails
 
     orcid:
       # 是否启用ORCID登录
@@ -248,7 +245,7 @@ zhiyan:
       # TODO：经过本人探索，ORCID的授权范围不能多写，只能写一个，/authenticate openid就负责登录，/read-limited就是读取个人信息，这两者单独拿出来都能正常工作，现在就是考虑如何分开分别生效
       scope: "/authenticate openid"
       # ORCID API端点（生产环境）
-#      authorization-uri: https://orcid.org/oauth/authorize
-#      token-uri: https://orcid.org/oauth/token
-#      user-info-uri: https://pub.orcid.org/v3.0
+      authorization-uri: https://orcid.org/oauth/authorize
+      token-uri: https://orcid.org/oauth/token
+      user-info-uri: https://pub.orcid.org/v3.0
       api-version: v3.0

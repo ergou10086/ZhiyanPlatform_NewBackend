@@ -197,14 +197,14 @@ logging:
     hbnu.project.zhiyanbackend: INFO
     org.springframework.security: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
     com.zaxxer.hikari: INFO
     # 关闭特定框架的冗余日志
-    org.springframework.data.redis.repository: WARN
+    org.springframework.data.redis.repository: INFO
     org.springframework.data.redis: INFO
     # 生产环境开启慢SQL日志（Hibernate）
-    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -262,10 +262,10 @@ zhiyan:
     # 开发环境：本地运行，使用localhost
     # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: https://api.zyplatform.xyz
-    # 前端页面URL配置（根据登录状态跳转到不同页面）
-    frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
-    frontend-supplement-url: https://zyplatform.xyz/oauth2/supplement  # 补充信息页面URL
-#    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL
+    # 前端页面URL配置（OAuth2成功/失败统一回到前端回调页处理token）
+    frontend-home-url: https://zyplatform.xyz/oauth2/callback  # 成功后统一跳转回调页，由前端保存token后再跳转
+    frontend-supplement-url: https://zyplatform.xyz/oauth2/callback  # 现阶段不走补充信息单独页面，保持回调页处理
+#    frontend-bind-url: https://zyplatform.xyz/oauth2/bind  # 绑定页面URL（当前未启用）
     frontend-error-url: https://zyplatform.xyz/oauth2/error  # 错误页面URL
 
     github:
