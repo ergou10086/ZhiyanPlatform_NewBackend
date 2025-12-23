@@ -60,6 +60,7 @@ public class OAuth2Controller {
     public R<AuthorizationResultDTO> getAuthorizationUrl(
             @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
             @PathVariable String provider) {
+        provider = StringUtils.trim(provider);
         log.info("获取 OAuth2 授权 URL 请求 - 提供商: {}", provider);
 
         try {
@@ -84,13 +85,11 @@ public class OAuth2Controller {
     @GetMapping("/callback/{provider}")
     @Operation(summary = "OAuth2 回调", description = "第三方平台授权成功后的回调接口")
     public void callback(
-            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
-            @PathVariable String provider,
-            @Parameter(description = "授权码", required = true)
-            @RequestParam String code,
-            @Parameter(description = "状态参数（用于防 CSRF 攻击）", required = true)
-            @RequestParam String state,
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true) @PathVariable String provider,
+            @Parameter(description = "授权码", required = true) @RequestParam String code,
+            @Parameter(description = "状态参数（用于防 CSRF 攻击）", required = false) @RequestParam String state,
             HttpServletResponse response) {
+        provider = StringUtils.trim(provider);
         log.info("OAuth2 回调请求 - 提供商: {}, code: {}, state: {}", provider, code, state);
 
         try {
@@ -98,7 +97,8 @@ public class OAuth2Controller {
             String redirectUri = buildCallbackUrl(provider);
 
             // 2. 通过授权码获取用户信息
-            OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, state, redirectUri);
+            String stateParam = StringUtils.isNotBlank(state) ? state : "";
+            OAuth2UserInfoDTO userInfo = oAuth2Client.getUserInfoByCode(provider, code, stateParam, redirectUri);
             log.info("获取 OAuth2 用户信息成功 - 提供商: {}, 用户ID: {}, 邮箱: {}",
                     provider, userInfo.getProviderUserId(), userInfo.getEmail());
 
@@ -136,13 +136,11 @@ public class OAuth2Controller {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "手动绑定第三方账号回调", description = "已登录用户绑定第三方账号的回调接口")
     public void bindCallback(
-            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
-            @PathVariable String provider,
-            @Parameter(description = "授权码", required = true)
-            @RequestParam String code,
-            @Parameter(description = "状态参数", required = true)
-            @RequestParam String state,
+            @Parameter(description = "OAuth2 提供商名称", example = "github", required = true) @PathVariable String provider,
+            @Parameter(description = "授权码", required = true) @RequestParam String code,
+            @Parameter(description = "状态参数", required = false) @RequestParam String state,
             HttpServletResponse response) {
+        provider = StringUtils.trim(provider);
         log.info("手动绑定回调 - 提供商: {}", provider);
 
         try{
@@ -188,6 +186,7 @@ public class OAuth2Controller {
     public R<Void> unbindAccount(
             @Parameter(description = "OAuth2 提供商名称", example = "github", required = true)
             @PathVariable String provider) {
+        provider = StringUtils.trim(provider);
         log.info("解绑第三方账号请求 - 提供商: {}", provider);
 
         try {

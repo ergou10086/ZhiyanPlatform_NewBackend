@@ -104,7 +104,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         AND t.dueDate IS NOT NULL 
         AND t.dueDate > :currentDate
         """)
-    Page<Task> findTasksForReminder(@Param("currentDate") LocalDateTime currentDate, Pageable pageable);
+    Page<Task> findTasksForReminder(@Param("currentDate") LocalDate currentDate, Pageable pageable);
 
     long countByProjectIdAndIsDeletedFalse(Long projectId);
 }
