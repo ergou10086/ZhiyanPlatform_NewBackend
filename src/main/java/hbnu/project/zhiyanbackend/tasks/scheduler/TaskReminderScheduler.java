@@ -49,8 +49,9 @@ public class TaskReminderScheduler {
     @Scheduled(cron = "0 0 * * * ?")
     @Transactional(rollbackFor = Exception.class)
     public void sendTaskReminders() {
-        // 为了精确到小时，使用 LocalDateTime
+        // 为了计算剩余小时，同时配合JPA查询使用 LocalDate 过滤未来任务
         LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
         int page = 0;
         int pageSize = 100;
         Pageable pageable = PageRequest.of(page, pageSize);
@@ -60,8 +61,8 @@ public class TaskReminderScheduler {
             Page<Task> taskPage;
             
             do {
-                // 查询所有查询未完成且有截止日期的任务，而且未删除，也就是状态为 TODO 或 IN_PROGRESS，isDeleted=false，且 dueDate 在当前时间之后的任务
-                taskPage = taskRepository.findTasksForReminder(now, pageable);
+                // 查询所有未完成且有截止日期的任务，而且未删除：状态为 TODO 或 IN_PROGRESS，isDeleted=false，且 dueDate 在今天之后的任务
+                taskPage = taskRepository.findTasksForReminder(today, pageable);
 
                 List<Task> activeTasks = taskPage.getContent();
 

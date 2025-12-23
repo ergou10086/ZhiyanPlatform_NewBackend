@@ -52,37 +52,37 @@ public class OrcidOAuth2Provider extends AbstractOAuth2Provider{
 
     @Override
     public boolean isEnabled() {
-        return properties.getOrcid().isEnabled();
+        return properties.isOrcid_enabled();
     }
 
     @Override
     protected String getClientId() {
-        return properties.getOrcid().getClientId();
+        return properties.getOrcid_clientId();
     }
 
     @Override
     protected String getClientSecret() {
-        return properties.getOrcid().getClientSecret();
+        return properties.getOrcid_clientSecret();
     }
 
     @Override
     protected String getScope() {
-        return properties.getOrcid().getScope();
+        return properties.getOrcid_scope();
     }
 
     @Override
     protected String getAuthorizationUri() {
-        return properties.getOrcid().getAuthorizationUri();
+        return properties.getOrcid_authorizationUri();
     }
 
     @Override
     protected String getTokenUri() {
-        return properties.getOrcid().getTokenUri();
+        return properties.getOrcid_tokenUri();
     }
 
     @Override
     protected String getUserInfoUri() {
-        return properties.getOrcid().getUserInfoUri();
+        return properties.getOrcid_userInfoUri();
     }
 
     /**

@@ -14,6 +14,8 @@ import hbnu.project.zhiyanbackend.activelog.repository.AchievementOperationLogRe
 import hbnu.project.zhiyanbackend.activelog.repository.ProjectOperationLogRepository;
 import hbnu.project.zhiyanbackend.activelog.repository.TaskOperationLogRepository;
 import hbnu.project.zhiyanbackend.activelog.repository.WikiOperationLogRepository;
+import hbnu.project.zhiyanbackend.tasks.model.entity.Task;
+import hbnu.project.zhiyanbackend.tasks.repository.TaskRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class OperationLogSaveCore {
     private final TaskOperationLogRepository taskOperationLogRepository;
     private final WikiOperationLogRepository wikiOperationLogRepository;
     private final AchievementOperationLogRepository achievementOperationLogRepository;
+    private final TaskRepository taskRepository;
 
     /**
      * 操作时间字段名
@@ -142,9 +145,25 @@ public class OperationLogSaveCore {
             return;
         }
 
-        // 如果关键信息缺失，记录警告
+        // 如果关键信息缺失，记录警告并尝试兜底补全
+        if (projectId == null && taskId != null) {
+            // 兜底：根据 taskId 反查任务，补全 projectId，避免 project_id 为 NULL
+            try {
+                Task task = taskRepository.findById(taskId).orElse(null);
+                if (task != null) {
+                    projectId = task.getProjectId();
+                    log.warn("保存任务操作日志时projectId为null，已通过taskId补全: taskId={}, projectId={}",
+                            taskId, projectId);
+                } else {
+                    log.warn("保存任务操作日志时projectId为null，且根据taskId未找到任务: type={}, taskId={}, userId={}",
+                            annotation.type(), taskId, userId);
+                }
+            } catch (Exception e) {
+                log.warn("根据taskId补全projectId失败: taskId={}, error={}", taskId, e.getMessage());
+            }
+        }
         if (projectId == null) {
-            log.warn("保存任务操作日志时projectId为null: type={}, taskId={}, userId={}", 
+            log.warn("保存任务操作日志时最终projectId仍为null: type={}, taskId={}, userId={}",
                     annotation.type(), taskId, userId);
         }
         if (taskId == null) {

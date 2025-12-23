@@ -49,11 +49,6 @@ public class OAuth2UserInfoDTO implements Serializable {
     private String email;
 
     /**
-     * 头像URL
-     */
-    private String avatarUrl;
-
-    /**
      * 访问令牌（临时存储，用于获取额外信息）
      */
     private transient String accessToken;

@@ -421,7 +421,6 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                 .providerUserId(oauth2UserInfo.getProviderUserId())
                 .providerUsername(oauth2UserInfo.getUsername())
                 .providerEmail(oauth2UserInfo.getEmail())
-                .providerAvatarUrl(oauth2UserInfo.getAvatarUrl())
                 .accessToken(oauth2UserInfo.getAccessToken())
                 .isUnbound(false)
                 .lastSyncAt(System.currentTimeMillis())
@@ -434,7 +433,6 @@ public class OAuth2ServiceImpl implements OAuth2Service {
     private void updateConnectionInfo(UserConnection connection, OAuth2UserInfoDTO oauth2UserInfo) {
         connection.setProviderUsername(oauth2UserInfo.getUsername());
         connection.setProviderEmail(oauth2UserInfo.getEmail());
-        connection.setProviderAvatarUrl(oauth2UserInfo.getAvatarUrl());
         connection.setAccessToken(oauth2UserInfo.getAccessToken());
         connection.setLastSyncAt(System.currentTimeMillis());
     }

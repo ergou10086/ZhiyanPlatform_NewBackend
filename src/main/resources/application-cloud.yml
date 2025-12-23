@@ -205,47 +205,28 @@ tencent:
 # OAuth2第三方登录配置
 zhiyan:
   oauth2:
-    # 是否启用OAuth2功能
     enabled: true
-    # 回调地址基础路径（不包含具体路径）
-    # 开发环境：本地运行，使用localhost
-    # 生产环境：需要改为实际域名，如 https://yourdomain.com
     callback-base-url: https://api.zyplatform.xyz
-    # 前端页面URL配置（根据登录状态跳转到不同页面）
-    frontend-home-url: https://zyplatform.xyz/home  # 主页URL（登录成功后跳转）
+    frontend-home-url: https://zyplatform.xyz/home
+    frontend-error-url: https://zyplatform.xyz/oauth2/error
 
-    github:
-      # 是否启用GitHub登录
-      enabled: true
-      # GitHub应用的Client ID（从GitHub开发者平台获取）
-      # 建议使用环境变量：${GITHUB_CLIENT_ID:your-github-client-id}
-      client-id: ${GITHUB_CLIENT_ID:Ov23liNSEUAOKgBl1xBA}
-      # GitHub应用的Client Secret（从GitHub开发者平台获取）
-      # 建议使用环境变量：${GITHUB_CLIENT_SECRET:your-github-client-secret}
-      client-secret: ${GITHUB_CLIENT_SECRET}
-      # 授权范围（scope）
-      # read:user - 读取用户基本信息
-      # user:email - 读取用户邮箱（需要此权限才能获取邮箱）
-      scope: read:user,user:email
-      # 以下URL为GitHub固定值，一般不需要修改
-      authorization-uri: https://github.com/login/oauth/authorize
-      token-uri: https://github.com/login/oauth/access_token
-      user-info-uri: https://api.github.com/user
-      user-email-uri: https://api.github.com/user/emails
+    # GitHub 配置
+    github_enabled: true
+    github_clientId: Ov23liNSEUAOKgBl1xBA
+    github_clientSecret: ${GITHUB_CLIENT_SECRET}
+    github_scope: "read:user user:email"
+    github_authorizationUri: https://github.com/login/oauth/authorize
+    github_tokenUri: https://github.com/login/oauth/access_token
+    github_userInfoUri: https://api.github.com/user
+    github_userEmailUri: https://api.github.com/user/emails
 
-    orcid:
-      # 是否启用ORCID登录
-      enabled: true
-      # ORCID应用的Client ID
-      client-id: APP-GRP904LYKJZPI54F
-      # ORCID应用的Client Secret
-      # 注意：生产环境建议使用环境变量 ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
-      client-secret: ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
-      # 授权范围
-      # TODO：经过本人探索，ORCID的授权范围不能多写，只能写一个，/authenticate openid就负责登录，/read-limited就是读取个人信息，这两者单独拿出来都能正常工作，现在就是考虑如何分开分别生效
-      scope: "/authenticate openid"
-      # ORCID API端点（生产环境）
-      authorization-uri: https://orcid.org/oauth/authorize
-      token-uri: https://orcid.org/oauth/token
-      user-info-uri: https://pub.orcid.org/v3.0
-      api-version: v3.0
+    # ORCID 配置
+    orcid_enabled: true
+    orcid_clientId: APP-GRP904LYKJZPI54F
+    orcid_clientSecret: ${ORCID_CLIENT_SECRET:625d17b7-c0d2-43c7-a607-5532b9614f17}
+    # 已经解决（/authenticate openid也能查询个人公开信息）：经过本人探索，ORCID的授权范围不能多写，只能写一个，/authenticate openid就负责登录，/read-limited就是读取个人信息，这两者单独拿出来都能正常工作，现在就是考虑如何分开分别生效
+    orcid_scope: "/authenticate openid"
+    orcid_authorizationUri: https://orcid.org/oauth/authorize
+    orcid_tokenUri: https://orcid.org/oauth/token
+    orcid_userInfoUri: https://pub.orcid.org/v3.0
+    orcid_apiVersion: v3.0
