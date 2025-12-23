@@ -42,7 +42,7 @@ public class WikiWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/zhiyan/wiki/ws")
                 // 允许跨域，生产环境应配置具体域名
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns("https://zyplatform.xyz", "https://api.zyplatform.xyz","http://zyplatform.xyz", "http://api.zyplatform.xyz","http://localhost:9006")
                 .withSockJS();  // 启用 SockJS 支持，提供降级方案
     }
 

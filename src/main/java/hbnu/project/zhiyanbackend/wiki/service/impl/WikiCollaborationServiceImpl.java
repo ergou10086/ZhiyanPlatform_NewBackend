@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 /**
  * Wiki 协同编辑服务实现
  *
- * <p>使用 Redis 管理在线编辑者、光标位置和简单内容锁，保持与旧架构功能一致。</p>
+ * <p>使用 Redis 管理在线编辑者、光标位置和简单内容锁，与旧架构功能一致。</p>
+ * @author ErgouTree
  */
 @Slf4j
 @Service
@@ -52,6 +53,7 @@ public class WikiCollaborationServiceImpl implements WikiCollaborationService {
     @Override
     public void joinEditing(Long pageId, Long userId) {
         try {
+            // 构建缓存见，存入Redis，代表用户加入编辑
             String pageKey = PAGE_EDITORS_KEY + pageId;
             redisTemplate.opsForSet().add(pageKey, userId.toString());
             redisTemplate.expire(pageKey, Duration.ofSeconds(EDITOR_TTL_SECONDS));

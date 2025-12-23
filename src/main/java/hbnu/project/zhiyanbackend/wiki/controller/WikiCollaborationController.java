@@ -1,14 +1,10 @@
 package hbnu.project.zhiyanbackend.wiki.controller;
 
-import hbnu.project.zhiyanbackend.auth.model.entity.Permission;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
-import hbnu.project.zhiyanbackend.projects.model.enums.ProjectPermission;
 import hbnu.project.zhiyanbackend.projects.utils.ProjectSecurityUtils;
-import hbnu.project.zhiyanbackend.security.utils.PermissionUtils;
 import hbnu.project.zhiyanbackend.wiki.model.dto.WikiCollaborationDTO;
 import hbnu.project.zhiyanbackend.wiki.repository.WikiPageRepository;
 import hbnu.project.zhiyanbackend.wiki.service.WikiCollaborationService;
-import hbnu.project.zhiyanbackend.wiki.service.WikiContentVersionService;
 import hbnu.project.zhiyanbackend.wiki.service.WikiPageService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -63,8 +59,7 @@ public class WikiCollaborationController {
             Long userId = Long.parseLong(principal.getName());
 
             // 权限检查：获取项目ID并检查用户是否为项目成员
-            Long projectId = wikiPageRepository.findProjectIdById(pageId)
-                    .orElseThrow(() -> new ControllerException("Wiki页面不存在"));
+            Long projectId = wikiPageRepository.findProjectIdById(pageId).orElseThrow(() -> new ControllerException("Wiki页面不存在"));
 
             if (!projectSecurityUtils.isMember(projectId, userId)) {
                 throw new ControllerException("您不是该项目的成员，无权访问");

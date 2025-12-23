@@ -62,7 +62,7 @@ public class WikiWebSocketInterceptor implements ChannelInterceptor {
 
     @Override
     public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
-        // 可以在这里记录消息发送日志，懒得记录了
+        // 可以在这里记录消息发送日志，懒得记录了，不记录了，只留下位置
     }
 
     @Override

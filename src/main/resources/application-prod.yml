@@ -226,6 +226,19 @@ swagger:
   title: "智研平台后端服务"
   description: "用户认证、项目管理、任务管理等核心功能"
 
+# OpenAPI/Swagger 开启（生产环境）
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui/index.html
+
+knife4j:
+  enable: true
+  production: false
+
 # SSE配置
 sse:
   enabled: true
