@@ -3,11 +3,13 @@ package hbnu.project.zhiyanbackend.ai.aipowered.controller;
 import hbnu.project.zhiyanbackend.ai.aiassistant.service.DifyFileService;
 import hbnu.project.zhiyanbackend.ai.aipowered.config.KnowledgeDifyProperties;
 import hbnu.project.zhiyanbackend.ai.aiassistant.model.response.DifyFileUploadResponse;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.sse.core.DifyStreamEmitter;
 import hbnu.project.zhiyanbackend.sse.service.DifyStreamService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -105,8 +107,7 @@ public class KnowledgeAIChatController {
         List<Long> knowledgeFileIds = new ArrayList<>();
         Object fileObject = request.get("knowledgeFileIds");
 
-        if(fileObject instanceof List){
-            List<?> list = (List<?>) fileObject;
+        if(fileObject instanceof List<?> list){
             for(Object object : list){
                 try{
                     if(object instanceof Number){
@@ -153,35 +154,7 @@ public class KnowledgeAIChatController {
     }
 
     /**
-     * 流式AI对话（不带文件）
-     *
-     * @param query 用户查询内容
-     * @param conversationId 会话ID（可选）
-     * @return SSE流式响应
-     */
-    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@RequestParam String query, @RequestParam(required = false, defaultValue = "") String conversationId) {
-        Long userId = validateAndGetUserId();
-
-        // 使用临时ID用于内部管理SSE连接
-        String internalEmitterId = UUID.randomUUID().toString();
-
-        log.info("[Knowledge Dify 对话] 开始流式对话, userId={}, convId={}, query前50字符={}", userId, conversationId, truncate(query, 50));
-
-        // 创建SSE发射器
-        SseEmitter emitter = DifyStreamEmitter.createEmitter(internalEmitterId, userId);
-
-        // 构建不带文件的请求体
-        Map<String, Object> body = buildBasicRequestBody(query, conversationId, userId);
-
-        // 调用Dify流式服务
-        callDifyStreamWithLogging(conversationId, body);
-
-        return emitter;
-    }
-
-    /**
-     * 流式AI对话（带文件 - 使用已上传的 Dify 文件ID）
+     * 通用流式AI对话（支持带文件 - 使用已上传的 Dify 文件ID，和不带文件）
      * 流程：
      * 1. 用户选择文件
      * 2. 调用 /files/upload/knowledge 或 /files/upload/batch 上传文件
@@ -223,14 +196,14 @@ public class KnowledgeAIChatController {
                             .collect(Collectors.toList()) :
                     Collections.emptyList();
 
+            Map<String, Object> body;
             if (!validFileIds.isEmpty()) {
-                log.info("[Knowledge Dify 对话] 附加文件, count={}, ids={}", validFileIds.size(), validFileIds);
-            }else {
-                log.warn("[Knowledge Dify 对话] 警告：未收到有效的文件ID");
+                log.info("[Knowledge Dify 对话] 检测到文件，构建带文件的请求体, count={}", validFileIds.size());
+                body = buildRequestBodyWithFiles(query, conversationId, userId, validFileIds);
+            } else {
+                log.info("[Knowledge Dify 对话] 未检测到文件，构建基础请求体");
+                body = buildBasicRequestBody(query, conversationId, userId);
             }
-
-            // 构建请求体（使用 Dify 的 conversation_id）
-            Map<String, Object> body = buildRequestBodyWithFiles(query, conversationId, userId, validFileIds);
 
             log.info("[Knowledge Dify 对话] 请求体构建完成:");
             log.info("  - conversationId: {}", conversationId.isEmpty() ? "新对话" : conversationId);
@@ -248,23 +221,76 @@ public class KnowledgeAIChatController {
         return emitter;
     }
 
+    /**
+     * 停止流式响应
+     *
+     * @param conversationId 对话 ID
+     * @return 停止结果
+     */
+    @PostMapping("/chat/stop/{conversationId}")
+    @Operation(summary = "停止流式响应", description = "停止指定对话的流式响应")
+    public R<Void> stopStream(@PathVariable String conversationId) {
+        Long userId = validateAndGetUserId();
+        log.info("[Knowledge Dify 停止] 请求停止响应 - conversationId={}, userId={}", conversationId, userId);
+
+        try{
+            // 验证对话是否属于当前用户
+            Long conversationUserId = DifyStreamEmitter.getUserId(conversationId);
+            if (conversationUserId == null || !conversationUserId.equals(userId)) {
+                return R.fail("对话不存在或无权限");
+            }
+
+            // 获取 taskId
+            String taskId = DifyStreamEmitter.getTaskId(conversationId);
+            if (taskId == null || taskId.isEmpty()) {
+                return R.fail("未找到任务ID，可能响应已完成或尚未开始");
+            }
+
+            // 调用停止接口
+            boolean success = difyStreamService.stopDifyStream(
+                    taskId,
+                    knowledgeDifyProperties.getApiUrl(),
+                    knowledgeDifyProperties.getApiKey(),
+                    userId
+            );
+
+            if (success) {
+                // 关闭 SSE 连接
+                DifyStreamEmitter.completeEmitter(conversationId);
+                return R.ok(null, "已停止响应");
+            } else {
+                return R.fail("停止响应失败");
+            }
+        }catch (ControllerException e){
+            log.error("[Knowledge Dify 停止] 停止响应异常 - conversationId={}, userId={}", conversationId, userId, e);
+            return R.fail("停止响应失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 私有辅助方法 ====================
 
     /**
      * 构建基础请求体
+     * 注意：即使没有文件，也要在 inputs 中设置 doc_files 为空数组，以满足 Dify API 的要求
      */
     private Map<String, Object> buildBasicRequestBody(String query, String conversationId, Long userId) {
         Map<String, Object> body = new HashMap<>();
         body.put("query", query);
         body.put("conversation_id", conversationId != null ? conversationId : "");
         body.put("user", String.valueOf(userId));
-        body.put("inputs", new HashMap<>());
+        
+        // 即使没有文件，也要设置 doc_files 为空数组，满足 Dify API 要求
+        Map<String, Object> inputs = new HashMap<>();
+        inputs.put("doc_files", Collections.emptyList());
+        body.put("inputs", inputs);
+        
         body.put("response_mode", "streaming");
         return body;
     }
 
     /**
      * 构建带文件的请求体
+     * 注意：即使文件列表为空，也要设置 doc_files 为空数组，以满足 Dify API 的要求
      */
     private Map<String, Object> buildRequestBodyWithFiles(String query, String conversationId,
                                                           Long userId, List<String> difyFileIds) {
@@ -288,11 +314,10 @@ public class KnowledgeAIChatController {
                 fileList.add(file);
             }
         }
-        // Dify API 要求使用 doc_files 字段，而不是 file
-        if (!fileList.isEmpty()) {
-            inputs.put("doc_files", fileList);
-        }
+        // ⭐ Dify API 要求 doc_files 必须存在且是列表，即使没有文件也要传空数组
+        inputs.put("doc_files", fileList);
         body.put("inputs", inputs);
+        body.put("response_mode", "streaming");
         return body;
     }
 
@@ -342,8 +367,6 @@ public class KnowledgeAIChatController {
         }
         return userId;
     }
-
-
 
     /**
      * 调用Dify流式服务并记录日志

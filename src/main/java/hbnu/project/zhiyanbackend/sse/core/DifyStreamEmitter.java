@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,6 +30,17 @@ public class DifyStreamEmitter {
      */
     private static final Long SSE_TIMEOUT = 600000L;
 
+    /**
+     * 存储每个会话的 userId（用于停止响应时验证）
+     * Key: conversationId, Value: userId
+     */
+    private static final Map<String, Long> CONVERSATION_USER_IDS = new ConcurrentHashMap<>();
+
+    /**
+     * 存储每个会话的 taskId（用于停止响应）
+     * Key: conversationId, Value: taskId
+     */
+    private static final Map<String, String> CONVERSATION_TASK_IDS = new ConcurrentHashMap<>();
 
     /**
      * 创建新的对话流式发射器
@@ -44,33 +56,45 @@ public class DifyStreamEmitter {
         sseEmitter.onCompletion(() -> {
             log.info("[Dify SSE] 对话完成: conversationId={}, userId={}", conversationId, userId);
             CONVERSATION_EMITTERS.remove(conversationId);
+            CONVERSATION_TASK_IDS.remove(conversationId);
+            CONVERSATION_USER_IDS.remove(conversationId);
         });
 
         sseEmitter.onTimeout(() -> {
             log.warn("[Dify SSE] 对话超时: conversationId={}, userId={}", conversationId, userId);
             CONVERSATION_EMITTERS.remove(conversationId);
+            CONVERSATION_TASK_IDS.remove(conversationId);
+            CONVERSATION_USER_IDS.remove(conversationId);
         });
 
         sseEmitter.onError((e) -> {
             log.error("[Dify SSE] 对话错误: conversationId={}, userId={}", conversationId, userId, e);
             CONVERSATION_EMITTERS.remove(conversationId);
+            CONVERSATION_TASK_IDS.remove(conversationId);
+            CONVERSATION_USER_IDS.remove(conversationId);
         });
 
         // 存储发射器
         CONVERSATION_EMITTERS.put(conversationId, sseEmitter);
+        CONVERSATION_USER_IDS.put(conversationId, userId);
 
-        // 发送连接成功消息
+        // 发送连接成功消息，包含 conversationId（用于停止请求）
         try {
+            Map<String, Object> connectedData = new HashMap<>();
+            connectedData.put("message", "连接成功");
+            connectedData.put("conversationId", conversationId); // 返回 internalEmitterId 给前端
+            
             sseEmitter.send(SseEmitter.event()
                     .name("connected")
-                    .data("连接成功"));
+                    .data(connectedData));
         }catch (SseException | IOException e){
             log.error("[Dify SSE] 发送连接消息失败", e);
             CONVERSATION_EMITTERS.remove(conversationId);
+            CONVERSATION_TASK_IDS.remove(conversationId);
+            CONVERSATION_USER_IDS.remove(conversationId);
         }
 
         log.info("[Dify SSE] 创建流式发射器: conversationId={}, userId={}", conversationId, userId);
-
         return sseEmitter;
     }
 
@@ -164,6 +188,29 @@ public class DifyStreamEmitter {
         }
     }
 
+    /**
+     * 保存 taskId
+     */
+    public static void saveTaskId(String conversationId, String taskId) {
+        if (conversationId != null && taskId != null) {
+            CONVERSATION_TASK_IDS.put(conversationId, taskId);
+            log.debug("[Dify SSE] 保存 taskId: conversationId={}, taskId={}", conversationId, taskId);
+        }
+    }
+
+    /**
+     * 获取 taskId
+     */
+    public static String getTaskId(String conversationId) {
+        return CONVERSATION_TASK_IDS.get(conversationId);
+    }
+
+    /**
+     * 获取 userId
+     */
+    public static Long getUserId(String conversationId) {
+        return CONVERSATION_USER_IDS.get(conversationId);
+    }
 
     /**
      * 检查发射器是否存在

@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.sse.service;
 
 
+import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.sse.core.DifyStreamEmitter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -138,7 +140,6 @@ public class DifyStreamService {
             }
 
             String jsonData = chunk.trim();
-
             // 调试：记录原始数据块，便于排查无回复问题
             log.info("[Dify Stream] chunk: {}", jsonData);
 
@@ -153,9 +154,18 @@ public class DifyStreamService {
             }
 
             // 解析 JSON 并提取文本
-            // TODO:这里简化处理，实际需要根据 Dify 返回格式解析
-            String text = extractTextFromDifyResponse(jsonData);
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(jsonData);
+            // 提取保存taskID
+            if (root.has("task_id")) {
+                String taskId = root.get("task_id").asText();
+                if (taskId != null && !taskId.isEmpty()) {
+                    DifyStreamEmitter.saveTaskId(conversationId, taskId);
+                    log.debug("[Dify Stream] 保存 taskId: conversationId={}, taskId={}", conversationId, taskId);
+                }
+            }
 
+            String text = extractTextFromDifyResponse(jsonData);
             if (text != null && !text.isEmpty()) {
                 DifyStreamEmitter.sendChunk(conversationId, text);
             }
@@ -164,7 +174,39 @@ public class DifyStreamService {
         }
     }
 
+    /**
+     * 停止 Dify 流式响应
+     */
+    public boolean stopDifyStream(String taskId, String apiUrl, String apiKey, Long userId) {
+        if (taskId == null || taskId.isEmpty()) {
+            log.warn("[Dify Stream] 停止失败：taskId 为空");
+            return false;
+        }
 
+        try{
+            WebClient webClient = webClientBuilder
+                    .baseUrl(apiUrl)
+                    .defaultHeader("Authorization", "Bearer " + apiKey)
+                    .defaultHeader("Content-Type", "application/json")
+                    .build();
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("user", String.valueOf(userId));
+
+            String response = webClient.post()
+                    .uri("/chat-messages/{taskId}/stop", taskId)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            log.info("[Dify Stream] 停止响应成功: taskId={}, userId={}, response={}", taskId, userId, response);
+            return true;
+        }catch (ServiceException e) {
+            log.error("[Dify Stream] 停止响应失败: taskId={}, userId={}", taskId, userId, e);
+            return false;
+        }
+    }
 
     /**
      * 从 Dify 响应中提取文本

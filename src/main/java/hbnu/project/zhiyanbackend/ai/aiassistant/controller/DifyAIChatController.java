@@ -4,6 +4,7 @@ import hbnu.project.zhiyanbackend.ai.aiassistant.config.DifyProperties;
 import hbnu.project.zhiyanbackend.ai.aiassistant.model.response.DifyFileUploadResponse;
 import hbnu.project.zhiyanbackend.ai.aiassistant.service.DifyFileService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.sse.core.DifyStreamEmitter;
 import hbnu.project.zhiyanbackend.sse.service.DifyStreamService;
@@ -183,5 +184,54 @@ public class DifyAIChatController {
     @GetMapping("/health")
     public R<String> health() {
         return R.ok("AI Service is running");
+    }
+
+    /**
+     * 停止流式响应
+     *
+     * @param conversationId 对话 ID
+     * @return 停止结果
+     */
+    @PostMapping("/chat/stop/{conversationId}")
+    public R<Void> stopStream(@PathVariable String conversationId) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录，无法停止响应");
+        }
+
+        log.info("[Dify 停止] 请求停止响应 - conversationId={}, userId={}", conversationId, userId);
+
+        try {
+            // 验证对话是否属于当前用户
+            Long conversationUserId = DifyStreamEmitter.getUserId(conversationId);
+            if (conversationUserId == null || !conversationUserId.equals(userId)) {
+                return R.fail("对话不存在或无权限");
+            }
+
+            // 获取 taskId
+            String taskId = DifyStreamEmitter.getTaskId(conversationId);
+            if (taskId == null || taskId.isEmpty()) {
+                return R.fail("未找到任务ID，可能响应已完成或尚未开始");
+            }
+
+            // 调用停止接口
+            boolean success = difyStreamService.stopDifyStream(
+                    taskId,
+                    difyProperties.getApiUrl(),
+                    difyProperties.getApiKey(),
+                    userId
+            );
+
+            if (success) {
+                // 关闭 SSE 连接
+                DifyStreamEmitter.completeEmitter(conversationId);
+                return R.ok(null, "已停止响应");
+            } else {
+                return R.fail("停止响应失败");
+            }
+        } catch (ControllerException e) {
+            log.error("[Dify 停止] 停止响应异常 - conversationId={}, userId={}", conversationId, userId, e);
+            return R.fail("停止响应失败: " + e.getMessage());
+        }
     }
 }
