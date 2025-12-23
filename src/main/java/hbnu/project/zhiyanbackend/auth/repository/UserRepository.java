@@ -97,8 +97,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param pageable 分页参数
      * @return 用户分页结果
      */
+    @Query("SELECT u FROM User u WHERE u.isDeleted = false AND (u.name LIKE %:nameKeyword% OR u.email LIKE %:emailKeyword%)")
     Page<User> findByNameContainingOrEmailContainingAndIsDeletedFalse(
-            String nameKeyword, String emailKeyword, Pageable pageable);
+            @Param("nameKeyword") String nameKeyword,
+            @Param("emailKeyword") String emailKeyword,
+            Pageable pageable);
 
     /**
      * 根据姓名查找未删除的用户
