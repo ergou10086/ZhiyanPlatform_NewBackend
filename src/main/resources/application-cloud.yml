@@ -206,7 +206,7 @@ tencent:
 zhiyan:
   oauth2:
     enabled: true
-    callback-base-url: https://api.zyplatform.xyz
+    callback-base-url: http://sf4a6f34.natappfree.cc
     frontend-home-url: https://zyplatform.xyz/home
     frontend-error-url: https://zyplatform.xyz/oauth2/error
 

@@ -11,8 +11,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -73,33 +71,6 @@ public class GithubOAuth2Provider extends AbstractOAuth2Provider {
     @Override
     protected String getUserInfoUri() {
         return properties.getGithub_userInfoUri();
-    }
-
-    /**
-     * 重写 getAuthorizationUrl 以去掉 state 参数
-     * GitHub 授权地址不需要 state 参数
-     */
-    @Override
-    public String getAuthorizationUrl(String state, String redirectUri){
-        String baseUrl = getAuthorizationUri();
-        String clientId = getClientId();
-        String scope = getScope();
-        if (StringUtils.isEmpty(baseUrl) || StringUtils.isEmpty(clientId)) {
-            throw new OAuth2Exception("OAuth2配置不完整：缺少authorizationUri或clientId");
-        }
-
-        StringBuilder url = new StringBuilder(baseUrl);
-        url.append("?client_id=").append(URLEncoder.encode(clientId, StandardCharsets.UTF_8));
-        url.append("&redirect_uri=").append(URLEncoder.encode(redirectUri, StandardCharsets.UTF_8));
-        // 去掉 state 参数，看看是不是因为你解析不出来
-        url.append("&response_type=code");
-
-        if (StringUtils.isNotEmpty(scope)) {
-            url.append("&scope=").append(URLEncoder.encode(scope, StandardCharsets.UTF_8));
-        }
-
-        log.debug("生成 GitHub 授权URL（无state）: {}", url);
-        return url.toString();
     }
 
     /**

@@ -81,14 +81,6 @@ public class OAuth2ClientImpl implements OAuth2Client {
     public OAuth2UserInfoDTO getUserInfoByCode(String providerName, String code, String state, String redirectUri) {
         OAuth2Provider provider = getProvider(providerName);
 
-        // GitHub 不需要验证 state（因为授权 URL 中没有 state）
-        if (!"github".equalsIgnoreCase(providerName)) {
-            // 验证state
-            validateState(state);
-        } else {
-            log.debug("GitHub 提供商跳过 state 验证");
-        }
-
         // 获取访问令牌
         String accessToken = provider.getAccessToken(code, redirectUri);
         log.debug("获取访问令牌成功 - 提供商: {}", providerName);
