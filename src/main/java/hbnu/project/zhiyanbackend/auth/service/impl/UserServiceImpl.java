@@ -503,7 +503,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     @Transactional(readOnly = true)
-    public R<Page<UserDTO>> searchUsers(String keyword, Pageable pageable) {
+    public R<Page<UserDTO>>  searchUsers(String keyword, Pageable pageable) {
         try {
             log.debug("搜索用户 - 关键词: {}, 页码: {}, 每页数量: {}",
                     keyword, pageable.getPageNumber(), pageable.getPageSize());
