@@ -227,4 +227,12 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
      */
     List<TaskSubmission> findByTaskIdInAndIsDeletedFalseOrderByTaskIdAscVersionDesc(List<Long> taskIds);
 
+    /**
+     * 根据审核人查询提交记录（分页，按审核时间降序）
+     * @param reviewerId 审核人ID
+     * @param pageable 分页参数
+     * @return 分页后的提交记录
+     */
+    Page<TaskSubmission> findByReviewerIdAndIsDeletedFalseOrderByReviewTimeDesc(Long reviewerId, Pageable pageable);
+
 }

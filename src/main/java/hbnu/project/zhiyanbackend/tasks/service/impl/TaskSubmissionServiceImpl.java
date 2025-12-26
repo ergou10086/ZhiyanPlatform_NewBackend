@@ -217,9 +217,11 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
 
             try {
                 LocalDate oldDue = task.getDueDate();
-                LocalDate newDue = (oldDue != null) ? oldDue.plusDays(3) : LocalDate.now().plusDays(3);
+                // 在审核拒绝的时间上延长3天，而不是在原截止日期上延长
+                LocalDate newDue = LocalDate.now().plusDays(3);
                 task.setDueDate(newDue);
-                log.info("任务截止日期已延长3天: taskId={}, oldDue={}, newDue={}", task.getId(), oldDue, newDue);
+                log.info("任务审核被拒绝，截止日期已延长至 {}: taskId={}, oldDue={}, newDue={}",
+                        newDue, task.getId(), oldDue, newDue);
             } catch (Exception e) {
                 log.warn("延长任务截止日期失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
             }
@@ -348,6 +350,14 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     public Page<TaskSubmissionDTO> getPendingSubmissions(Long userId, Pageable pageable) {
         return submissionRepository
                 .findPendingSubmissionsForUser(userId, ReviewStatus.PENDING, pageable)
+                .map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TaskSubmissionDTO> getSubmissionsByReviewer(Long reviewerId, Pageable pageable) {
+        return submissionRepository
+                .findByReviewerIdAndIsDeletedFalseOrderByReviewTimeDesc(reviewerId, pageable)
                 .map(this::convertToDTO);
     }
 

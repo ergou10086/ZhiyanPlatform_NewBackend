@@ -50,6 +50,14 @@ public interface TaskSubmissionService {
 
     long countPendingSubmissionsForReview(Long userId);
 
+    /**
+     * 获取某个审核人审核过的提交记录（分页）
+     * @param reviewerId 审核人ID
+     * @param pageable 分页参数
+     * @return 分页后的提交记录 DTO
+     */
+    Page<TaskSubmissionDTO> getSubmissionsByReviewer(Long reviewerId, Pageable pageable);
+
     Map<String, Object> getTaskSubmissionStats(Long taskId);
 
     /**
