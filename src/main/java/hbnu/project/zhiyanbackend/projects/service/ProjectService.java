@@ -4,10 +4,12 @@ import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
+import hbnu.project.zhiyanbackend.projects.model.form.ProjectOwnershipTransferRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 项目服务接口（精简版）
@@ -184,5 +186,37 @@ public interface ProjectService {
      * @return 返回操作结果
      */
     R<Void> deleteDraft(Long userId);
-}
 
+    /**
+     * 分页获取用户作为项目OWNER的项目列表
+     * @param ownerId 用户ID
+     * @param pageable 分页参数
+     * @param keyword 搜索关键词（按名称或描述模糊匹配，可为空）
+     * @return 项目分页列表
+     */
+    R<Page<Project>> getOwnedProjects(Long ownerId, Pageable pageable, String keyword);
+
+    /**
+     * 统计用户作为项目OWNER的项目数量
+     * @param userId 用户ID
+     * @return 拥有的项目数量
+     */
+    R<Long> countUserOwnedProjectsAsOwner(Long userId);
+
+    /**
+     * 移交单个项目的所有权
+     * @param projectId 项目ID
+     * @param newOwnerId 新的项目拥有者用户ID
+     * @param operatorId 操作者用户ID（通常为当前OWNER）
+     * @return 操作结果
+     */
+    R<Void> transferOwnership(Long projectId, Long newOwnerId, Long operatorId);
+
+    /**
+     * 批量移交项目所有权
+     * @param transfers 项目所有权移交请求列表
+     * @param operatorId 操作者用户ID（通常为当前OWNER）
+     * @return 操作结果
+     */
+    R<Void> transferOwnershipBatch(List<ProjectOwnershipTransferRequest> transfers, Long operatorId);
+}

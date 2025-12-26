@@ -5,10 +5,13 @@ import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import hbnu.project.zhiyanbackend.auth.model.entity.Permission;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.PermissionRepository;
+import hbnu.project.zhiyanbackend.auth.repository.RememberMeTokenRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserConnectionRepository;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
+import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
@@ -39,6 +42,9 @@ public class UserServiceImpl implements UserService {
     private final PermissionRepository permissionRepository;
     private final UserConverter userConverter;
     private final UserConnectionRepository userConnectionRepository;
+    private final RememberMeTokenRepository rememberMeTokenRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     /**
      * 获取当前用户的基本信息（不含角色和权限）
@@ -309,14 +315,70 @@ public class UserServiceImpl implements UserService {
         try {
             log.info("删除用户 - userId: {}", userId);
 
+            // 1. 检查用户是否存在且未被删除
             Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
             if (optionalUser.isEmpty()) {
                 return R.fail("用户不存在");
             }
 
+            // 2. 检查是否仍然拥有任何项目（作为 OWNER）
+            try {
+                long ownedCount = projectRepository.countOwnedProjectsByUser(userId);
+                if (ownedCount > 0) {
+                    log.warn("用户仍然拥有项目，禁止删除 - userId: {}, ownedCount: {}", userId, ownedCount);
+                    return R.fail("你还有 " + ownedCount + " 个项目是负责人，请先将这些项目移交给其他成员后再注销账号");
+                }
+            } catch (Exception e) {
+                log.error("检查用户拥有项目数量失败 - userId: {}", userId, e);
+                return R.fail("检查是否拥有项目失败，请稍后重试");
+            }
+
             User user = optionalUser.get();
+
+            // 3. 标记用户为已删除并锁定账号，同时清理敏感字段
             user.setIsDeleted(true);
+            user.setIsLocked(true);
+            // 清理敏感信息，降低泄露风险
+            user.setEmail(null);
+            user.setPasswordHash(null);
+            user.setTwoFactorSecret(null);
+            user.setTwoFactorEnabled(false);
+            user.setOrcidAccessToken(null);
+            user.setAvatarData(null);
+            user.setAvatarContentType(null);
+            user.setAvatarSize(null);
+            user.setLastLoginIp(null);
+
             userRepository.save(user);
+
+            // 4. 从项目成员关系中移除该用户（不再出现在任何项目成员列表中）
+            try {
+                int removedMembers = projectMemberRepository.deleteByUserId(userId);
+                log.info("已从项目成员表中移除用户 - userId: {}, removedRows: {}", userId, removedMembers);
+            } catch (Exception e) {
+                log.warn("从项目成员表中移除用户失败 - userId: {}", userId, e);
+            }
+
+            // 5. 删除 RememberMe token，防止后续自动登录
+            try {
+                rememberMeTokenRepository.deleteByUserId(userId);
+                log.info("已删除用户的 RememberMe token - userId: {}", userId);
+            } catch (Exception e) {
+                log.warn("删除用户 RememberMe token 失败 - userId: {}", userId, e);
+            }
+
+            // 6. 标记 OAuth 绑定为已解绑
+            try {
+                var connections = userConnectionRepository.findByUserIdAndIsUnboundFalse(userId);
+                if (connections != null && !connections.isEmpty()) {
+                    // UserConnection 中字段为 isUnbound，Lombok 生成的 setter 为 setIsUnbound
+                    connections.forEach(c -> c.setIsUnbound(true));
+                    userConnectionRepository.saveAll(connections);
+                    log.info("已标记 OAuth 绑定为解绑 - userId: {}, count: {}", userId, connections.size());
+                }
+            } catch (Exception e) {
+                log.warn("标记 OAuth 绑定解绑失败 - userId: {}", userId, e);
+            }
 
             log.info("用户删除成功 - userId: {}", userId);
             return R.ok(null, "用户删除成功");

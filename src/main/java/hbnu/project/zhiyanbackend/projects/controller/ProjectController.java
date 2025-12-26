@@ -12,6 +12,8 @@ import hbnu.project.zhiyanbackend.projects.model.form.CreateProjectRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.SaveDraftRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectRequest;
 import hbnu.project.zhiyanbackend.projects.model.form.UpdateProjectStatusRequest;
+import hbnu.project.zhiyanbackend.projects.model.form.ProjectOwnershipTransferRequest;
+import hbnu.project.zhiyanbackend.projects.model.form.BatchProjectOwnershipTransferRequest;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
 import hbnu.project.zhiyanbackend.projects.service.impl.ProjectServiceImpl;
@@ -181,6 +183,20 @@ public class ProjectController {
         return projectService.getUserProjects(userId, pageable);
     }
 
+    @GetMapping("/ownership/my-owned")
+    @Operation(summary = "分页获取我作为OWNER的项目")
+    public R<Page<Project>> getMyOwnedProjects(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "10") int size,
+                                               @RequestParam(required = false) String keyword) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取我拥有的项目");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        return projectService.getOwnedProjects(userId, pageable, keyword);
+    }
+
 //    @GetMapping("/my-projects")
 //    @Operation(summary = "分页获取当前用户参与的项目")
 //    public R<Page<ProjectDTO>> getMyProjects(
@@ -344,6 +360,26 @@ public class ProjectController {
         return projectService.countUserParticipatedProjects(userId);
     }
 
+    @GetMapping("/ownership/check-me")
+    @Operation(summary = "检查当前用户是否还有作为OWNER的项目")
+    public R<Map<String, Object>> checkMyOwnedProjects() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法检查是否拥有项目");
+        }
+
+        R<Long> countResult = projectService.countUserOwnedProjectsAsOwner(userId);
+        if (!R.isSuccess(countResult)) {
+            return R.fail(countResult.getMsg());
+        }
+
+        Long count = countResult.getData() != null ? countResult.getData() : 0L;
+        Map<String, Object> data = new HashMap<>();
+        data.put("ownedCount", count);
+        data.put("hasOwnedProjects", count > 0);
+        return R.ok(data);
+    }
+
     @PostMapping("/draft")
     @Operation(summary = "保存项目草稿")
     public R<Project> saveDraft(@RequestBody SaveDraftRequest request) {
@@ -383,5 +419,34 @@ public class ProjectController {
         }
 
         return projectService.deleteDraft(userId);
+    }
+
+    @PostMapping("/{projectId}/transfer-owner")
+    @Operation(summary = "移交项目所有权")
+    public R<Void> transferProjectOwnership(@PathVariable("projectId") Long projectId,
+                                            @RequestBody ProjectOwnershipTransferRequest request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法移交项目所有权");
+        }
+        if (request == null || request.getNewOwnerId() == null) {
+            return R.fail("新的项目负责人用户ID不能为空");
+        }
+
+        return projectService.transferOwnership(projectId, request.getNewOwnerId(), userId);
+    }
+
+    @PostMapping("/ownership/transfer-batch")
+    @Operation(summary = "批量移交项目所有权")
+    public R<Void> transferProjectOwnershipBatch(@RequestBody BatchProjectOwnershipTransferRequest request) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法批量移交项目所有权");
+        }
+        if (request == null || request.getTransfers() == null || request.getTransfers().isEmpty()) {
+            return R.fail("移交列表不能为空");
+        }
+
+        return projectService.transferOwnershipBatch(request.getTransfers(), userId);
     }
 }

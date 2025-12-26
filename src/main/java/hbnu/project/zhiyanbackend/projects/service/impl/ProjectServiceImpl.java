@@ -9,6 +9,7 @@ import hbnu.project.zhiyanbackend.knowledge.service.AchievementDetailsService;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementFileService;
 import hbnu.project.zhiyanbackend.projects.model.dto.ProjectDTO;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
+import hbnu.project.zhiyanbackend.projects.model.entity.ProjectMember;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectStatus;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility;
@@ -16,6 +17,7 @@ import hbnu.project.zhiyanbackend.projects.repository.ProjectMemberRepository;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectMemberService;
 import hbnu.project.zhiyanbackend.projects.service.ProjectService;
+import hbnu.project.zhiyanbackend.projects.model.form.ProjectOwnershipTransferRequest;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
@@ -437,6 +439,20 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public R<Page<Project>> getOwnedProjects(Long ownerId, Pageable pageable, String keyword) {
+        try {
+            if (ownerId == null) {
+                return R.fail("未登录或令牌无效，无法获取我拥有的项目");
+            }
+            Page<Project> projects = projectRepository.findOwnedProjectsByUser(ownerId, keyword, pageable);
+            return R.ok(projects);
+        } catch (Exception e) {
+            log.error("获取用户拥有的项目列表失败: ownerId={}", ownerId, e);
+            return R.fail("获取我拥有的项目列表失败: " + e.getMessage());
+        }
+    }
+
+    @Override
     public R<Page<Project>> searchProjects(String keyword, Pageable pageable) {
         try {
             Page<Project> projects = projectRepository.searchByKeyword(keyword, pageable);
@@ -444,6 +460,20 @@ public class ProjectServiceImpl implements ProjectService {
         } catch (Exception e) {
             log.error("搜索项目失败: keyword={}", keyword, e);
             return R.fail("搜索项目失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public R<Long> countUserOwnedProjectsAsOwner(Long userId) {
+        try {
+            if (userId == null) {
+                return R.fail("未登录或令牌无效，无法统计我拥有的项目数量");
+            }
+            long count = projectRepository.countOwnedProjectsByUser(userId);
+            return R.ok(count);
+        } catch (Exception e) {
+            log.error("统计用户作为OWNER的项目数量失败: userId={}", userId, e);
+            return R.fail("统计失败: " + e.getMessage());
         }
     }
 
@@ -768,6 +798,102 @@ public class ProjectServiceImpl implements ProjectService {
         } catch (Exception e) {
             log.error("保存项目草稿失败: name={}, creatorId={}", name, creatorId, e);
             return R.fail("保存草稿失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public R<Void> transferOwnership(Long projectId, Long newOwnerId, Long operatorId) {
+        try {
+            if (projectId == null || newOwnerId == null || operatorId == null) {
+                return R.fail("项目ID、新拥有者ID和操作者ID不能为空");
+            }
+
+            Project project = projectRepository.findById(projectId).orElse(null);
+            if (project == null || Boolean.TRUE.equals(project.getIsDeleted())) {
+                return R.fail("项目不存在或已被删除");
+            }
+
+            // 只有当前项目OWNER才能移交所有权
+            if (!projectMemberService.isOwner(projectId, operatorId)) {
+                return R.fail("只有当前项目负责人可以移交项目所有权");
+            }
+
+            // 新拥有者必须是项目成员
+            if (!projectMemberService.isMember(projectId, newOwnerId)) {
+                return R.fail("新的项目负责人必须是该项目的成员");
+            }
+
+            // 查找当前OWNER成员记录
+            Optional<ProjectMember> currentOwnerOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, operatorId);
+            if (currentOwnerOpt.isEmpty()) {
+                return R.fail("未找到当前项目负责人的成员记录");
+            }
+
+            // 查找新的OWNER成员记录
+            Optional<ProjectMember> newOwnerMemberOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, newOwnerId);
+            if (newOwnerMemberOpt.isEmpty()) {
+                return R.fail("新的项目负责人不是项目成员");
+            }
+
+            ProjectMember currentOwner = currentOwnerOpt.get();
+            ProjectMember newOwnerMember = newOwnerMemberOpt.get();
+
+            if (newOwnerMember.getProjectRole() == ProjectMemberRole.OWNER) {
+                // 目标用户已经是OWNER，则视为成功
+                log.info("项目所有权移交请求，但目标用户已是OWNER: projectId={}, operatorId={}, newOwnerId={}",
+                        projectId, operatorId, newOwnerId);
+                return R.ok();
+            }
+
+            // 将当前OWNER降级为普通成员，将目标用户升级为OWNER
+            currentOwner.setProjectRole(ProjectMemberRole.MEMBER);
+            newOwnerMember.setProjectRole(ProjectMemberRole.OWNER);
+            projectMemberRepository.save(currentOwner);
+            projectMemberRepository.save(newOwnerMember);
+
+            // 更新项目的creatorId和审计字段，保证前端展示负责人不会变成“未知用户”
+            project.setCreatorId(newOwnerId);
+            project.setCreatedBy(newOwnerId);
+            projectRepository.save(project);
+
+            log.info("项目所有权移交成功: projectId={}, oldOwnerId={}, newOwnerId={}",
+                    projectId, operatorId, newOwnerId);
+            return R.ok();
+        } catch (Exception e) {
+            log.error("项目所有权移交失败: projectId={}, operatorId={}, newOwnerId={}",
+                    projectId, operatorId, newOwnerId, e);
+            return R.fail("项目所有权移交失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public R<Void> transferOwnershipBatch(List<ProjectOwnershipTransferRequest> transfers, Long operatorId) {
+        try {
+            if (operatorId == null) {
+                return R.fail("未登录或令牌无效，无法批量移交项目所有权");
+            }
+            if (transfers == null || transfers.isEmpty()) {
+                return R.fail("移交列表不能为空");
+            }
+
+            for (ProjectOwnershipTransferRequest req : transfers) {
+                if (req == null || req.getProjectId() == null || req.getNewOwnerId() == null) {
+                    return R.fail("移交列表中存在无效的项目或新负责人ID");
+                }
+                R<Void> result = transferOwnership(req.getProjectId(), req.getNewOwnerId(), operatorId);
+                if (!R.isSuccess(result)) {
+                    // 一旦某个项目移交失败，直接返回该错误
+                    return result;
+                }
+            }
+
+            log.info("批量项目所有权移交成功: operatorId={}, count={}", operatorId, transfers.size());
+            return R.ok();
+        } catch (Exception e) {
+            log.error("批量项目所有权移交失败: operatorId={}", operatorId, e);
+            return R.fail("批量项目所有权移交失败: " + e.getMessage());
         }
     }
 

@@ -100,5 +100,25 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
      * @return 草稿项目，如果不存在则返回空
      */
     Optional<Project> findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(Long creatorId);
-}
 
+    @Query("""
+        SELECT DISTINCT p FROM Project p
+        JOIN ProjectMember pm ON p.id = pm.projectId
+        WHERE pm.userId = :userId
+          AND pm.projectRole = hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole.OWNER
+          AND p.isDeleted = false
+          AND (:keyword IS NULL OR :keyword = '' OR p.name LIKE %:keyword% OR p.description LIKE %:keyword%)
+        """)
+    Page<Project> findOwnedProjectsByUser(@Param("userId") Long userId,
+                                          @Param("keyword") String keyword,
+                                          Pageable pageable);
+
+    @Query("""
+        SELECT COUNT(p) FROM Project p
+        JOIN ProjectMember pm ON p.id = pm.projectId
+        WHERE pm.userId = :userId
+          AND pm.projectRole = hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole.OWNER
+          AND p.isDeleted = false
+        """)
+    long countOwnedProjectsByUser(@Param("userId") Long userId);
+}
