@@ -210,9 +210,20 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         } else if (request.getReviewStatus() == ReviewStatus.REJECTED
                 && task.getStatus() != TaskStatus.DONE) {
             // 审核拒绝：更新任务状态为进行中，让用户可以继续修改并重新提交
+            // 并自动将任务截止日期延长3天（若无截止日期则从今天起延长3天）
             // 注意：如果任务已经是DONE状态，不更新（避免已完成的任务被改回进行中）
             TaskStatus oldStatus = task.getStatus();
             task.setStatus(TaskStatus.IN_PROGRESS);
+
+            try {
+                LocalDate oldDue = task.getDueDate();
+                LocalDate newDue = (oldDue != null) ? oldDue.plusDays(3) : LocalDate.now().plusDays(3);
+                task.setDueDate(newDue);
+                log.info("任务截止日期已延长3天: taskId={}, oldDue={}, newDue={}", task.getId(), oldDue, newDue);
+            } catch (Exception e) {
+                log.warn("延长任务截止日期失败: taskId={}, error={}", task.getId(), e.getMessage(), e);
+            }
+
             taskRepository.save(task);
             log.info("任务审核被拒绝，状态已从 {} 更新为进行中: taskId={}", oldStatus, task.getId());
         }
@@ -501,6 +512,7 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .version(submission.getVersion())
                 .createdAt(instantToLocalDateTime(submission.getCreatedAt()))
                 .updatedAt(instantToLocalDateTime(submission.getUpdatedAt()))
+                .dueDate(task != null ? task.getDueDate() : null)
                 .build();
     }
 
