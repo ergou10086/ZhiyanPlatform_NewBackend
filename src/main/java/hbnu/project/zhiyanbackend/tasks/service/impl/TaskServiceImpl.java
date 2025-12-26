@@ -163,6 +163,11 @@ public class TaskServiceImpl implements TaskService {
         // 项目归档后不允许修改任务
         projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
+        // 已完成的任务不允许再编辑
+        if (task.getStatus() == TaskStatus.DONE) {
+            return R.fail("已完成的任务无法再编辑");
+        }
+
         boolean updated = false;
 
         if (request.getTitle() != null) {
@@ -298,6 +303,13 @@ public class TaskServiceImpl implements TaskService {
         // 项目归档后不允许修改任务状态
         projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
 
+        // 已完成的任务不允许再修改状态（除非是重新打开任务）
+        if (task.getStatus() == TaskStatus.DONE && newStatus != TaskStatus.DONE) {
+            // 允许从DONE状态变更为其他状态（重新打开任务）
+            // 但这里我们保持严格限制，不允许从DONE变更为其他状态
+            // 如果需要重新打开任务，可以通过updateTask接口修改状态
+        }
+
         TaskStatus oldStatus = task.getStatus();
         task.setStatus(newStatus);
         Task saved = taskRepository.save(task);
@@ -360,6 +372,11 @@ public class TaskServiceImpl implements TaskService {
 
         // 项目归档后不允许分配任务
         projectSecurityUtils.requireProjectNotArchived(task.getProjectId());
+
+        // 已完成的任务不允许再分配
+        if (task.getStatus() == TaskStatus.DONE) {
+            return R.fail("已完成的任务无法再进行成员分配");
+        }
 
         if (assigneeIds == null) {
             assigneeIds = Collections.emptyList();

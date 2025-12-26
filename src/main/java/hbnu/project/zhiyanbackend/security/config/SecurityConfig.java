@@ -70,14 +70,14 @@ public class SecurityConfig implements WebMvcConfigurer {
         CorsConfiguration configuration = new CorsConfiguration();
         // 允许的源：包括本地开发环境和生产环境
         configuration.setAllowedOrigins(List.of(
-                "http://localhost:8001",
-                "http://127.0.0.1:8001",
+                "http://localhost:8001",       // 前端
+                "http://127.0.0.1:8001",       // 前端回环
                 "http://localhost:5173",       // Uni-app 开发端口
                 "http://127.0.0.1:5173",       // Uni-app 开发端口
-                "http://zyplatform.xyz",      // HTTP生产环境
+                "http://zyplatform.xyz",       // HTTP生产环境
                 "https://zyplatform.xyz",      // HTTPS生产环境
-                "http://api.zyplatform.xyz",    // API域名
-                "https://api.zyplatform.xyz"    // API域名
+                "http://api.zyplatform.xyz",   // API域名
+                "https://api.zyplatform.xyz"   // API域名
         ));
         // 允许所有HTTP方法，包括OPTIONS预检请求
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
@@ -178,7 +178,10 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/auth/auto-login-check",
                                 "/zhiyan/auth/clear-remember-me",
                                 "/zhiyan/auth/check-email",
-                                "/zhiyan/auth/oauth2/**"
+                                "/zhiyan/auth/qrcode/generate",
+                                "/zhiyan/auth/oauth2/**",
+                                "/zhiyan/auth/qrcode/status/**",
+                                "/zhiyan/auth/qrcode/result/**"
                         ).permitAll()
 
                         // 系统基础接口 - 无需登录
@@ -234,10 +237,8 @@ public class SecurityConfig implements WebMvcConfigurer {
                         )
                         .authenticated()
 
-                        // TODO: 临时开放权限管理接口，用于初始化权限数据 - 开发完成后需要删除此行
-                        .requestMatchers("/auth/permissions/**").permitAll()
-                        // TODO: 临时开放权限管理接口，用于初始化角色数据 - 开发完成后需要删除此行
-                        .requestMatchers("/auth/roles/**").permitAll()
+                        // 权限和角色管理接口需要管理员权限
+                        .requestMatchers("/auth/permissions/**", "/auth/roles/**").hasRole("ADMIN")
 
                         // 项目服务公开接口 - 无需登录（供项目广场等公开展示使用）
                         .requestMatchers(
@@ -283,7 +284,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                 // 添加JWT认证过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // 添加RememberMe自动登录支持（交给自定义逻辑处理）
-                .rememberMe(remember -> remember.disable());
+                .rememberMe(AbstractHttpConfigurer::disable);
 
         return http.build();
     }

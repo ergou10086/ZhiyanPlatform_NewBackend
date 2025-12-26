@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -84,4 +85,7 @@ public class TaskSubmissionDTO {
 
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
+    
+    @Schema(description = "任务截止日期（yyyy-MM-dd）")
+    private LocalDate dueDate;
 }
