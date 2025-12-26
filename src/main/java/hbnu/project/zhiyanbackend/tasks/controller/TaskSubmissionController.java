@@ -31,9 +31,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriUtils;
-
-import java.net.URI;
 import java.net.URL;
 import java.util.Date;
 import java.util.List;
@@ -190,6 +187,20 @@ public class TaskSubmissionController {
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<TaskSubmissionDTO> results = submissionService.getUserSubmissions(userId, pageable);
+        return R.ok(results);
+    }
+
+    @GetMapping("/by-reviewer")
+    @Operation(summary = "按审核人查询提交记录（分页）", description = "根据 reviewerId 查询该用户审核过的提交记录，按审核时间降序")
+    public R<Page<TaskSubmissionDTO>> getSubmissionsByReviewer(
+            @RequestParam("reviewerId") @Parameter(description = "审核人ID") Long reviewerId,
+            @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+        if (reviewerId == null) {
+            return R.fail("reviewerId 不能为空");
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TaskSubmissionDTO> results = submissionService.getSubmissionsByReviewer(reviewerId, pageable);
         return R.ok(results);
     }
 
