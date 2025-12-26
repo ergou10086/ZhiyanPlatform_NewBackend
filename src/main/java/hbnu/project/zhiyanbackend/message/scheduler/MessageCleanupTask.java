@@ -1,4 +1,4 @@
-package hbnu.project.zhiyanbackend.message.timing;
+package hbnu.project.zhiyanbackend.message.scheduler;
 
 import hbnu.project.zhiyanbackend.message.repository.MessageRecipientRepository;
 import lombok.RequiredArgsConstructor;
