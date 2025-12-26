@@ -190,7 +190,6 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         }
     }
 
-
     /**
      * 解绑第三方账号
      */

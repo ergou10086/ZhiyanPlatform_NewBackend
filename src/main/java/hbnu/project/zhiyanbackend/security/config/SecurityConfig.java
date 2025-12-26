@@ -178,7 +178,10 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/auth/auto-login-check",
                                 "/zhiyan/auth/clear-remember-me",
                                 "/zhiyan/auth/check-email",
-                                "/zhiyan/auth/oauth2/**"
+                                "/zhiyan/auth/qrcode/generate",
+                                "/zhiyan/auth/oauth2/**",
+                                "/zhiyan/auth/qrcode/status/**",
+                                "/zhiyan/auth/qrcode/result/**"
                         ).permitAll()
 
                         // 系统基础接口 - 无需登录
