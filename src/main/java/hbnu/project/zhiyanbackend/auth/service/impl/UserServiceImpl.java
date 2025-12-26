@@ -339,7 +339,9 @@ public class UserServiceImpl implements UserService {
             user.setIsDeleted(true);
             user.setIsLocked(true);
             // 清理敏感信息，降低泄露风险
-            user.setEmail(null);
+            // 注意：email 字段在数据库中为 NOT NULL，这里改为写入一个占位符而不是设置为 null
+            String deletedEmailPlaceholder = "deleted_user_" + userId;
+            user.setEmail(deletedEmailPlaceholder);
             user.setPasswordHash(null);
             user.setTwoFactorSecret(null);
             user.setTwoFactorEnabled(false);
