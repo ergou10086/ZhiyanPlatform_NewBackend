@@ -131,7 +131,7 @@ public class MailServiceImpl implements MailService {
                 break;
         }
 
-        String logoBase64 = getLogoSvgBase64();
+        String logoBase64 = getLogoPngBase64();
 
         return String.format("""
             <!DOCTYPE html>
@@ -296,24 +296,24 @@ public class MailServiceImpl implements MailService {
 
 
     /**
-     * 读取SVG Logo并转换为Base64 Data URI
-     * 如果读取失败，返回简化版Logo
+     * 读取 zylogo.png 并转换为 Base64 Data URI
+     * 要求：zylogo.png 必须位于 classpath 下的 /logo/ 目录中
      */
-    private String getLogoSvgBase64() {
+    private String getLogoPngBase64() {
         try {
-            ClassPathResource resource = new ClassPathResource("public/Logo.svg");
-            byte[] svgBytes = resource.getInputStream().readAllBytes();
-            String svgContent = new String(svgBytes, StandardCharsets.UTF_8);
-
-            // 将SVG转换为Base64 Data URI
-            String base64Svg = Base64.getEncoder().encodeToString(svgBytes);
-            return String.format("data:image/svg+xml;base64,%s", base64Svg);
+            ClassPathResource resource = new ClassPathResource("logo/zylogo.png");
+            if (!resource.exists()) {
+                throw new IOException("Logo file not found in classpath: logo/zylogo.png");
+            }
+            byte[] imageBytes = resource.getInputStream().readAllBytes();
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            return "data:image/png;base64," + base64Image;
         } catch (IOException e) {
-            log.warn("读取Logo文件失败，使用简化版Logo", e);
-            // 如果读取失败，返回简化版SVG的Base64
+            log.warn("Failed to load PNG logo, falling back to simplified SVG", e);
+            // Fallback to SVG if PNG is missing
             String simplifiedSvg = buildSimplifiedLogoSvg();
             String base64Svg = Base64.getEncoder().encodeToString(simplifiedSvg.getBytes(StandardCharsets.UTF_8));
-            return String.format("data:image/svg+xml;base64,%s", base64Svg);
+            return "data:image/svg+xml;base64," + base64Svg;
         }
     }
 }
