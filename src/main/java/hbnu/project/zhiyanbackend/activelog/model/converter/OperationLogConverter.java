@@ -8,7 +8,9 @@ import hbnu.project.zhiyanbackend.activelog.model.entity.ProjectOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.entity.TaskOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.entity.WikiOperationLog;
 import hbnu.project.zhiyanbackend.activelog.model.vo.UnifiedOperationLogVO;
+import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -20,26 +22,58 @@ import java.util.stream.Collectors;
  *
  * @author yui
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class OperationLogConverter {
 
     private final OperationLogMapper operationLogMapper;
+    private final UserRepository userRepository;
 
     public UnifiedOperationLogVO toUnifiedVO(ProjectOperationLog log) {
-        return operationLogMapper.mapProject(log);
+        UnifiedOperationLogVO vo = operationLogMapper.mapProject(log);
+        fillRealUsername(vo);
+        return vo;
     }
 
     public UnifiedOperationLogVO toUnifiedVO(TaskOperationLog log) {
-        return operationLogMapper.mapTask(log);
+        UnifiedOperationLogVO vo = operationLogMapper.mapTask(log);
+        fillRealUsername(vo);
+        return vo;
     }
 
     public UnifiedOperationLogVO toUnifiedVO(WikiOperationLog log) {
-        return operationLogMapper.mapWiki(log);
+        UnifiedOperationLogVO vo = operationLogMapper.mapWiki(log);
+        fillRealUsername(vo);
+        return vo;
     }
 
     public UnifiedOperationLogVO toUnifiedVO(AchievementOperationLog log) {
-        return operationLogMapper.mapAchievement(log);
+        UnifiedOperationLogVO vo = operationLogMapper.mapAchievement(log);
+        fillRealUsername(vo);
+        return vo;
+    }
+    
+    /**
+     * 填充真实用户名（如果username是邮箱格式，则通过userId获取真实用户名）
+     */
+    private void fillRealUsername(UnifiedOperationLogVO vo) {
+        if (vo == null || vo.getUserId() == null) {
+            return;
+        }
+        
+        // 如果username是邮箱格式，则通过userId获取真实用户名
+        String currentUsername = vo.getUsername();
+        if (currentUsername != null && currentUsername.contains("@")) {
+            try {
+                String realName = userRepository.findNameById(vo.getUserId())
+                        .orElse(currentUsername);
+                vo.setUsername(realName);
+            } catch (Exception e) {
+                log.warn("获取用户真实姓名失败: userId={}, error={}", vo.getUserId(), e.getMessage());
+                // 如果获取失败，保持原值
+            }
+        }
     }
 
     public List<UnifiedOperationLogVO> toUnifiedVOList(List<?> logs) {

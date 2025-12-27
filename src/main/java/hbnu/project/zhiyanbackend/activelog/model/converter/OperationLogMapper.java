@@ -69,7 +69,20 @@ public interface OperationLogMapper {
 
     @Named("enumName")
     default String enumName(Enum<?> value) {
-        return value != null ? value.name() : null;
+        if (value == null) {
+            return null;
+        }
+        // 尝试获取枚举的 desc 字段（中文描述）
+        try {
+            var method = value.getClass().getMethod("getDesc");
+            Object desc = method.invoke(value);
+            if (desc != null) {
+                return desc.toString();
+            }
+        } catch (Exception e) {
+            // 如果枚举没有 getDesc() 方法，返回枚举名称
+        }
+        return value.name();
     }
 
     @Named("enumCode")

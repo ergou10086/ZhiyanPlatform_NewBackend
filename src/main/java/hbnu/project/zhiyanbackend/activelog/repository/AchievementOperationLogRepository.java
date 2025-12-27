@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 成果操作日志Repository
@@ -89,4 +90,26 @@ public interface AchievementOperationLogRepository extends JpaRepository<Achieve
      * 统计用户在项目中的成果操作数
      */
     long countByProjectIdAndUserId(Long projectId, Long userId);
+
+    /**
+     * 按日期统计项目成果贡献数
+     * 返回日期和贡献数的映射
+     *
+     * @param projectId 项目ID
+     * @param startTime 开始时间
+     * @param endTime   结束时间
+     * @return 日期字符串（yyyy-MM-dd）和贡献数的映射
+     */
+    @Query(value = "SELECT DATE(operation_time) as date, COUNT(*) as count " +
+            "FROM zhiyanactivelog.achievement_operation_log " +
+            "WHERE project_id = :projectId " +
+            "AND operation_time >= :startTime " +
+            "AND operation_time <= :endTime " +
+            "GROUP BY DATE(operation_time) " +
+            "ORDER BY date ASC",
+            nativeQuery = true)
+    List<Object[]> countContributionsByDate(
+            @Param("projectId") Long projectId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 }
