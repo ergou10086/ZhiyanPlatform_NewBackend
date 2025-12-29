@@ -61,6 +61,14 @@ public interface TaskSubmissionService {
     Map<String, Object> getTaskSubmissionStats(Long taskId);
 
     /**
+     * 查询我创建的任务中已审核通过的提交记录（分页）
+     * @param userId 当前登录用户ID（任务创建者）
+     * @param pageable 分页参数
+     * @return 分页后的提交记录 DTO
+     */
+    Page<TaskSubmissionDTO> getReviewedSubmissionsForMyCreatedTasks(Long userId, Pageable pageable);
+
+    /**
      * 批量查询任务的附件列表
      * @param taskIds 任务ID列表
      * @return Map<任务ID(字符串), 附件URL列表>，附件列表已去重

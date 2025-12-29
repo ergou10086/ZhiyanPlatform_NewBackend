@@ -157,8 +157,8 @@ public class TaskController {
     }
 
     @GetMapping("/my-created")
-    @Operation(summary = "分页获取我创建的任务")
-    public R<Page<Task>> getMyCreatedTasks(@RequestParam(defaultValue = "0") int page,
+    @Operation(summary = "分页获取我创建的任务（包含项目名称和执行者信息）")
+    public R<Page<TaskDetailDTO>> getMyCreatedTasks(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "10") int size) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
@@ -242,5 +242,17 @@ public class TaskController {
             return R.fail("未登录或Token无效，无法获取任务统计信息");
         }
         return taskService.getUserTaskStatistics(userId);
+    }
+
+    @GetMapping("/my-unsubmitted")
+    @Operation(summary = "分页获取我未提交的任务")
+    public R<Page<Task>> getMyUnsubmittedTasks(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "10") int size) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取我的未提交任务");
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return taskService.getMyUnsubmittedTasks(userId, pageable);
     }
 }

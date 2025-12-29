@@ -119,9 +119,13 @@ public class OperationLogSaveCore {
                 .operationTime(operationTime)
                 .build();
 
-        projectOperationLogRepository.save(operationLog);
-        log.info("项目操作日志保存成功: projectId={}, projectName={}, type={}",
-                projectId, projectName, operationType);
+        try {
+            projectOperationLogRepository.save(operationLog);
+            log.info("项目操作日志保存成功: projectId={}, projectName={}, type={}",
+                    projectId, projectName, operationType);
+        } catch (Exception e) {
+            log.error("保存项目操作日志时发生异常（已吞掉）: projectId={}, projectName={}, error={}", projectId, projectName, e.getMessage());
+        }
     }
 
 
@@ -187,9 +191,13 @@ public class OperationLogSaveCore {
                 .operationTime(operationTime)
                 .build();
 
-        taskOperationLogRepository.save(operationLog);
-        log.info("任务操作日志保存成功: projectId={}, taskId={}, taskTitle={}, type={}", 
-                projectId, taskId, taskTitle, operationType);
+        try {
+            taskOperationLogRepository.save(operationLog);
+            log.info("任务操作日志保存成功: projectId={}, taskId={}, taskTitle={}, type={}", 
+                    projectId, taskId, taskTitle, operationType);
+        } catch (Exception e) {
+            log.error("保存任务操作日志时发生异常（已吞掉）: projectId={}, taskId={}, taskTitle={}, error={}", projectId, taskId, taskTitle, e.getMessage());
+        }
     }
 
 

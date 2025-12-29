@@ -225,7 +225,7 @@ public class TaskServiceImpl implements TaskService {
                     notifyUserIds.add(saved.getCreatorId());
                 }
                 
-                if (!notifyUserIds.isEmpty() && project != null) {
+                if (project != null) {
                     inboxMessageService.sendBatchPersonalMessage(
                             MessageScene.TASK_STATUS_CHANGED,
                             operatorId,
@@ -329,7 +329,7 @@ public class TaskServiceImpl implements TaskService {
                     notifyUserIds.add(saved.getCreatorId());
                 }
                 
-                if (!notifyUserIds.isEmpty() && project != null) {
+                if (project != null) {
                     inboxMessageService.sendBatchPersonalMessage(
                             MessageScene.TASK_STATUS_CHANGED,
                             operatorId,
@@ -603,9 +603,94 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional(readOnly = true)
-    public R<Page<Task>> getMyCreatedTasks(Long userId, Pageable pageable) {
-        Page<Task> page = taskRepository.findByCreatorIdAndIsDeleted(userId, false, pageable);
-        return R.ok(page);
+    public R<Page<TaskDetailDTO>> getMyCreatedTasks(Long userId, Pageable pageable) {
+        Page<Task> taskPage = taskRepository.findByCreatorIdAndIsDeleted(userId, false, pageable);
+        
+        // 批量查询项目信息，避免N+1问题
+        List<Long> projectIds = taskPage.getContent().stream()
+                .map(Task::getProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        Map<Long, String> projectNameMap = new HashMap<>();
+        if (!projectIds.isEmpty()) {
+            List<Project> projects = projectRepository.findAllById(projectIds);
+            projectNameMap = projects.stream()
+                    .collect(Collectors.toMap(Project::getId, Project::getName));
+        }
+        
+        // 批量查询执行者信息，避免N+1问题
+        List<Long> taskIds = taskPage.getContent().stream()
+                .map(Task::getId)
+                .collect(Collectors.toList());
+        
+        Map<Long, List<TaskUser>> taskUserMap = new HashMap<>();
+        if (!taskIds.isEmpty()) {
+            List<TaskUser> allTaskUsers = taskUserRepository.findByTaskIdInAndIsActive(taskIds, true);
+            taskUserMap = allTaskUsers.stream()
+                    .collect(Collectors.groupingBy(TaskUser::getTaskId));
+        }
+        
+        // 批量查询用户信息
+        Set<Long> userIds = new HashSet<>();
+        taskPage.getContent().forEach(task -> userIds.add(task.getCreatorId()));
+        taskUserMap.values().forEach(taskUsers -> 
+            taskUsers.forEach(tu -> userIds.add(tu.getUserId())));
+        
+        Map<Long, String> userNameMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            userIds.forEach(uid -> {
+                String userName = userRepository.findNameById(uid).orElse("未知用户");
+                userNameMap.put(uid, userName);
+            });
+        }
+        
+        // 转换为DTO
+        Map<Long, String> finalProjectNameMap = projectNameMap;
+        Map<Long, List<TaskUser>> finalTaskUserMap = taskUserMap;
+        List<TaskDetailDTO> taskDTOs = taskPage.getContent().stream()
+                .map(task -> {
+                    // 获取项目名称
+                    String projectName = finalProjectNameMap.getOrDefault(task.getProjectId(), null);
+                    
+                    // 获取执行者信息
+                    List<TaskUser> taskUsers = finalTaskUserMap.getOrDefault(task.getId(), Collections.emptyList());
+                    List<TaskDetailDTO.AssigneeDTO> assignees = taskUsers.stream()
+                            .map(tu -> {
+                                String userName = userNameMap.getOrDefault(tu.getUserId(), "未知用户");
+                                return TaskDetailDTO.AssigneeDTO.builder()
+                                        .userId(tu.getUserId())
+                                        .userName(userName)
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+                    
+                    // 获取创建者名称
+                    String creatorName = userNameMap.getOrDefault(task.getCreatorId(), "未知用户");
+                    
+                    return TaskDetailDTO.builder()
+                            .id(task.getId())
+                            .projectId(task.getProjectId())
+                            .projectName(projectName)
+                            .creatorId(task.getCreatorId())
+                            .creatorName(creatorName)
+                            .title(task.getTitle())
+                            .description(task.getDescription())
+                            .worktime(task.getWorktime())
+                            .status(task.getStatus())
+                            .priority(task.getPriority())
+                            .dueDate(task.getDueDate())
+                            .requiredPeople(task.getRequiredPeople())
+                            .isDeleted(task.getIsDeleted())
+                            .isMilestone(task.getIsMilestone())
+                            .assignees(assignees)
+                            .build();
+                })
+                .collect(Collectors.toList());
+        
+        Page<TaskDetailDTO> resultPage = new PageImpl<>(taskDTOs, pageable, taskPage.getTotalElements());
+        return R.ok(resultPage);
     }
 
     @Override
@@ -787,6 +872,13 @@ public class TaskServiceImpl implements TaskService {
         return R.ok(resultPage);
     }
 
+    @Override
+    public R<Page<Task>> getMyUnsubmittedTasks(Long userId, Pageable pageable){
+        Page<Task> page = taskRepository.findUnsubmittedTasksByUserId(userId, pageable);
+        return R.ok(page);
+    }
+
+
     /**
      * 将 Task 实体转换为 TaskDetailDTO（包含执行者信息）
      */
@@ -812,9 +904,21 @@ public class TaskServiceImpl implements TaskService {
         // 获取创建者名称
         String creatorName = userRepository.findNameById(task.getCreatorId()).orElse("未知用户");
         
+        // 获取项目名称
+        String projectName = null;
+        try {
+            if (task.getProjectId() != null) {
+                Optional<Project> projectOpt = projectRepository.findById(task.getProjectId());
+                projectName = projectOpt.map(Project::getName).orElse(null);
+            }
+        } catch (Exception e) {
+            log.warn("获取项目名称失败，projectId: {}", task.getProjectId(), e);
+        }
+        
         return TaskDetailDTO.builder()
                 .id(task.getId())
                 .projectId(task.getProjectId())
+                .projectName(projectName)
                 .creatorId(task.getCreatorId())
                 .creatorName(creatorName)
                 .title(task.getTitle())
