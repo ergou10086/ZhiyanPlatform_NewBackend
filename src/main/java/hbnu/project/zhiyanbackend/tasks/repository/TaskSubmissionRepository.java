@@ -233,6 +233,22 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
      * @param pageable 分页参数
      * @return 分页后的提交记录
      */
-    Page<TaskSubmission> findByReviewerIdAndIsDeletedFalseOrderByReviewTimeDesc(Long reviewerId, Pageable pageable);
+    Page<TaskSubmission> findByReviewerIdAndReviewStatusAndIsDeletedFalseOrderByReviewTimeDesc(Long reviewerId, ReviewStatus reviewStatus, Pageable pageable);
+
+    /**
+     * 查询我创建的任务中已审核通过的提交记录（分页，按审核时间降序）
+     * @param creatorId 创建者ID
+     * @param reviewStatus 审核状态（例如 APPROVED）
+     * @param pageable 分页参数
+     * @return 分页后的提交记录
+     */
+    @Query("SELECT s FROM TaskSubmission s JOIN Task t ON s.taskId = t.id " +
+            "WHERE t.creatorId = :creatorId AND s.reviewStatus = :reviewStatus " +
+            "AND s.isDeleted = false AND t.isDeleted = false " +
+            "ORDER BY s.reviewTime DESC")
+    Page<TaskSubmission> findReviewedSubmissionsForMyCreatedTasks(
+            @Param("creatorId") Long creatorId,
+            @Param("reviewStatus") ReviewStatus reviewStatus,
+            Pageable pageable);
 
 }

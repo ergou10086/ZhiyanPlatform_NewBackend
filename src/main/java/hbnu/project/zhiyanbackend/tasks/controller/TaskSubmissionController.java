@@ -191,7 +191,7 @@ public class TaskSubmissionController {
     }
 
     @GetMapping("/by-reviewer")
-    @Operation(summary = "按审核人查询提交记录（分页）", description = "根据 reviewerId 查询该用户审核过的提交记录，按审核时间降序")
+    @Operation(summary = "按审核人查询已批准的提交记录（分页）", description = "根据 reviewerId 查询该用户审核通过(APPROVED)的提交记录，按审核时间降序")
     public R<Page<TaskSubmissionDTO>> getSubmissionsByReviewer(
             @RequestParam("reviewerId") @Parameter(description = "审核人ID") Long reviewerId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
@@ -256,6 +256,20 @@ public class TaskSubmissionController {
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<TaskSubmissionDTO> results = submissionService.getMyCreatedTasksPendingSubmissions(userId, pageable);
+        return R.ok(results);
+    }
+
+    @GetMapping("/my-created-tasks/reviewed")
+    @Operation(summary = "查询我创建的任务中已审核通过的提交记录", description = "查询提交且已被审核为 APPROVED 的提交记录（按审核时间倒序）")
+    public R<Page<TaskSubmissionDTO>> getReviewedSubmissionsForMyCreatedTasks(
+            @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
+            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return R.fail("未登录或Token无效，无法获取记录");
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TaskSubmissionDTO> results = submissionService.getReviewedSubmissionsForMyCreatedTasks(userId, pageable);
         return R.ok(results);
     }
 

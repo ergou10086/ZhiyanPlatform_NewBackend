@@ -357,7 +357,15 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getSubmissionsByReviewer(Long reviewerId, Pageable pageable) {
         return submissionRepository
-                .findByReviewerIdAndIsDeletedFalseOrderByReviewTimeDesc(reviewerId, pageable)
+                .findByReviewerIdAndReviewStatusAndIsDeletedFalseOrderByReviewTimeDesc(reviewerId, ReviewStatus.APPROVED, pageable)
+                .map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TaskSubmissionDTO> getReviewedSubmissionsForMyCreatedTasks(Long userId, Pageable pageable) {
+        return submissionRepository
+                .findReviewedSubmissionsForMyCreatedTasks(userId, ReviewStatus.APPROVED, pageable)
                 .map(this::convertToDTO);
     }
 
