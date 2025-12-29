@@ -112,9 +112,9 @@ public interface TaskService {
      * 获取我创建的任务列表
      * @param userId 用户ID
      * @param pageable 分页参数
-     * @return 创建的任务分页列表
+     * @return 创建的任务分页列表（包含项目名称和执行者信息）
      */
-    R<Page<Task>> getMyCreatedTasks(Long userId, Pageable pageable);
+    R<Page<TaskDetailDTO>> getMyCreatedTasks(Long userId, Pageable pageable);
 
     /**
      * 搜索任务
@@ -189,4 +189,13 @@ public interface TaskService {
      * @return 包含执行者信息的任务列表
      */
     R<Page<TaskDetailDTO>> getProjectTasksWithAssignees(Long projectId, Pageable pageable);
+
+    /**
+     * 获取用户未提交的任务列表（即已分配但尚未提交成果）
+     *
+     * @param userId   用户ID
+     * @param pageable 分页参数
+     * @return 未提交任务的分页列表
+     */
+    R<Page<Task>> getMyUnsubmittedTasks(Long userId, Pageable pageable);
 }

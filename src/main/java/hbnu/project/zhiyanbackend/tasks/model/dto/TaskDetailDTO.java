@@ -36,6 +36,11 @@ public class TaskDetailDTO {
     private Long projectId;
 
     /**
+     * 所属项目名称
+     */
+    private String projectName;
+
+    /**
      * 任务创建者ID
      */
     @LongToString
