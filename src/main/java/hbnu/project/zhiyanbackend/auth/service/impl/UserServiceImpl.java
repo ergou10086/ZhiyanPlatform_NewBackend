@@ -329,20 +329,19 @@ public class UserServiceImpl implements UserService {
                     return R.fail("你还有 " + ownedCount + " 个项目是负责人，请先将这些项目移交给其他成员后再注销账号");
                 }
             } catch (Exception e) {
-                log.error("检查用户拥有项目数量失败 - userId: {}", userId, e);
-                return R.fail("检查是否拥有项目失败，请稍后重试");
+                log.warn("检查用户拥有项目失败 - userId: {}", userId, e);
             }
 
-            User user = optionalUser.get();
-
             // 3. 标记用户为已删除并锁定账号，同时清理敏感字段
+            User user = optionalUser.get();
             user.setIsDeleted(true);
             user.setIsLocked(true);
             // 清理敏感信息，降低泄露风险
             // 注意：email 字段在数据库中为 NOT NULL，这里改为写入一个占位符而不是设置为 null
             String deletedEmailPlaceholder = "deleted_user_" + userId;
             user.setEmail(deletedEmailPlaceholder);
-            user.setPasswordHash(null);
+            // 为满足数据库 password_hash NOT NULL 约束，这里写入一个占位密码而不是 null
+            user.setPasswordHash("DELETED_USER_" + userId);
             user.setTwoFactorSecret(null);
             user.setTwoFactorEnabled(false);
             user.setOrcidAccessToken(null);
