@@ -9,8 +9,11 @@ import hbnu.project.zhiyanbackend.basic.utils.JsonUtils;
 import hbnu.project.zhiyanbackend.message.model.converter.MessageConverter;
 import hbnu.project.zhiyanbackend.message.model.dto.*;
 import hbnu.project.zhiyanbackend.message.model.entity.MessageRecipient;
+import hbnu.project.zhiyanbackend.message.model.entity.UserEmailNotificationPreference;
+import hbnu.project.zhiyanbackend.message.model.enums.MessagePriority;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.message.repository.MessageRecipientRepository;
+import hbnu.project.zhiyanbackend.message.repository.UserEmailNotificationPreferenceRepository;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
@@ -30,9 +33,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -57,6 +62,7 @@ public class MessageController {
     private final ProjectRepository projectRepository;
 
     private final MessageRecipientRepository messageRecipientRepository;
+    private final UserEmailNotificationPreferenceRepository emailPreferenceRepository;
 
     /**
      * 获取消息列表
@@ -697,5 +703,106 @@ public class MessageController {
         Long userId = SecurityUtils.getUserId();
         inboxMessageService.clearAllReadMessage(userId);
         return R.ok(null, "已清空所有已读消息");
+    }
+
+    /**
+     * 获取当前用户的邮件通知偏好设置
+     */
+    @GetMapping("/email-preference")
+    @Operation(summary = "获取邮件通知偏好设置", description = "获取当前用户的邮件通知偏好设置")
+    public R<EmailNotificationPreferenceDTO> getEmailPreference() {
+        Long userId = SecurityUtils.getUserId();
+        
+        Optional<UserEmailNotificationPreference> preferenceOpt = 
+                emailPreferenceRepository.findByUserId(userId);
+        
+        if (preferenceOpt.isEmpty()) {
+            // 返回默认设置（未启用）
+            EmailNotificationPreferenceDTO dto = EmailNotificationPreferenceDTO.builder()
+                    .enabled(false)
+                    .enabledScenes(new HashSet<>())
+                    .build();
+            return R.ok(dto);
+        }
+        
+        UserEmailNotificationPreference preference = preferenceOpt.get();
+        EmailNotificationPreferenceDTO dto = EmailNotificationPreferenceDTO.builder()
+                .enabled(preference.getEnabled())
+                .enabledScenes(preference.getEnabledScenesSet())
+                .build();
+        
+        return R.ok(dto);
+    }
+
+    /**
+     * 更新当前用户的邮件通知偏好设置
+     */
+    @PutMapping("/email-preference")
+    @Operation(summary = "更新邮件通知偏好设置", description = "更新当前用户的邮件通知偏好设置")
+    public R<Void> updateEmailPreference(@RequestBody @Valid EmailNotificationPreferenceDTO dto) {
+        Long userId = SecurityUtils.getUserId();
+        
+        // 验证启用的场景都是高优先级的
+        if (dto.getEnabledScenes() != null && !dto.getEnabledScenes().isEmpty()) {
+            for (String sceneStr : dto.getEnabledScenes()) {
+                try {
+                    MessageScene scene = MessageScene.valueOf(sceneStr);
+                    MessagePriority priority = MessagePriority.ofScene(scene);
+                    if (priority != MessagePriority.HIGH) {
+                        return R.fail("只能选择高优先级的业务场景");
+                    }
+                } catch (IllegalArgumentException e) {
+                    return R.fail("无效的消息场景: " + sceneStr);
+                }
+            }
+        }
+        
+        Optional<UserEmailNotificationPreference> preferenceOpt = 
+                emailPreferenceRepository.findByUserId(userId);
+        
+        UserEmailNotificationPreference preference;
+        if (preferenceOpt.isPresent()) {
+            preference = preferenceOpt.get();
+        } else {
+            preference = UserEmailNotificationPreference.builder()
+                    .userId(userId)
+                    .enabled(false)
+                    .build();
+        }
+        
+        preference.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : false);
+        Set<String> scenesSet = dto.getEnabledScenes() != null 
+                ? new HashSet<>(dto.getEnabledScenes()) 
+                : new HashSet<>();
+        preference.setEnabledScenesSet(scenesSet);
+        
+        emailPreferenceRepository.save(preference);
+        
+        log.info("更新邮件通知偏好设置成功: userId={}, enabled={}, scenes={}", 
+                userId, preference.getEnabled(), preference.getEnabledScenesSet());
+        
+        return R.ok(null, "邮件通知偏好设置已更新");
+    }
+
+    /**
+     * 获取所有高优先级的业务场景列表
+     */
+    @GetMapping("/email-preference/scenes")
+    @Operation(summary = "获取高优先级业务场景列表", description = "获取所有可配置的高优先级业务场景")
+    public R<List<Map<String, String>>> getHighPriorityScenes() {
+        List<Map<String, String>> scenes = new java.util.ArrayList<>();
+        
+        for (MessageScene scene : MessageScene.values()) {
+            MessagePriority priority = MessagePriority.ofScene(scene);
+            if (priority == MessagePriority.HIGH) {
+                Map<String, String> sceneInfo = new HashMap<>();
+                sceneInfo.put("code", scene.name());
+                sceneInfo.put("desc", scene.getDesc());
+                sceneInfo.put("module", scene.getModule());
+                scenes.add(sceneInfo);
+            }
+        }
+        
+        return R.ok(scenes);
     }
 }

@@ -200,3 +200,56 @@ CREATE TRIGGER trigger_message_send_record_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_message_send_record_updated_at();
 
+-- ============================================
+-- 4. 用户邮件通知偏好设置表 (user_email_notification_preference)
+-- Schema: zhiyanmessage
+-- ============================================
+CREATE TABLE IF NOT EXISTS zhiyanmessage.user_email_notification_preference (
+    -- 主键（自增）
+    id BIGSERIAL PRIMARY KEY,
+    
+    -- 用户ID（唯一约束）
+    user_id BIGINT NOT NULL UNIQUE,
+    
+    -- 通知设置
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled_scenes JSONB,
+    
+    -- 审计字段（继承BaseAuditEntity）
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by BIGINT,
+    updated_by BIGINT,
+    version INTEGER NOT NULL DEFAULT 0
+);
+
+-- 用户邮件通知偏好设置表索引
+CREATE INDEX IF NOT EXISTS idx_user_id ON zhiyanmessage.user_email_notification_preference(user_id);
+CREATE INDEX IF NOT EXISTS idx_enabled ON zhiyanmessage.user_email_notification_preference(enabled);
+
+-- 用户邮件通知偏好设置表注释
+COMMENT ON TABLE zhiyanmessage.user_email_notification_preference IS '用户邮件通知偏好设置表 - 记录用户希望接收哪些业务场景的邮件通知';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.id IS '主键ID';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.user_id IS '用户ID（唯一）';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.enabled IS '是否启用邮件通知（总开关）';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.enabled_scenes IS '启用的业务场景列表（JSONB数组格式，只存储高优先级的业务场景）';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.created_at IS '创建时间';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.updated_at IS '更新时间';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.created_by IS '创建人ID';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.updated_by IS '最后修改人ID';
+COMMENT ON COLUMN zhiyanmessage.user_email_notification_preference.version IS '版本号（乐观锁）';
+
+-- 用户邮件通知偏好设置表触发器
+CREATE OR REPLACE FUNCTION update_user_email_notification_preference_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_user_email_notification_preference_updated_at
+    BEFORE UPDATE ON zhiyanmessage.user_email_notification_preference
+    FOR EACH ROW
+    EXECUTE FUNCTION update_user_email_notification_preference_updated_at();
+

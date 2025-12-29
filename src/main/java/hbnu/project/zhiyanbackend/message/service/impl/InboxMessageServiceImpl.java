@@ -10,6 +10,7 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageType;
 import hbnu.project.zhiyanbackend.message.repository.MessageBodyRepository;
 import hbnu.project.zhiyanbackend.message.repository.MessageRecipientRepository;
 import hbnu.project.zhiyanbackend.message.repository.MessageSendRecordRepository;
+import hbnu.project.zhiyanbackend.message.service.EmailNotificationService;
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.utils.SseMessagePushEdgeUtils;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class InboxMessageServiceImpl implements InboxMessageService {
     private final MessageRecipientRepository messageRecipientRepository;
     private final MessageSendRecordRepository messageSendRecordRepository;
     private final SseMessagePushEdgeUtils sseMessagePushEdgeUtils;
+    private final EmailNotificationService emailNotificationService;
 
     /**
      * 发送一条“个人消息”（向单个的收件人发送）
@@ -93,6 +95,14 @@ public class InboxMessageServiceImpl implements InboxMessageService {
             sseMessagePushEdgeUtils.pushMessageViaSse(receiverId, messageBody);
         } catch (Exception e) {
             log.error("SSE推送消息失败,但消息已保存: receiverId={}, messageBodyId={}",
+                    receiverId, messageBody.getId(), e);
+        }
+
+        // 发送邮件通知（如果是高优先级消息）
+        try {
+            emailNotificationService.sendEmailNotificationIfEnabled(receiverId, messageBody);
+        } catch (Exception e) {
+            log.error("发送邮件通知失败,但消息已保存: receiverId={}, messageBodyId={}",
                     receiverId, messageBody.getId(), e);
         }
 
@@ -187,6 +197,14 @@ public class InboxMessageServiceImpl implements InboxMessageService {
                         receiverId, messageBody.getId(), e);
                 failedCount++;
             }
+        }
+
+        // 发送邮件通知（如果是高优先级消息）
+        try {
+            emailNotificationService.sendBatchEmailNotificationIfEnabled(
+                    receiverIds.stream().collect(Collectors.toList()), messageBody);
+        } catch (Exception e) {
+            log.error("批量发送邮件通知失败: messageBodyId={}", messageBody.getId(), e);
         }
 
         // 更新发送记录
