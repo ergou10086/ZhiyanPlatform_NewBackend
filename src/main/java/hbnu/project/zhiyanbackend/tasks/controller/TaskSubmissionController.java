@@ -191,13 +191,13 @@ public class TaskSubmissionController {
     }
 
     @GetMapping("/by-reviewer")
-    @Operation(summary = "按审核人查询已批准的提交记录（分页）", description = "根据 reviewerId 查询该用户审核通过(APPROVED)的提交记录，按审核时间降序")
+    @Operation(summary = "获取我审核通过的提交记录（分页）", description = "获取当前用户审核通过(APPROVED)的提交记录，按审核时间降序")
     public R<Page<TaskSubmissionDTO>> getSubmissionsByReviewer(
-            @RequestParam("reviewerId") @Parameter(description = "审核人ID") Long reviewerId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
             @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+        Long reviewerId = SecurityUtils.getUserId();
         if (reviewerId == null) {
-            return R.fail("reviewerId 不能为空");
+            return R.fail("未登录或Token无效，无法获取审核记录");
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<TaskSubmissionDTO> results = submissionService.getSubmissionsByReviewer(reviewerId, pageable);
