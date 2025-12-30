@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.tasks.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.tasks.model.dto.TaskDetailDTO;
@@ -863,11 +864,103 @@ public class TaskServiceImpl implements TaskService {
     @Transactional(readOnly = true)
     public R<Page<TaskDetailDTO>> getProjectTasksWithAssignees(Long projectId, Pageable pageable) {
         Page<Task> taskPage = taskRepository.findByProjectIdAndIsDeleted(projectId, false, pageable);
-        
-        List<TaskDetailDTO> taskDTOs = taskPage.getContent().stream()
-                .map(this::convertToTaskDetailDTO)
+
+        List<Task> tasks = taskPage.getContent();
+        if (tasks == null || tasks.isEmpty()) {
+            return R.ok(new PageImpl<>(List.of(), pageable, taskPage.getTotalElements()));
+        }
+
+        // 1) 只查一次项目名称
+        String projectName = null;
+        try {
+            Project project = projectRepository.findById(projectId).orElse(null);
+            projectName = project != null ? project.getName() : null;
+        } catch (Exception e) {
+            log.warn("[getProjectTasksWithAssignees] 获取项目名称失败: projectId={}", projectId, e);
+        }
+
+        // 2) 批量查询 TaskUser（避免每个任务查一次）
+        List<Long> taskIds = tasks.stream()
+                .map(Task::getId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-        
+
+        Map<Long, List<TaskUser>> taskUserMap = new HashMap<>();
+        if (!taskIds.isEmpty()) {
+            try {
+                List<TaskUser> allTaskUsers = taskUserRepository.findByTaskIdInAndIsActive(taskIds, true);
+                taskUserMap = allTaskUsers.stream().collect(Collectors.groupingBy(TaskUser::getTaskId));
+            } catch (Exception e) {
+                log.warn("[getProjectTasksWithAssignees] 批量查询任务执行者失败: projectId={}", projectId, e);
+            }
+        }
+
+        // 3) 批量查询用户（创建者 + 执行者）
+        Set<Long> userIds = new HashSet<>();
+        for (Task t : tasks) {
+            if (t.getCreatorId() != null) {
+                userIds.add(t.getCreatorId());
+            }
+        }
+        for (List<TaskUser> tus : taskUserMap.values()) {
+            for (TaskUser tu : tus) {
+                if (tu.getUserId() != null) {
+                    userIds.add(tu.getUserId());
+                }
+            }
+        }
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                List<User> users = userRepository.findByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
+                userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+            } catch (Exception e) {
+                log.warn("[getProjectTasksWithAssignees] 批量查询用户信息失败: projectId={}", projectId, e);
+            }
+        }
+
+        final String finalProjectName = projectName;
+        final Map<Long, List<TaskUser>> finalTaskUserMap = taskUserMap;
+        final Map<Long, User> finalUserMap = userMap;
+
+        List<TaskDetailDTO> taskDTOs = tasks.stream()
+                .map(task -> {
+                    List<TaskUser> executors = finalTaskUserMap.getOrDefault(task.getId(), Collections.emptyList());
+                    List<TaskDetailDTO.AssigneeDTO> assignees = executors.stream()
+                            .map(tu -> {
+                                User u = finalUserMap.get(tu.getUserId());
+                                String userName = (u != null && u.getName() != null) ? u.getName() : "未知用户";
+                                return TaskDetailDTO.AssigneeDTO.builder()
+                                        .userId(tu.getUserId())
+                                        .userName(userName)
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+
+                    User creator = finalUserMap.get(task.getCreatorId());
+                    String creatorName = (creator != null && creator.getName() != null) ? creator.getName() : "未知用户";
+
+                    return TaskDetailDTO.builder()
+                            .id(task.getId())
+                            .projectId(task.getProjectId())
+                            .projectName(finalProjectName)
+                            .creatorId(task.getCreatorId())
+                            .creatorName(creatorName)
+                            .title(task.getTitle())
+                            .description(task.getDescription())
+                            .worktime(task.getWorktime())
+                            .status(task.getStatus())
+                            .priority(task.getPriority())
+                            .dueDate(task.getDueDate())
+                            .requiredPeople(task.getRequiredPeople())
+                            .isDeleted(task.getIsDeleted())
+                            .isMilestone(task.getIsMilestone())
+                            .assignees(assignees)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
         Page<TaskDetailDTO> resultPage = new PageImpl<>(taskDTOs, pageable, taskPage.getTotalElements());
         return R.ok(resultPage);
     }

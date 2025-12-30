@@ -378,10 +378,7 @@ public class ProjectServiceImpl implements ProjectService {
             String creatorName = "未知用户";
             if (project.getCreatorId() != null) {
                 try {
-                    R<UserDTO> userResult = userService.getCurrentUser(project.getCreatorId());
-                    if (R.isSuccess(userResult) && userResult.getData() != null) {
-                        creatorName = userResult.getData().getName();
-                    }
+                    creatorName = userRepository.findNameById(project.getCreatorId()).orElse("未知用户");
                 } catch (Exception e) {
                     log.warn("查询创建者名称失败: creatorId={}", project.getCreatorId(), e);
                 }
@@ -649,10 +646,7 @@ public class ProjectServiceImpl implements ProjectService {
         String creatorName = "未知用户";
         if (project.getCreatorId() != null) {
             try {
-                R<UserDTO> userResult = userService.getCurrentUser(project.getCreatorId());
-                if (R.isSuccess(userResult) && userResult.getData() != null) {
-                    creatorName = userResult.getData().getName();
-                }
+                creatorName = userRepository.findNameById(project.getCreatorId()).orElse("未知用户");
             } catch (Exception e) {
                 log.warn("查询创建者名称失败: creatorId={}", project.getCreatorId(), e);
             }
