@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 /**
  * 任务提交控制器
@@ -122,6 +123,27 @@ public class TaskSubmissionController {
         TaskSubmissionDTO result = submissionService.getLatestSubmission(taskId);
         return R.ok(result);
     }
+
+     @PostMapping("/tasks/batch")
+     @Operation(summary = "批量获取多个任务的提交记录", description = "根据任务ID列表批量查询提交记录，返回按taskId分组的Map")
+     public R<Map<String, List<TaskSubmissionDTO>>> batchGetTaskSubmissions(
+             @RequestBody @Parameter(description = "任务ID列表") List<Long> taskIds) {
+         if (taskIds == null || taskIds.isEmpty()) {
+             return R.fail("任务ID列表不能为空");
+         }
+         List<Long> sanitized = taskIds.stream()
+                 .filter(id -> id != null && id > 0)
+                 .distinct()
+                 .collect(Collectors.toList());
+         if (sanitized.isEmpty()) {
+             return R.fail("任务ID列表不能为空");
+         }
+         if (sanitized.size() > 100) {
+             return R.fail("单次查询任务数量不能超过100个");
+         }
+         Map<String, List<TaskSubmissionDTO>> result = submissionService.batchGetTaskSubmissions(sanitized);
+         return R.ok(result, "查询成功");
+     }
 
     @GetMapping("/pending")
     @Operation(summary = "获取待审核提交列表（用户相关）")

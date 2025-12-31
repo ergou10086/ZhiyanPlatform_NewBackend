@@ -37,7 +37,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -288,30 +290,30 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         return convertToDTO(submission, task);
     }
 
-/**
- * 根据提交记录ID获取提交详情
- * 此方法为只读事务方法
- * @param submissionId 提交记录ID
- * @return TaskSubmissionDTO 提交详情的数据传输对象
- * @throws IllegalArgumentException 当提交记录不存在或已删除或关联任务不存在时抛出
- */
+    /**
+     * 根据提交记录ID获取提交详情
+     * 此方法为只读事务方法
+     * @param submissionId 提交记录ID
+     * @return TaskSubmissionDTO 提交详情的数据传输对象
+     * @throws IllegalArgumentException 当提交记录不存在或已删除或关联任务不存在时抛出
+     */
     @Override
     @Transactional(readOnly = true)  // 声明这是一个只读事务方法
     public TaskSubmissionDTO getSubmissionDetail(Long submissionId) {
-    // 根据ID查找提交记录，如果不存在则抛出异常
+        // 根据ID查找提交记录，如果不存在则抛出异常
         TaskSubmission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("提交记录不存在"));
 
-    // 检查提交记录是否已被删除
+        // 检查提交记录是否已被删除
         if (Boolean.TRUE.equals(submission.getIsDeleted())) {
             throw new IllegalArgumentException("提交记录已删除");
         }
 
-    // 根据提交记录中的任务ID查找关联任务，如果不存在则抛出异常
+        // 根据提交记录中的任务ID查找关联任务，如果不存在则抛出异常
         Task task = taskRepository.findById(submission.getTaskId())
                 .orElseThrow(() -> new IllegalArgumentException("关联任务不存在"));
 
-    // 将提交记录和任务信息转换为数据传输对象并返回
+        // 将提交记录和任务信息转换为数据传输对象并返回
         return convertToDTO(submission, task);
     }
 
@@ -328,6 +330,42 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .map(s -> convertToDTO(s, task))
                 .collect(Collectors.toList());
     }
+
+     @Override
+     @Transactional(readOnly = true)
+     public Map<String, List<TaskSubmissionDTO>> batchGetTaskSubmissions(List<Long> taskIds) {
+         if (taskIds == null || taskIds.isEmpty()) {
+             return Collections.emptyMap();
+         }
+
+         List<Long> sanitized = taskIds.stream()
+                 .filter(id -> id != null && id > 0)
+                 .distinct()
+                 .collect(Collectors.toList());
+         if (sanitized.isEmpty()) {
+             return Collections.emptyMap();
+         }
+
+         List<TaskSubmission> submissions = submissionRepository
+                 .findByTaskIdInAndIsDeletedFalseOrderByTaskIdAscVersionDesc(sanitized);
+
+         Map<Long, Task> taskMap = taskRepository.findAllById(sanitized).stream()
+                 .collect(Collectors.toMap(Task::getId, t -> t));
+
+         Map<String, List<TaskSubmissionDTO>> result = new LinkedHashMap<>();
+         for (Long taskId : sanitized) {
+             result.put(String.valueOf(taskId), new ArrayList<>());
+         }
+
+         for (TaskSubmission submission : submissions) {
+             Long taskId = submission.getTaskId();
+             Task task = taskMap.get(taskId);
+             TaskSubmissionDTO dto = convertToDTO(submission, task);
+             result.computeIfAbsent(String.valueOf(taskId), k -> new ArrayList<>()).add(dto);
+         }
+
+         return result;
+     }
 
     @Override
     @Transactional(readOnly = true)
