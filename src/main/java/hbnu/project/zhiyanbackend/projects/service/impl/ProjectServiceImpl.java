@@ -770,13 +770,16 @@ public class ProjectServiceImpl implements ProjectService {
         if (!creatorIds.isEmpty()) {
             try {
                 long t0 = System.currentTimeMillis();
-                List<User> users = userRepository.findByIdInAndIsDeletedFalse(creatorIds);
+                List<Object[]> rows = userRepository.findIdAndNameByIdInAndIsDeletedFalse(creatorIds);
                 userCost = System.currentTimeMillis() - t0;
-                users.forEach(user -> {
-                    Long uid = user.getId();
-                    String name = user.getName() != null ? user.getName() : "未知用户";
+                for (Object[] row : rows) {
+                    Long uid = (Long) row[0];
+                    String name = (String) row[1];
+                    if (name == null || name.isEmpty()) {
+                        name = "未知用户";
+                    }
                     creatorNameMap.put(uid, name);
-                });
+                }
             } catch (Exception e) {
                 log.warn("批量查询项目创建者名称失败: creatorIds={}", creatorIds, e);
             }

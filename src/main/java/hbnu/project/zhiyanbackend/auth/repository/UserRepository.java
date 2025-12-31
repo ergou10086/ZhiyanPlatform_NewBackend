@@ -124,6 +124,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
     List<User> findByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
 
+    /**
+     * 批量查询用户的 id 和 name，用于只需要展示创建者姓名的场景
+     */
+    @Query("SELECT u.id, u.name FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
+    List<Object[]> findIdAndNameByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
+
 
     /**
      * 修改用户个人简介
