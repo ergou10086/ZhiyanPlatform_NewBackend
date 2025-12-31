@@ -14,6 +14,7 @@ import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -62,6 +63,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
         // 检查用户是否存在
         if(!userRepository.existsById(userId)) {
@@ -106,6 +108,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role) {
         try {
             // 检查用户是否存在
@@ -180,6 +183,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> removeMember(Long projectId, Long userId) {
         try {
             // 查找要移除的成员
@@ -234,6 +238,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> removeMember(Long projectId, Long userId, Long operatorId) {
         try {
             // 检查项目是否存在
@@ -311,6 +316,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole) {
         try {
             // 1. 查询成员
@@ -359,6 +365,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole, Long operatorId) {
         try {
             Project project = projectRepository.findById(projectId)

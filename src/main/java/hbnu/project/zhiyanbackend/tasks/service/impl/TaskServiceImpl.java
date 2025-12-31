@@ -25,6 +25,7 @@ import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.activelog.core.OperationLogHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +61,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Task> createTask(CreateTaskRequest request, Long creatorId) {
         Long projectId = request.getProjectId();
 
@@ -256,6 +258,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> deleteTask(Long taskId, Long operatorId) {
         Optional<Task> taskOpt = taskRepository.findById(taskId);
         if (taskOpt.isEmpty() || Boolean.TRUE.equals(taskOpt.get().getIsDeleted())) {
@@ -290,6 +293,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Task> updateTaskStatus(Long taskId, TaskStatus newStatus, Long operatorId) {
         Optional<Task> taskOpt = taskRepository.findById(taskId);
         if (taskOpt.isEmpty() || Boolean.TRUE.equals(taskOpt.get().getIsDeleted())) {
@@ -636,15 +640,21 @@ public class TaskServiceImpl implements TaskService {
         // 批量查询用户信息
         Set<Long> userIds = new HashSet<>();
         taskPage.getContent().forEach(task -> userIds.add(task.getCreatorId()));
-        taskUserMap.values().forEach(taskUsers -> 
-            taskUsers.forEach(tu -> userIds.add(tu.getUserId())));
-        
+        taskUserMap.values().forEach(taskUsers ->
+                taskUsers.forEach(tu -> userIds.add(tu.getUserId())));
+
         Map<Long, String> userNameMap = new HashMap<>();
         if (!userIds.isEmpty()) {
-            userIds.forEach(uid -> {
-                String userName = userRepository.findNameById(uid).orElse("未知用户");
-                userNameMap.put(uid, userName);
-            });
+            try {
+                List<User> users = userRepository.findByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
+                users.forEach(user -> {
+                    Long uid = user.getId();
+                    String userName = user.getName() != null ? user.getName() : "未知用户";
+                    userNameMap.put(uid, userName);
+                });
+            } catch (Exception e) {
+                log.warn("批量查询用户名称失败: userIds={}", userIds, e);
+            }
         }
         
         // 转换为DTO

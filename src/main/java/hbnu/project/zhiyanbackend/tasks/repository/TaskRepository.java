@@ -285,4 +285,18 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      * @return 有效任务数量
      */
     long countByProjectIdAndIsDeletedFalse(Long projectId);
+
+    /**
+     * 批量统计多个项目中未被软删除的任务数量，按项目ID分组返回。
+     *
+     * @param projectIds 项目ID集合
+     * @return 每个项目对应的任务数量（Object[0]=projectId, Object[1]=count）
+     */
+    @Query("""
+        SELECT t.projectId, COUNT(t) FROM Task t
+        WHERE t.projectId IN (:projectIds)
+          AND t.isDeleted = false
+        GROUP BY t.projectId
+        """)
+    List<Object[]> countTasksByProjectIds(@Param("projectIds") Collection<Long> projectIds);
 }

@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
+import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementDetailRepository;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementFileRepository;
@@ -34,6 +35,8 @@ import hbnu.project.zhiyanbackend.wiki.repository.WikiVersionHistoryRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -42,8 +45,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 项目服务实现类
@@ -143,6 +149,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Project> createProject(String name,
                                     String description,
                                     ProjectVisibility visibility,
@@ -229,6 +236,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Project> updateProject(Long projectId,
                                     String name,
                                     String description,
@@ -319,6 +327,7 @@ public class ProjectServiceImpl implements ProjectService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> deleteProject(Long projectId, Long userId) {
         try {
             // 查找项目
@@ -488,6 +497,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Project> updateProjectStatus(Long projectId, ProjectStatus status) {
         try {
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -530,6 +540,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> archiveProject(Long projectId, Long userId) {
         try {
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -593,8 +604,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public R<Long> countUserCreatedProjects(Long userId) {
+        long start = System.currentTimeMillis();
         try {
+            long dbStart = System.currentTimeMillis();
             long count = projectRepository.countByCreatorId(userId);
+            long dbCost = System.currentTimeMillis() - dbStart;
+
+            long total = System.currentTimeMillis() - start;
+            log.info("[projectCount] created DB={}ms, total={}ms, userId={}", dbCost, total, userId);
+
             return R.ok(count);
         } catch (Exception e) {
             log.error("统计用户创建项目数量失败: userId={}", userId, e);
@@ -604,8 +622,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public R<Long> countUserParticipatedProjects(Long userId) {
+        long start = System.currentTimeMillis();
         try {
+            long dbStart = System.currentTimeMillis();
             long count = projectMemberRepository.countByUserId(userId);
+            long dbCost = System.currentTimeMillis() - dbStart;
+
+            long total = System.currentTimeMillis() - start;
+            log.info("[projectCount] participated DB={}ms, total={}ms, userId={}", dbCost, total, userId);
+
             return R.ok(count);
         } catch (Exception e) {
             log.error("统计用户参与项目数量失败: userId={}", userId, e);
@@ -618,12 +643,30 @@ public class ProjectServiceImpl implements ProjectService {
      * @param pageable 分页参数
      * @return 项目DTO分页列表
      */
+    @Cacheable(value = "projectSquare",
+            key = "T(String).format('page_%d_size_%d_user_%s', #pageable.pageNumber, #pageable.pageSize, T(hbnu.project.zhiyanbackend.security.utils.SecurityUtils).getUserId())")
     public R<Page<ProjectDTO>> getPublicActiveProjectsDTO(Pageable pageable) {
+        Long currentUserId = SecurityUtils.getUserId();
+        return getPublicActiveProjectsDTO(pageable, currentUserId);
+    }
+
+    public R<Page<ProjectDTO>> getPublicActiveProjectsDTO(Pageable pageable, Long currentUserId) {
+        long start = System.currentTimeMillis();
         try {
-            Long currentUserId = SecurityUtils.getUserId();
+            long dbStart = System.currentTimeMillis();
             Page<Project> projects = projectRepository.findPublicActiveProjects(currentUserId, pageable);
+            long dbCost = System.currentTimeMillis() - dbStart;
+
+            long convertStart = System.currentTimeMillis();
             List<ProjectDTO> dtoList = convertToDTOList(projects.getContent(), currentUserId);
+            long convertCost = System.currentTimeMillis() - convertStart;
+
             Page<ProjectDTO> dtoPage = new PageImpl<>(dtoList, pageable, projects.getTotalElements());
+
+            long totalCost = System.currentTimeMillis() - start;
+            log.info("[projectSquare] DB={}ms, convert={}ms, total={}ms, page={}, size={}, user={}",
+                    dbCost, convertCost, totalCost, pageable.getPageNumber(), pageable.getPageSize(), currentUserId);
+
             return R.ok(dtoPage);
         } catch (Exception e) {
             log.error("获取公开活跃项目失败", e);
@@ -704,9 +747,114 @@ public class ProjectServiceImpl implements ProjectService {
         if (projects == null || projects.isEmpty()) {
             return List.of();
         }
-        return projects.stream()
-                .map(project -> convertToDTO(project, currentUserId))
+
+        long start = System.currentTimeMillis();
+        long userCost = 0L;
+        long memberCost = 0L;
+        long taskCost = 0L;
+        long mapCost;
+
+        List<Long> projectIds = projects.stream()
+                .map(Project::getId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
                 .toList();
+
+        List<Long> creatorIds = projects.stream()
+                .map(Project::getCreatorId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, String> creatorNameMap = new HashMap<>();
+        if (!creatorIds.isEmpty()) {
+            try {
+                long t0 = System.currentTimeMillis();
+                List<User> users = userRepository.findByIdInAndIsDeletedFalse(creatorIds);
+                userCost = System.currentTimeMillis() - t0;
+                users.forEach(user -> {
+                    Long uid = user.getId();
+                    String name = user.getName() != null ? user.getName() : "未知用户";
+                    creatorNameMap.put(uid, name);
+                });
+            } catch (Exception e) {
+                log.warn("批量查询项目创建者名称失败: creatorIds={}", creatorIds, e);
+            }
+        }
+
+        Map<Long, Long> memberCountMap = new HashMap<>();
+        if (!projectIds.isEmpty()) {
+            try {
+                long t0 = System.currentTimeMillis();
+                List<ProjectMember> members = projectMemberRepository.findByProjectIdIn(projectIds);
+                memberCost = System.currentTimeMillis() - t0;
+                Map<Long, Long> tmpMemberCount = members.stream()
+                        .collect(Collectors.groupingBy(ProjectMember::getProjectId, Collectors.counting()));
+                memberCountMap.putAll(tmpMemberCount);
+            } catch (Exception e) {
+                log.warn("批量查询项目成员数量失败: projectIds={}", projectIds, e);
+            }
+        }
+
+        Map<Long, Long> taskCountMap = new HashMap<>();
+        if (!projectIds.isEmpty()) {
+            try {
+                long t0 = System.currentTimeMillis();
+                List<Object[]> taskCounts = taskRepository.countTasksByProjectIds(projectIds);
+                taskCost = System.currentTimeMillis() - t0;
+                for (Object[] row : taskCounts) {
+                    Long pid = (Long) row[0];
+                    Long count = (Long) row[1];
+                    taskCountMap.put(pid, count);
+                }
+            } catch (Exception e) {
+                log.warn("批量查询项目任务数量失败: projectIds={}", projectIds, e);
+            }
+        }
+
+        long mapStart = System.currentTimeMillis();
+        List<ProjectDTO> result = projects.stream()
+                .map(project -> {
+                    Long projectId = project.getId();
+
+                    String creatorName = creatorNameMap.getOrDefault(
+                            project.getCreatorId(),
+                            "未知用户");
+
+                    int memberCount = memberCountMap.getOrDefault(projectId, 0L).intValue();
+                    int taskCount = taskCountMap.getOrDefault(projectId, 0L).intValue();
+
+                    String accessibleUserId = null;
+                    if (project.getVisibility() == ProjectVisibility.PRIVATE && currentUserId != null) {
+                        accessibleUserId = String.valueOf(currentUserId);
+                    }
+
+                    return ProjectDTO.builder()
+                            .id(String.valueOf(project.getId()))
+                            .name(project.getName())
+                            .description(project.getDescription())
+                            .status(project.getStatus())
+                            .visibility(project.getVisibility())
+                            .startDate(project.getStartDate())
+                            .endDate(project.getEndDate())
+                            .imageUrl(project.getImageUrl())
+                            .creatorId(String.valueOf(project.getCreatorId()))
+                            .creatorName(creatorName)
+                            .memberCount(memberCount)
+                            .taskCount(taskCount)
+                            .createdAt(project.getCreatedAt())
+                            .updatedAt(project.getUpdatedAt())
+                            .accessibleUserId(accessibleUserId)
+                            .build();
+                })
+                .toList();
+        mapCost = System.currentTimeMillis() - mapStart;
+
+        long total = System.currentTimeMillis() - start;
+        log.info("[projectSquare][convertToDTOList] user={}ms, members={}ms, tasks={}ms, map={}ms, total={}ms, size={}",
+                userCost, memberCost, taskCost, mapCost, total, projects.size());
+
+        return result;
     }
 
     /**
