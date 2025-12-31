@@ -23,7 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor  // 使用Lombok的构造函数注解，自动生成带final字段的构造函数
 public class ProjectImageServiceImpl implements ProjectImageService {  // 实现项目图片服务接口
 
-    private final ProjectRepository projectRepository;  // 项目数据访问层，用于数据库操作
+    private final ProjectRepository projectRepository;
 
 
 

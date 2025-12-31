@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -584,27 +585,22 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(readOnly = true)
     public R<Page<Task>> getMyAssignedTasks(Long userId, Pageable pageable) {
-        Page<TaskUser> taskUserPage = taskUserRepository.findActiveTasksByUserId(userId, pageable);
-        List<Long> taskIds = taskUserPage.getContent().stream()
-                .map(TaskUser::getTaskId)
-                .toList();
-        if (taskIds.isEmpty()) {
-            return R.ok(Page.empty(pageable));
-        }
-
-        List<Task> tasks = taskRepository.findAllById(taskIds);
-        Map<Long, Task> taskMap = tasks.stream()
-                .filter(t -> !Boolean.TRUE.equals(t.getIsDeleted()))
-                .collect(Collectors.toMap(Task::getId, t -> t));
-
-        List<Task> ordered = taskIds.stream()
-                .map(taskMap::get)
-                .filter(Objects::nonNull)
-                .toList();
-
-        Page<Task> result = new PageImpl<>(ordered, pageable, taskUserPage.getTotalElements());
-        return R.ok(result);
+        Page<Task> page = taskRepository.findMyAssignedTasks(userId, pageable);
+        return R.ok(page);
     }
+
+     @Override
+     @Transactional(readOnly = true)
+     public R<Page<Task>> getMyAssignedTasksByDueDateRange(Long userId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+         if (startDate == null || endDate == null) {
+             return R.fail("startDate和endDate不能为空");
+         }
+         if (endDate.isBefore(startDate)) {
+             return R.fail("endDate不能早于startDate");
+         }
+         Page<Task> page = taskRepository.findMyAssignedTasksByDueDateRange(userId, startDate, endDate, pageable);
+         return R.ok(page);
+     }
 
     @Override
     @Transactional(readOnly = true)

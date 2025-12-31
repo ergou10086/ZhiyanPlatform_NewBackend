@@ -28,6 +28,8 @@ public interface TaskSubmissionService {
 
     TaskSubmissionDTO getLatestSubmission(Long taskId);
 
+     Map<String, List<TaskSubmissionDTO>> batchGetTaskSubmissions(List<Long> taskIds);
+
     Page<TaskSubmissionDTO> getPendingSubmissions(Long userId, Pageable pageable);
 
     Page<TaskSubmissionDTO> getProjectPendingSubmissions(Long projectId, Pageable pageable);

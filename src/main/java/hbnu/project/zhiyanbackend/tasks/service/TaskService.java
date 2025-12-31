@@ -11,6 +11,7 @@ import hbnu.project.zhiyanbackend.tasks.model.form.UpdateTaskRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -107,6 +108,8 @@ public interface TaskService {
      * @return 被分配的任务分页列表
      */
     R<Page<Task>> getMyAssignedTasks(Long userId, Pageable pageable);
+
+     R<Page<Task>> getMyAssignedTasksByDueDateRange(Long userId, LocalDate startDate, LocalDate endDate, Pageable pageable);
 
     /**
      * 获取我创建的任务列表

@@ -97,6 +97,38 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Page<Task> searchByKeyword(@Param("projectId") Long projectId, @Param("keyword") String keyword, Pageable pageable);
 
     /**
+     * 分页查询当前用户参与的任务（基于 TaskUser 分配记录，按分配时间倒序）
+     * 用于 /tasks/my-assigned
+     */
+    @Query(
+            value = "SELECT t FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "ORDER BY tu.assignedAt DESC",
+            countQuery = "SELECT COUNT(t) FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false"
+    )
+    Page<Task> findMyAssignedTasks(@Param("userId") Long userId, Pageable pageable);
+
+    /**
+     * 分页查询当前用户参与的任务（基于 TaskUser 分配记录，按分配时间倒序），并按截止日期过滤
+     * 用于 /tasks/my-assigned
+     */
+    @Query(
+            value = "SELECT t FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "AND t.dueDate IS NOT NULL AND t.dueDate >= :startDate AND t.dueDate <= :endDate " +
+                    "ORDER BY t.dueDate ASC",
+            countQuery = "SELECT COUNT(t) FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "AND t.dueDate IS NOT NULL AND t.dueDate >= :startDate AND t.dueDate <= :endDate"
+    )
+    Page<Task> findMyAssignedTasksByDueDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable);
+
+    /**
      * 查询指定项目中在指定日期范围内即将到期（但未完成）的任务。
      *
      * @param projectId    项目ID
