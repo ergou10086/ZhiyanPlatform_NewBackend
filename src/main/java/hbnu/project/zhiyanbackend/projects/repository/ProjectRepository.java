@@ -76,6 +76,7 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
                  AND p.visibility = hbnu.project.zhiyanbackend.projects.model.enums.ProjectVisibility.PRIVATE
                  AND (p.creatorId = :userId OR pm.userId = :userId))
           )
+        ORDER BY p.createdAt DESC
         """)
     Page<Project> findPublicActiveProjects(@Param("userId") Long userId, Pageable pageable);
 
