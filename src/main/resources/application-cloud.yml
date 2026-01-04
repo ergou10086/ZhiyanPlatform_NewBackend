@@ -18,10 +18,10 @@ spring:
     # HikariCP连接池配置
     hikari:
       pool-name: ZhiyanBackendHikariPool
-      minimum-idle: 10
-      maximum-pool-size: 40
-      idle-timeout: 300000
-      max-lifetime: 1200000
+      minimum-idle: 20
+      maximum-pool-size: 50
+      idle-timeout: 180000
+      max-lifetime: 1800000
       connection-timeout: 20000
 
       # PostgreSQL Schema配置，包含所有业务schema
@@ -170,7 +170,6 @@ logging:
 
 # Swagger配置
 swagger:
-  enabled: true
   title: "智研平台后端服务"
   description: "用户认证、项目管理、任务管理等核心功能"
 
@@ -243,3 +242,9 @@ zhiyan:
     orcid_tokenUri: https://orcid.org/oauth/token
     orcid_userInfoUri: https://pub.orcid.org/v3.0
     orcid_apiVersion: v3.0
+
+getui:
+  appId: j5dZRWGPUb7zzm6SWqNfG2
+  appKey: vnq5970Is8As8VCUz9LCK5
+  appSecret: uDbvD7WKdF8VEIt6E1ggb5
+  masterSecret: S5gWaDDXjz5FHbTNZnau35

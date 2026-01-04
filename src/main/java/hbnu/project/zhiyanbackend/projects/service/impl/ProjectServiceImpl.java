@@ -1,7 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
-import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementDetailRepository;
 import hbnu.project.zhiyanbackend.knowledge.repository.AchievementFileRepository;
@@ -22,7 +21,6 @@ import hbnu.project.zhiyanbackend.projects.model.form.ProjectOwnershipTransferRe
 import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
-import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import hbnu.project.zhiyanbackend.security.utils.PermissionUtils;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import hbnu.project.zhiyanbackend.tasks.repository.TaskRepository;
@@ -138,13 +136,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 创建新项目
-     * @param name 项目名称
+     *
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
-     * @param creatorId 创建者ID
+     * @param visibility  项目可见性
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
+     * @param creatorId   创建者ID
      * @return 创建结果，包含项目信息
      */
     @Override
@@ -173,7 +172,7 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("未登录或令牌无效，无法创建项目");
             }
 
-            if(!userRepository.existsById(creatorId)) {
+            if (!userRepository.existsById(creatorId)) {
                 return R.fail("棍木不能创建项目");
             }
 
@@ -224,14 +223,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 更新项目信息
-     * @param projectId 项目ID
-     * @param name 项目名称
+     *
+     * @param projectId   项目ID
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param status 项目状态
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
+     * @param visibility  项目可见性
+     * @param status      项目状态
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
      * @return 更新结果，包含更新后的项目信息
      */
     @Override
@@ -321,8 +321,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 删除项目
+     *
      * @param projectId 项目ID
-     * @param userId 用户ID
+     * @param userId    用户ID
      * @return 删除结果
      */
     @Override
@@ -497,7 +498,6 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Project> updateProjectStatus(Long projectId, ProjectStatus status) {
         try {
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -640,6 +640,7 @@ public class ProjectServiceImpl implements ProjectService {
     
     /**
      * 获取公开且活跃的项目（返回DTO，包含创建者名称）
+     *
      * @param pageable 分页参数
      * @return 项目DTO分页列表
      */
@@ -676,7 +677,8 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 将Project实体转换为ProjectDTO，并填充创建者名称
-     * @param project 项目实体
+     *
+     * @param project       项目实体
      * @param currentUserId 当前登录用户ID
      * @return ProjectDTO
      */
@@ -684,7 +686,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null) {
             return null;
         }
-        
+
         // 查询创建者名称
         String creatorName = "未知用户";
         if (project.getCreatorId() != null) {
@@ -739,7 +741,8 @@ public class ProjectServiceImpl implements ProjectService {
     
     /**
      * 批量转换Project列表为ProjectDTO列表
-     * @param projects 项目列表
+     *
+     * @param projects      项目列表
      * @param currentUserId 当前登录用户ID
      * @return ProjectDTO列表
      */
@@ -862,13 +865,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 保存项目草稿
-     * @param name 项目名称
+     *
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
-     * @param creatorId 创建者ID
+     * @param visibility  项目可见性
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
+     * @param creatorId   创建者ID
      * @return 保存结果，包含草稿项目信息
      */
     @Override
@@ -1044,6 +1048,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 获取用户的草稿项目
+     *
      * @param userId 用户ID
      * @return 返回草稿项目信息，如果不存在则返回空
      */
@@ -1065,6 +1070,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 删除用户的草稿项目
+     *
      * @param userId 用户ID
      * @return 返回操作结果
      */
