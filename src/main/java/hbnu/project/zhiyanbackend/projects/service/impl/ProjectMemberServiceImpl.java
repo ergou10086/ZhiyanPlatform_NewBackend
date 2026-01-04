@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -548,18 +547,8 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                 username = user.getName() != null ? user.getName() : "未知用户";
                 email = user.getEmail() != null ? user.getEmail() : "";
 
-                // 头像转 Base64 成本高（且会显著放大响应体），这里保留兼容：有数据才转换
-                if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
-                    try {
-                        String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-                        String contentType = user.getAvatarContentType() != null
-                                ? user.getAvatarContentType()
-                                : "image/jpeg";
-                        avatar = "data:" + contentType + ";base64," + base64;
-                    } catch (Exception e) {
-                        log.warn("转换头像数据失败: userId={}", member.getUserId(), e);
-                    }
-                }
+                // 使用 COS 头像 URL，不再从 avatarData 生成 Base64
+                avatar = user.getAvatarUrl();
             }
         }
         

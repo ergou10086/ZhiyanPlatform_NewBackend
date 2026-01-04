@@ -31,6 +31,7 @@ public class WikiCollaborationDTO {
         private Long userId;
         @Xss(message = "用户名包含非法字符")
         private String username;
+        // TODO COS_AVATAR_MIGRATE: 统一使用 COS 头像 URL，而非内联 Base64 或本地路径
         private String avatar;
         private Integer line;
         private Integer column;
@@ -53,6 +54,7 @@ public class WikiCollaborationDTO {
         private Long userId;
         @Xss(message = "用户名包含非法字符")
         private String username;
+        // TODO COS_AVATAR_MIGRATE: 统一使用 COS 头像 URL，而非内联 Base64 或本地路径
         private String avatar;
         private LocalDateTime joinTime;
     }

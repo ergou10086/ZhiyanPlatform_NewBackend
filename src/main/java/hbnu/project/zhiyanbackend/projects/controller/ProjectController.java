@@ -269,14 +269,24 @@ public class ProjectController {
 
     @PostMapping(path = "/{projectId}/image", consumes = "multipart/form-data")
     @Operation(summary = "上传或更新项目封面图片")
-    public R<Void> uploadProjectImage(@PathVariable("projectId") Long projectId,
+    public R<Map<String, String>> uploadProjectImage(@PathVariable("projectId") Long projectId,
                                       @RequestParam("file") MultipartFile file) {
         try {
+            if (projectId == null) {
+                return R.fail("项目ID不能为空");
+            }
             if (file == null || file.isEmpty()) {
                 return R.fail("上传文件为空");
             }
             // 委托给项目图片服务，内部负责上传到 COS 并更新数据库字段
-            return projectImageService.updateProjectImage(projectId, file);
+            R<String> updateResult = projectImageService.updateProjectImage(projectId, file);
+            if (!R.isSuccess(updateResult)) {
+                return R.fail(updateResult.getMsg());
+            }
+
+            Map<String, String> data = new HashMap<>();
+            data.put("imageUrl", updateResult.getData());
+            return R.ok(data);
         } catch (Exception e) {
             return R.fail("上传项目图片失败: " + e.getMessage());
         }
@@ -285,18 +295,14 @@ public class ProjectController {
     @GetMapping("/{projectId}/image")
     @Operation(summary = "获取项目封面图片")
     public ResponseEntity<byte[]> getProjectImage(@PathVariable("projectId") Long projectId) {
-        R<byte[]> result = projectImageService.getProjectImage(projectId);
-        if (!R.isSuccess(result) || result.getData() == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        R<String> result = projectImageService.getProjectImage(projectId);
+        if (!R.isSuccess(result) || result.getData() == null || result.getData().isBlank()) {
+            return new ResponseEntity<>((byte[]) null, HttpStatus.NOT_FOUND);
         }
 
         HttpHeaders headers = new HttpHeaders();
-        // 目前未在数据库中保存具体类型，这里暂时使用通用二进制类型
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        // 允许浏览器对项目封面图片做长期缓存，依靠URL中的时间戳参数进行缓存失效控制
-        headers.setCacheControl(CacheControl.maxAge(30, java.util.concurrent.TimeUnit.DAYS).cachePublic());
-        headers.setPragma(null);
-        return new ResponseEntity<>(result.getData(), headers, HttpStatus.OK);
+        headers.setLocation(java.net.URI.create(result.getData()));
+        return new ResponseEntity<>((byte[]) null, headers, HttpStatus.FOUND);
     }
 
     /**
@@ -315,15 +321,13 @@ public class ProjectController {
                 return R.fail("项目ID不能为空");
             }
 
-            R<Void> updateResult = projectImageService.updateProjectImage(projectId, file);
+            R<String> updateResult = projectImageService.updateProjectImage(projectId, file);
             if (!R.isSuccess(updateResult)) {
                 return R.fail(updateResult.getMsg());
             }
 
-            // 使用后端图片获取接口构造可访问的URL
-            String imageUrl = "/zhiyan/projects/get-image?projectId=" + projectId;
             Map<String, String> data = new HashMap<>();
-            data.put("imageUrl", imageUrl);
+            data.put("imageUrl", updateResult.getData());
             return R.ok(data);
         } catch (Exception e) {
             return R.fail("上传项目图片失败: " + e.getMessage());

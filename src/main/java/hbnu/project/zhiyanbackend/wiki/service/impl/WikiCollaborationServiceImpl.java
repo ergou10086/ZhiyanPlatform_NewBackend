@@ -182,7 +182,8 @@ public class WikiCollaborationServiceImpl implements WikiCollaborationService {
                     .map(user -> WikiCollaborationDTO.EditorInfo.builder()
                             .userId(user.getId())
                             .username(user.getName())
-                            .avatar(user.getAvatarData())
+                            // 使用 COS 头像 URL，不再从 Base64 avatarData 回退
+                            .avatar(user.getAvatarUrl())
                             .joinTime(LocalDateTime.now())
                             .build())
                     .collect(Collectors.toList());

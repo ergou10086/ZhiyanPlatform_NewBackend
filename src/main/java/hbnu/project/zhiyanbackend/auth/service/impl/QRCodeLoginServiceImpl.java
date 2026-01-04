@@ -408,19 +408,8 @@ public class QRCodeLoginServiceImpl implements QRCodeLoginService {
                         .userId(user.getId())
                         .name(user.getName())
                         .email(maskEmail(user.getEmail()))
+                        .avatarUrl(user.getAvatarUrl())
                         .build();
-
-                // 添加头像信息
-                if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
-                    try {
-                        String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-                        String contentType = user.getAvatarContentType() != null ?
-                                user.getAvatarContentType() : "image/jpeg";
-                        scanUser.setAvatarData("data:" + contentType + ";base64," + base64);
-                    } catch (Exception e) {
-                        log.warn("处理头像数据失败: userId={}", user.getId(), e);
-                    }
-                }
 
                 dto.setScanUser(scanUser);
             });
@@ -433,18 +422,8 @@ public class QRCodeLoginServiceImpl implements QRCodeLoginService {
      * 构建UserDTO
      */
     private UserDTO buildUserDTO(User user) {
-        // 处理头像
-        String avatarData = null;
-        if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
-            try {
-                String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-                String contentType = user.getAvatarContentType() != null ?
-                        user.getAvatarContentType() : "image/jpeg";
-                avatarData = "data:" + contentType + ";base64," + base64;
-            } catch (Exception e) {
-                log.warn("处理头像数据失败: userId={}", user.getId(), e);
-            }
-        }
+        // 处理头像：仅使用 COS URL，不再从 avatarData 生成 Base64
+        String avatarUrl = user.getAvatarUrl();
 
         // 获取用户角色
         List<String> roles = authUserDetailsService.getUserRoles(user.getId());
@@ -453,8 +432,7 @@ public class QRCodeLoginServiceImpl implements QRCodeLoginService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
-                .avatarData(avatarData)
-                .avatarContentType(user.getAvatarContentType())
+                .avatarUrl(avatarUrl)
                 .title(user.getTitle())
                 .institution(user.getInstitution())
                 .roles(roles)

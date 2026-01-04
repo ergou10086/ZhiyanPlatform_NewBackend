@@ -348,21 +348,8 @@ public class AuthServiceImpl implements AuthService {
             }
 
             // 构建响应 DTO
-            // 从LoginUserBody中获取头像信息，如果avatarUrl存在则使用，否则从avatarData生成
-            String avatarData = null;
-            if (loginUser.getAvatarUrl() != null) {
-                avatarData = loginUser.getAvatarUrl();
-            } else if (loginUser.getAvatarData() != null && loginUser.getAvatarData().length > 0) {
-                // 从avatarData生成Base64 Data URL
-                try {
-                    String base64 = java.util.Base64.getEncoder().encodeToString(loginUser.getAvatarData());
-                    String contentType = loginUser.getAvatarContentType() != null ? 
-                            loginUser.getAvatarContentType() : "image/jpeg";
-                    avatarData = "data:" + contentType + ";base64," + base64;
-                } catch (Exception e) {
-                    log.warn("生成头像Base64失败 - userId: {}", loginUser.getUserId(), e);
-                }
-            }
+            // 从 LoginUserBody 中直接获取 COS 头像 URL，不再根据 avatarData 生成 Base64
+            String avatarUrl = loginUser.getAvatarUrl();
 
             // 从数据库获取用户实体以获取2FA状态
             User userEntity = userOpt.orElse(null);
@@ -372,8 +359,7 @@ public class AuthServiceImpl implements AuthService {
                     .id(loginUser.getUserId())
                     .email(loginUser.getEmail())
                     .name(loginUser.getName())
-                    .avatarData(avatarData)
-                    .avatarContentType(loginUser.getAvatarContentType())
+                    .avatarUrl(avatarUrl)
                     .title(loginUser.getTitle())
                     .institution(loginUser.getInstitution())
                     .roles(loginUser.getRoles())

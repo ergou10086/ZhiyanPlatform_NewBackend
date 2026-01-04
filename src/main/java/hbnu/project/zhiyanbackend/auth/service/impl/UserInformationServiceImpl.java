@@ -11,6 +11,8 @@ import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.basic.utils.ValidationUtils;
+import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
+import hbnu.project.zhiyanbackend.oss.service.COSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -18,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.Base64;
 import java.util.stream.Collectors;
@@ -43,6 +44,7 @@ public class UserInformationServiceImpl implements UserInformationService {
     private final UserRepository userRepository;
     private final UserAchievementRepository userAchievementRepository;
     private final UserConverter userConverter;
+    private final COSService cosService;
 
     // 头像相关常量，限制5MB
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
@@ -107,6 +109,7 @@ public class UserInformationServiceImpl implements UserInformationService {
      * @param file 图片文件（已裁剪）
      * @return 头像URL信息
      */
+    // TODO COS_AVATAR_MIGRATE: 重构为使用 COS 对象存储上传头像，User 中仅保存 avatarUrl（及可选 avatarObjectKey）
     @Override
     @Transactional
     public R<AvatarDTO> uploadAvatar(Long userId, MultipartFile file) {
@@ -123,29 +126,29 @@ public class UserInformationServiceImpl implements UserInformationService {
             // 2. 验证文件
             validateAvatarFile(file);
 
-            // 3. 读取文件内容
-            byte[] avatarBytes = file.getBytes();
-            String contentType = file.getContentType();
+            // 3. 上传文件到 COS 对象存储
+            String businessType = "user-avatar";
+            String originalFilename = file.getOriginalFilename();
+            String filename = userId + "_" + (originalFilename != null ? originalFilename : "avatar");
+            UploadFileResponseDTO uploadResult = cosService.uploadFileSenior(file, businessType, filename);
 
-            // 4. 更新用户头像信息并存储
-            user.setAvatarData(avatarBytes);
-            user.setAvatarContentType(contentType);
-            user.setAvatarSize(file.getSize());
+            // 4. 更新用户头像信息（仅保存 COS 相关字段和基础元数据）
+            user.setAvatarUrl(uploadResult.getUrl());
+            user.setAvatarObjectKey(uploadResult.getObjectKey());
+            user.setAvatarContentType(uploadResult.getContentType());
+            user.setAvatarSize(uploadResult.getSize());
 
             userRepository.save(user);
 
-            // 5. 构建返回DTO
+            // 5. 构建返回DTO（以 COS URL 为主）
             AvatarDTO avatarDTO = AvatarDTO.builder()
-                    .avatarData(Base64.getEncoder().encodeToString(avatarBytes))
-                    .contentType(contentType)
-                    .size(file.getSize())
+                    .avatarUrl(uploadResult.getUrl())
+                    .contentType(uploadResult.getContentType())
+                    .size(uploadResult.getSize())
                     .build();
 
             log.info("用户头像上传成功: userId={}, size={} bytes", userId, file.getSize());
             return R.ok(avatarDTO, "头像上传成功");
-        } catch (IOException e) {
-            log.error("读取头像文件失败: userId={}", userId, e);
-            return R.fail("读取头像文件失败");
         } catch (IllegalArgumentException e) {
             log.error("头像文件验证失败: userId={}, error={}", userId, e.getMessage());
             return R.fail(e.getMessage());
@@ -313,6 +316,7 @@ public class UserInformationServiceImpl implements UserInformationService {
      * @param userId 用户ID
      * @return 头像信息
      */
+    // TODO COS_AVATAR_MIGRATE: 从 User.avatarUrl 返回 COS 头像 URL，逐步停止读取 avatarData BYTEA 字段
     @Override
     @Transactional(readOnly = true)
     public R<AvatarDTO> getAvatarInfo(Long userId) {
@@ -328,21 +332,21 @@ public class UserInformationServiceImpl implements UserInformationService {
 
             User user = optionalUser.get();
 
-            // 2. 检查是否有头像
-            if (user.getAvatarData() == null || user.getAvatarData().length == 0) {
-                log.info("用户[{}]没有头像", userId);
-                return R.ok(AvatarDTO.builder().build(), "用户暂无头像");
+            // 2. 只使用 COS 头像 URL，不再从 avatarData 兼容读取
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
+                AvatarDTO avatarDTO = AvatarDTO.builder()
+                        .avatarUrl(user.getAvatarUrl())
+                        .contentType(user.getAvatarContentType())
+                        .size(user.getAvatarSize())
+                        .build();
+
+                log.info("通过 COS URL 返回用户头像信息: userId={}, url={}", userId, user.getAvatarUrl());
+                return R.ok(avatarDTO, "头像获取成功");
             }
 
-            // 3. 构建返回DTO
-            AvatarDTO avatarDTO = AvatarDTO.builder()
-                    .avatarData(Base64.getEncoder().encodeToString(user.getAvatarData()))
-                    .contentType(user.getAvatarContentType())
-                    .size(user.getAvatarSize())
-                    .build();
-
-            log.info("获取用户头像信息成功: userId={}, size={} bytes", userId, user.getAvatarSize());
-            return R.ok(avatarDTO);
+            // 没有 URL 就视为没有头像，不再回退到 BYTEA/Base64
+            log.info("用户[{}]没有 COS 头像 URL", userId);
+            return R.ok(AvatarDTO.builder().build(), "用户暂无头像");
         } catch (Exception e) {
             log.error("获取用户头像信息失败 - userId: {}", userId, e);
             return R.fail("获取头像信息失败: " + e.getMessage());

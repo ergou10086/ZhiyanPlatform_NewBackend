@@ -37,18 +37,6 @@ public class UserUpdateDTO {
     private String institution;
 
     /**
-     * 头像Base64编码数据（可选）
-     * 格式：data:image/jpeg;base64,/9j/4AAQSkZJRg... 或直接 base64 字符串
-     */
-    private String avatarData;
-
-    /**
-     * 头像MIME类型（可选，如果提供avatarData但未提供此字段，将从avatarData中解析）
-     */
-    @Size(max = 50, message = "MIME类型长度不能超过50个字符")
-    private String avatarContentType;
-
-    /**
      * 账号是否锁定
      */
     private Boolean isLocked;

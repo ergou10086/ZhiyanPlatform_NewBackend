@@ -1,6 +1,8 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
+import hbnu.project.zhiyanbackend.oss.dto.UploadFileResponseDTO;
+import hbnu.project.zhiyanbackend.oss.service.COSService;
 import hbnu.project.zhiyanbackend.projects.model.entity.Project;
 import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
@@ -24,8 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProjectImageServiceImpl implements ProjectImageService {  // 实现项目图片服务接口
 
     private final ProjectRepository projectRepository;
-
-
+    private final COSService cosService;
 
     /**
      * 更新项目封面图片
@@ -35,9 +36,10 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
      * @param file      上传的图片文件，包含图片的二进制数据
      * @return 返回操作结果，成功返回R.ok()，失败返回R.fail()并附带错误信息
      */
+    // TODO COS_IMAGE_MIGRATE: 使用 COS 对象存储项目封面，Project 仅保存 imageObjectKey 和 imageUrl，不再写入 imageData(BYTEA)
     @Override  // 标识为重写父类方法
     @Transactional  // 开启事务，确保方法执行的数据一致性
-    public R<Void> updateProjectImage(Long projectId, MultipartFile file) {
+    public R<String> updateProjectImage(Long projectId, MultipartFile file) {
         try {
             // 根据项目ID查询项目信息，如果不存在则返回失败
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -50,24 +52,23 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
                 return R.fail("上传文件为空");
             }
 
-            // 仅将图片二进制数据保存在 PostgreSQL 的 image_data(bytea) 字段中
-            byte[] imageData = file.getBytes();
-            project.setImageData(imageData);
+            // 上传文件到 COS 对象存储
+            String businessType = "project-image";
+            String originalFilename = file.getOriginalFilename();
+            String filename = projectId + "_" + (originalFilename != null ? originalFilename : "image");
+            UploadFileResponseDTO uploadResult = cosService.uploadFileSenior(file, businessType, filename);
 
-            // 同时更新可直接访问的图片URL，便于前端在刷新后仍能展示
-            // 为了让浏览器可以长期缓存旧图片，但在用户重新上传图片时立刻看到新图，
-            // 这里为每次上传生成带时间戳的URL，实现 cache busting
-            long ts = System.currentTimeMillis();
-            project.setImageUrl("/zhiyan/projects/get-image?projectId=" + projectId + "&t=" + ts);
+            // 更新项目信息，仅保存 COS 相关字段，不再使用 imageData(BYTEA)
+            project.setImageObjectKey(uploadResult.getObjectKey());
+            project.setImageUrl(uploadResult.getUrl());
+            project.setImageData(null);
 
             // 保存更新后的项目信息到数据库
             projectRepository.save(project);
 
-            // 记录成功日志，包含项目ID和图片大小
-            log.info("更新项目封面图片成功: projectId={}, size={}",
-                    projectId,
-                    imageData.length);
-            return R.ok();
+            // 记录成功日志，包含项目ID和 COS URL
+            log.info("更新项目封面图片成功: projectId={}, url={}", projectId, uploadResult.getUrl());
+            return R.ok(uploadResult.getUrl(), "更新项目封面图片成功");
         } catch (Exception e) {
             // 记录失败日志，包含项目ID和异常信息
             log.error("更新项目封面图片失败: projectId={}", projectId, e);
@@ -79,14 +80,15 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
 
     /**
      * 获取项目封面图片
-     * 根据项目ID从数据库中获取项目的图片二进制数据
+     * 根据项目ID从数据库中获取项目封面图的 COS 访问 URL
      *
      * @param projectId 项目ID，用于标识需要获取图片的项目
      * @return 返回操作结果，成功返回R.ok()并包含图片数据，失败返回R.fail()并附带错误信息
      */
+    // TODO COS_IMAGE_MIGRATE: 通过 Project.imageUrl 返回 COS 访问地址，不再从 imageData(BYTEA) 读取
     @Override  // 标识为重写父类方法
     @Transactional(readOnly = true)  // 开启只读事务，优化查询性能
-    public R<byte[]> getProjectImage(Long projectId) {
+    public R<String> getProjectImage(Long projectId) {
         try {
             // 根据项目ID查询项目信息，如果不存在则返回失败
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -94,8 +96,13 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
                 return R.fail("项目不存在");
             }
 
-            // 目前优先返回数据库中的二进制数据
-            return R.ok(project.getImageData());
+            String imageUrl = project.getImageUrl();
+            if (imageUrl == null || imageUrl.isBlank()) {
+                log.info("项目[{}]暂无封面图片 URL", projectId);
+                return R.ok(null, "项目暂无封面图片");
+            }
+
+            return R.ok(imageUrl, "获取项目封面图片成功");
         } catch (Exception e) {
             // 记录失败日志，包含项目ID和异常信息
             log.error("获取项目封面图片失败: projectId={}", projectId, e);

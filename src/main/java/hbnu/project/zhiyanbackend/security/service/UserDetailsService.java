@@ -40,11 +40,13 @@ public abstract class UserDetailsService implements org.springframework.security
     /**
      * 构建LoginUserBody对象
      */
+    // COS 架构下仅通过 avatarUrl（COS URL）传递头像信息
     protected LoginUserBody buildLoginUserBody(Long userId, String email, String name,
-                                               String avatarUrl, byte[] avatarData, String avatarContentType,
+                                               String avatarUrl,
                                                String title, String institution,
                                                List<String> roles, Set<String> permissions,
                                                Boolean isLocked, String passwordHash) {
+
         Collection<GrantedAuthority> authorities = buildAuthorities(roles, permissions);
 
         return LoginUserBody.builder()
@@ -52,10 +54,9 @@ public abstract class UserDetailsService implements org.springframework.security
                 .email(email)
                 .name(name)
                 .avatarUrl(avatarUrl)
-                .avatarData(avatarData)
-                .avatarContentType(avatarContentType)
                 .title(title)
                 .institution(institution)
+
                 .roles(roles)
                 .permissions(permissions)
                 .isLocked(isLocked)

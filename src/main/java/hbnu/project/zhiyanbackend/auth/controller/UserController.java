@@ -82,17 +82,9 @@ public class UserController {
                 return R.fail(result.getMsg());
             }
 
-            // 转换为Response对象(不包含用户权限)
+            // 转换为Response对象(不包含用户权限)，头像 URL 由 UserConverter 从 UserDTO.avatarUrl 映射
             UserDTO userDTO = result.getData();
             UserInfoResponseDTO response = userConverter.toUserInfoResponse(userDTO);
-
-            if (response != null && userDTO != null && userDTO.getId() != null) {
-                if (userDTO.getAvatarSize() != null && userDTO.getAvatarSize() > 0) {
-                    response.setAvatarUrl(buildAvatarUrl(userDTO.getId()));
-                } else {
-                    response.setAvatarUrl(null);
-                }
-            }
             
             // 确保OAuth2绑定信息被正确映射（MapStruct应该自动映射，但为了确保，我们显式设置）
             if (response != null && userDTO != null) {
@@ -129,17 +121,9 @@ public class UserController {
                 return R.fail(result.getMsg());
             }
 
-            // 转换为Response对象（包含角色和权限）
+            // 转换为Response对象（包含角色和权限），头像 URL 由 UserConverter 从 UserDTO.avatarUrl 映射
             UserDTO userDTO = result.getData();
             UserInfoResponseDTO response = userConverter.toUserInfoResponseDTOwithRoles(userDTO);
-
-            if (response != null && userDTO != null && userDTO.getId() != null) {
-                if (userDTO.getAvatarSize() != null && userDTO.getAvatarSize() > 0) {
-                    response.setAvatarUrl(buildAvatarUrl(userDTO.getId()));
-                } else {
-                    response.setAvatarUrl(null);
-                }
-            }
 
             return R.ok(response);
         } catch (Exception e) {
@@ -149,37 +133,25 @@ public class UserController {
     }
 
     @GetMapping("/avatar/{userId}")
-    @Operation(summary = "获取用户头像", description = "返回指定用户头像的二进制数据，供 <img> 直接访问")
+    @Operation(summary = "获取用户头像", description = "通过重定向跳转到 COS 头像 URL，而不再直接返回二进制数据")
     public ResponseEntity<byte[]> getUserAvatar(
             @Parameter(description = "用户ID", required = true)
             @PathVariable Long userId) {
+        // TODO COS_AVATAR_MIGRATE: 改为仅依赖 User.avatarUrl（COS URL），不再读取 avatarData(BYTEA)
         Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
         if (optionalUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return new ResponseEntity<>((byte[]) null, HttpStatus.NOT_FOUND);
         }
 
         User user = optionalUser.get();
-        byte[] avatarData = user.getAvatarData();
-        if (avatarData == null || avatarData.length == 0) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        String avatarUrl = user.getAvatarUrl();
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return new ResponseEntity<>((byte[]) null, HttpStatus.NOT_FOUND);
         }
 
         HttpHeaders headers = new HttpHeaders();
-        String contentType = user.getAvatarContentType();
-        if (contentType != null && !contentType.isBlank()) {
-            try {
-                headers.setContentType(MediaType.parseMediaType(contentType));
-            } catch (Exception e) {
-                log.warn("Invalid avatar content type: userId={}, contentType={}", userId, contentType);
-                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            }
-        } else {
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        }
-
-        headers.setCacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic());
-        headers.setPragma(null);
-        return new ResponseEntity<>(avatarData, headers, HttpStatus.OK);
+        headers.setLocation(java.net.URI.create(avatarUrl));
+        return new ResponseEntity<>((byte[]) null, headers, HttpStatus.FOUND);
     }
 
     @GetMapping("/avatar-info/{userId}")
@@ -189,14 +161,6 @@ public class UserController {
             @PathVariable Long userId) {
         return userInformationService.getAvatarInfo(userId);
     }
-
-    private String buildAvatarUrl(Long userId) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/zhiyan/auth/users/avatar/")
-                .path(String.valueOf(userId))
-                .toUriString();
-    }
-
 
     /**
      * 分页获取用户列表

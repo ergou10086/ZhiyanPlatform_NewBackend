@@ -44,6 +44,7 @@ public class ProjectMemberDetailDTO {
     private String email;
 
     @Schema(description = "用户头像URL或Base64数据")
+    // TODO COS_AVATAR_MIGRATE: 标准化为 COS 头像 URL，逐步移除 Base64 形式
     private String avatar;
 
     @Schema(description = "项目角色")

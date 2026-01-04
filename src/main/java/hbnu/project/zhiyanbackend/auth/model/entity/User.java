@@ -69,15 +69,6 @@ public class User extends BaseAuditEntity {
     private String description;
 
     /**
-     * 头像二进制数据（PostgreSQL BYTEA类型）
-     * 直接存储在数据库中，不使用对象存储
-     */
-    @Basic(fetch = FetchType.LAZY)
-    @Column(name = "avatar_data", columnDefinition = "BYTEA")
-    @JsonIgnore
-    private byte[] avatarData;
-
-    /**
      * 头像MIME类型（如：image/jpeg, image/png）
      */
     @Column(name = "avatar_content_type", length = 50)
@@ -88,6 +79,18 @@ public class User extends BaseAuditEntity {
      */
     @Column(name = "avatar_size")
     private Long avatarSize;
+
+    /**
+     * 头像公网访问 URL（COS 对象存储）
+     */
+    @Column(name = "avatar_url", length = 1024)
+    private String avatarUrl;
+
+    /**
+     * 头像在对象存储中的对象键
+     */
+    @Column(name = "avatar_object_key", length = 512)
+    private String avatarObjectKey;
 
     /**
      * 用户职称/职位

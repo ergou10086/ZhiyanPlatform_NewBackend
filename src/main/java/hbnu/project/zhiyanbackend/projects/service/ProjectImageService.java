@@ -18,14 +18,14 @@ public interface ProjectImageService {
      * @param file 图片文件
      * @return 结果
      */
-    R<Void> updateProjectImage(Long projectId, MultipartFile file);
+    R<String> updateProjectImage(Long projectId, MultipartFile file);
 
     /**
-     * 获取指定项目的封面图片二进制数据
+     * 获取指定项目的封面图片访问 URL（COS）
      *
      * @param projectId 项目ID
-     * @return 图片二进制数据（可能为 null）
+     * @return 图片访问 URL（可能为 null）
      */
-    R<byte[]> getProjectImage(Long projectId);
+    R<String> getProjectImage(Long projectId);
 }
 

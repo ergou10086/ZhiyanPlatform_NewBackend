@@ -9,7 +9,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
 
-import java.util.Base64;
 import java.util.List;
 
 /**
@@ -27,7 +26,6 @@ public interface UserConverter {
      * 实体转DTO（不包含头像数据，避免传输大量二进制数据）
      */
     @Named("userToDTO")
-    @Mapping(target = "avatarData", ignore = true)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "researchTags", expression = "java(user.getResearchTagList())")
@@ -35,9 +33,10 @@ public interface UserConverter {
     UserDTO toDTO(User user);
 
     /**
-     * 实体转DTO（包含头像Base64编码）
+     * 实体转DTO（包含头像 URL）
      */
-    @Mapping(target = "avatarData", expression = "java(convertAvatarToBase64(user))")
+    // TODO COS_AVATAR_MIGRATE: 使用 User.avatarUrl（COS URL）映射到 DTO
+    @Mapping(target = "avatarUrl", source = "avatarUrl")
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
     @Mapping(target = "researchTags", expression = "java(user.getResearchTagList())")
@@ -47,7 +46,6 @@ public interface UserConverter {
     /**
      * DTO转实体
      */
-    @Mapping(target = "avatarData", ignore = true)
     @Mapping(target = "userRoles", ignore = true)
     @Mapping(target = "researchTags", ignore = true)
     @Mapping(target = "profileLinks", ignore = true)
@@ -62,7 +60,7 @@ public interface UserConverter {
     /**
      * 将 UserDTO 转换为 UserInfoResponseDTO（包含角色和权限）
      */
-    @Mapping(target = "avatarUrl", ignore = true) // 需要单独处理头像URL
+    @Mapping(target = "avatarUrl", source = "avatarUrl") // 直接从 DTO 中的头像 URL 映射
     @Mapping(target = "status", source = "status", qualifiedByName = "mapStatus")
     @Mapping(target = "createdAt", ignore = true) // 这些字段在 UserDTO 中不存在
     @Mapping(target = "updatedAt", ignore = true)
@@ -71,7 +69,8 @@ public interface UserConverter {
     /**
      * 将 UserDTO 转换为 UserInfoResponseDTO（不包含角色权限）
      */
-    @Mapping(target = "avatarUrl", source = "avatarData")
+    // TODO COS_AVATAR_MIGRATE: 从 DTO 中的 avatarUrl 字段映射，停止把 Base64 avatarData 当作 URL
+    @Mapping(target = "avatarUrl", source = "avatarUrl")
     @Mapping(target = "status", source = "status", qualifiedByName = "mapStatus")
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "permissions", ignore = true)
@@ -81,31 +80,17 @@ public interface UserConverter {
     UserInfoResponseDTO toUserInfoResponse(UserDTO userDTO);
 
     /**
-     * 实体列表转DTO列表
-     */
-    @IterableMapping(qualifiedByName = "userToDTO")
-    List<UserDTO> toDTOList(List<User> users);
-
-    /**
-     * 将头像二进制数据转换为Base64字符串
-     */
-    default String convertAvatarToBase64(User user) {
-        if (user.getAvatarData() == null || user.getAvatarData().length == 0) {
-            return null;
-        }
-        String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-        if (user.getAvatarContentType() != null) {
-            return "data:" + user.getAvatarContentType() + ";base64," + base64;
-        }
-        return base64;
-    }
-
-    /**
      * 将 UserStatus 枚举转换为字符串
      */
     @Named("mapStatus")
     default String mapStatus(hbnu.project.zhiyanbackend.auth.model.enums.UserStatus status) {
         return status != null ? status.name() : null;
     }
+
+    /**
+     * 实体列表转DTO列表
+     */
+    @IterableMapping(qualifiedByName = "userToDTO")
+    List<UserDTO> toDTOList(List<User> users);
 }
 

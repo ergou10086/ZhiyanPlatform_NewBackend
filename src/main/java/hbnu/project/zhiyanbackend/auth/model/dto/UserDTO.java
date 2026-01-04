@@ -33,19 +33,9 @@ public class UserDTO {
     private String name;
 
     /**
-     * 头像Base64编码数据（可选，如果为空则不返回头像数据）
+     * 头像URL（COS 对象存储），新架构主要使用该字段
      */
-    private String avatarData;
-
-    /**
-     * 头像MIME类型
-     */
-    private String avatarContentType;
-
-    /**
-     * 头像文件大小（字节）
-     */
-    private Long avatarSize;
+    private String avatarUrl;
 
     /**
      * 用户职称/职位

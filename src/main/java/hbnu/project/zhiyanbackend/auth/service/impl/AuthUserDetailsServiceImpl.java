@@ -74,17 +74,15 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
         log.debug("用户[{}]加载完成 - 角色数: {}, 权限数: {}",
                 email, roles.size(), permissions.size());
 
-        // 3. 认证阶段不再主动加载头像数据，减少对 BYTEA 字段的访问
-        String avatarUrl = null;
+        // 3. 认证阶段直接使用用户头像 URL（如存在），不再主动加载 BYTEA 数据
+        String avatarUrl = user.getAvatarUrl();
 
-        // 4. 使用父类方法构建LoginUserBody对象（不传递头像二进制数据）
+        // 4. 使用父类方法构建LoginUserBody对象（仅传递头像 URL，不再包含头像二进制数据）
         return buildLoginUserBody(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 avatarUrl,
-                null,
-                null,
                 user.getTitle(),
                 user.getInstitution(),
                 roles,
@@ -115,16 +113,14 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
         List<String> roles = loadUserRolesFromDatabase(userId);
         Set<String> permissions = calculatePermissionsFromRoles(userId, roles);
 
-        // 业务场景下按需加载头像，这里不主动访问 avatarData
-        String avatarUrl = null;
+        // 业务场景下按需加载头像，这里直接使用已存储的头像 URL
+        String avatarUrl = user.getAvatarUrl();
 
         return buildLoginUserBody(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 avatarUrl,
-                null,
-                null,
                 user.getTitle(),
                 user.getInstitution(),
                 roles,
@@ -217,40 +213,6 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
         } catch (Exception e) {
             log.error("加载用户角色异常 - userId: {}, 错误: {}", userId, e.getMessage(), e);
             return Collections.emptyList();
-        }
-    }
-
-    /**
-     * 构建头像URL
-     * 新架构优化：从PostgreSQL BYTES字段转换为Base64 Data URL
-     * <p>
-     * 优化说明：
-     * - 原架构使用MinIO存储，直接返回URL
-     * - 新架构使用PostgreSQL BYTES存储，需要转换为Base64 Data URL
-     * - 格式：data:image/jpeg;base64,/9j/4AAQSkZJRg...
-     *
-     * @param user 用户实体
-     * @return 头像URL（Base64 Data URL格式），如果没有头像则返回null
-     */
-    private String buildAvatarUrl(User user) {
-        if (user.getAvatarData() == null || user.getAvatarData().length == 0) {
-            return null;
-        }
-
-        try {
-            // 将BYTES数据转换为Base64字符串
-            String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-
-            // 构建Data URL格式
-            String contentType = user.getAvatarContentType();
-            if (contentType == null || contentType.isEmpty()) {
-                contentType = "image/jpeg"; // 默认类型
-            }
-
-            return "data:" + contentType + ";base64," + base64;
-        } catch (Exception e) {
-            log.warn("构建头像URL失败 - userId: {}, 错误: {}", user.getId(), e.getMessage());
-            return null;
         }
     }
 

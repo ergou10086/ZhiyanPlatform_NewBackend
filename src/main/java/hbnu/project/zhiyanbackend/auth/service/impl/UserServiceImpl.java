@@ -345,7 +345,6 @@ public class UserServiceImpl implements UserService {
             user.setTwoFactorSecret(null);
             user.setTwoFactorEnabled(false);
             user.setOrcidAccessToken(null);
-            user.setAvatarData(null);
             user.setAvatarContentType(null);
             user.setAvatarSize(null);
             user.setLastLoginIp(null);

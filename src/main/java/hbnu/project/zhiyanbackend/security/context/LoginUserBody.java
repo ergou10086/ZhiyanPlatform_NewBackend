@@ -53,16 +53,6 @@ public class LoginUserBody implements UserDetails, Serializable {
     private String avatarUrl;
 
     /**
-     * 用户头像二进制数据（PostgreSQL BYTES格式）
-     */
-    private byte[] avatarData;
-
-    /**
-     * 头像MIME类型（如：image/jpeg, image/png）
-     */
-    private String avatarContentType;
-
-    /**
      * 用户职称/职位
      */
     private String title;
@@ -200,24 +190,12 @@ public class LoginUserBody implements UserDetails, Serializable {
 
     /**
      * 获取头像Base64 Data URL
-     * 如果avatarUrl不存在但avatarData存在，则动态生成
      *
      * @return 头像URL
      */
+    // TODO COS_AVATAR_MIGRATE: 改造后仅返回 COS 头像 URL，不再从 avatarData 动态生成 Base64 Data URL
     public String getAvatarUrl() {
-        if (avatarUrl != null) {
-            return avatarUrl;
-        }
-        if (avatarData != null && avatarData.length > 0) {
-            try {
-                String base64 = java.util.Base64.getEncoder().encodeToString(avatarData);
-                String contentType = avatarContentType != null ? avatarContentType : "image/jpeg";
-                return "data:" + contentType + ";base64," + base64;
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return null;
+        return avatarUrl;
     }
 
     // ==================== UserDetails接口实现 ====================

@@ -113,6 +113,7 @@ public class TaskDetailDTO {
         private Long userId;
         private String userName;
         private String email;
+        // TODO COS_AVATAR_MIGRATE: 确保此字段统一使用 COS 头像 URL 来源
         private String avatarUrl;
     }
 }

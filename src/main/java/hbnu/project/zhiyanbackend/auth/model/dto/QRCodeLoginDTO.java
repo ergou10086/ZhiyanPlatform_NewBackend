@@ -81,8 +81,8 @@ public class QRCodeLoginDTO {
         private String email;
 
         /**
-         * 头像
+         * 头像 URL（COS）
          */
-        private String avatarData;
+        private String avatarUrl;
     }
 }
