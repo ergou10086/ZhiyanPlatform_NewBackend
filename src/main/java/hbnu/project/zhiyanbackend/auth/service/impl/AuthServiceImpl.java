@@ -32,6 +32,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -88,6 +89,12 @@ public class AuthServiceImpl implements AuthService {
 
     // RememberMe token有效期：30天
     private static final int REMEMBER_ME_DAYS = 30;
+
+    @Value("${security.ip-location.enabled:false}")
+    private boolean ipLocationEnabled;
+
+    @Value("${security.account-security-notify.enabled:false}")
+    private boolean accountSecurityNotifyEnabled;
 
 
     /**
@@ -282,7 +289,11 @@ public class AuthServiceImpl implements AuthService {
 
             // 获取当前登录IP
             String currentIp = request != null ? IpUtils.getIpAddr(request) : "unknown";
-            String currentLocation = AddressUtils.getRealAddressByIP(currentIp);
+            String currentLocation = null;
+            // 仅在开启配置且IP不是本地/未知时才执行外部IP定位，避免开发环境和本地调试产生大量外部调用
+            if (ipLocationEnabled && !isLocalOrUnknownIp(currentIp)) {
+                currentLocation = AddressUtils.getRealAddressByIP(currentIp);
+            }
 
             // 重新获取用户信息（确保是最新的）
             userOpt = userRepository.findByIdAndIsDeletedFalse(userId);
@@ -292,27 +303,32 @@ public class AuthServiceImpl implements AuthService {
                 User currentUser = userOpt.get();
                 String lastLoginIp = currentUser.getLastLoginIp();
 
-                // 判断是否为异地登录
-                if (StrUtil.isNotBlank(lastLoginIp) &&
+                // 判断是否为异地登录（仅在开启IP定位并且IP都不是本地地址时才进行比较）
+                if (ipLocationEnabled &&
+                        StrUtil.isNotBlank(lastLoginIp) &&
+                        !isLocalOrUnknownIp(lastLoginIp) &&
+                        !isLocalOrUnknownIp(currentIp) &&
                         IpLocationUtils.isDifferentIp(currentIp, lastLoginIp)) {
 
                     // 获取上次登录位置
                     String lastLocation = RegionUtils.getCityInfo(lastLoginIp);
 
-                    // 发送账号安全通知
-                    try {
-                        messageSendService.notifyAccountSecurityAlert(
-                                userId,
-                                currentIp,
-                                currentLocation,
-                                lastLoginIp,
-                                lastLocation
-                        );
-                        log.info("检测到异地登录，已发送安全通知: userId={}, currentIp={}, lastIp={}",
-                                userId, currentIp, lastLoginIp);
-                    } catch (Exception e) {
-                        log.error("发送账号安全通知失败: userId={}", userId, e);
-                        // 通知发送失败不影响登录流程
+                    // 发送账号安全通知（可单独通过配置开关控制）
+                    if (accountSecurityNotifyEnabled) {
+                        try {
+                            messageSendService.notifyAccountSecurityAlert(
+                                    userId,
+                                    currentIp,
+                                    currentLocation,
+                                    lastLoginIp,
+                                    lastLocation
+                            );
+                            log.info("检测到异地登录，已发送安全通知: userId={}, currentIp={}, lastIp={}",
+                                    userId, currentIp, lastLoginIp);
+                        } catch (Exception e) {
+                            log.error("发送账号安全通知失败: userId={}", userId, e);
+                            // 通知发送失败不影响登录流程
+                        }
                     }
                 }
 
@@ -548,6 +564,19 @@ public class AuthServiceImpl implements AuthService {
             log.error("生成JWT令牌失败 - 用户ID: {}, 错误: {}", userId, e.getMessage(), e);
             throw new RuntimeException("生成令牌失败");
         }
+    }
+
+    /**
+     * 判断是否为本地或未知IP，避免对这类IP进行外部地理位置查询
+     */
+    private boolean isLocalOrUnknownIp(String ip) {
+        if (ip == null || ip.isEmpty()) {
+            return true;
+        }
+        String normalized = ip.trim();
+        return "127.0.0.1".equals(normalized)
+                || "0:0:0:0:0:0:0:1".equals(normalized)
+                || "localhost".equalsIgnoreCase(normalized);
     }
 
     /**

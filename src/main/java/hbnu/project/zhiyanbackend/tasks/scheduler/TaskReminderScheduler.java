@@ -76,8 +76,9 @@ public class TaskReminderScheduler {
                         continue;
                     }
 
-                    // 检查距离截止日期的剩余小时数
-                    long remainingHours = ChronoUnit.HOURS.between(now, task.getDueDate());
+                    // 将 LocalDate 截止日期视为当天结束时间 23:59:59，再计算与当前时间的剩余小时数
+                    LocalDateTime dueDateTime = task.getDueDate().atTime(23, 59, 59);
+                    long remainingHours = ChronoUnit.HOURS.between(now, dueDateTime);
 
                     // 只处理截止日期在未来的任务 (remainingHours > 0)
                     if (remainingHours <= 0) {
