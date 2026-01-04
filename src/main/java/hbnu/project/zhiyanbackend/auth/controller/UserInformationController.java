@@ -7,6 +7,7 @@ import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
+import hbnu.project.zhiyanbackend.security.context.SecurityContextHolder;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -90,7 +91,7 @@ public class UserInformationController {
         log.info("获取当前用户头像信息");
 
         try {
-            Long userId = SecurityUtils.getUserId();
+            Long userId = SecurityContextHolder.getUserId();
             if (userId == null) {
                 return R.fail("用户未登录");
             }

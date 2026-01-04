@@ -132,24 +132,19 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 创建新项目
-     * @param name 项目名称
+     *
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
-     * @param creatorId 创建者ID
+     * @param visibility  项目可见性
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
+     * @param creatorId   创建者ID
      * @return 创建结果，包含项目信息
      */
     @Override
     @Transactional
-    public R<Project> createProject(String name,
-                                    String description,
-                                    ProjectVisibility visibility,
-                                    LocalDate startDate,
-                                    LocalDate endDate,
-                                    String imageUrl,
-                                    Long creatorId) {
+    public R<Project> createProject(String name, String description, ProjectVisibility visibility, LocalDate startDate, LocalDate endDate, String imageUrl, Long creatorId) {
         try {
             // 验证项目名称非空
             if (!StringUtils.hasText(name)) {
@@ -166,43 +161,25 @@ public class ProjectServiceImpl implements ProjectService {
                 return R.fail("未登录或令牌无效，无法创建项目");
             }
 
-            if(!userRepository.existsById(creatorId)) {
+            if (!userRepository.existsById(creatorId)) {
                 return R.fail("棍木不能创建项目");
             }
 
             // 构建项目实体
-            Project project = Project.builder()
-                    .name(name)
-                    .description(description)
-                    .status(ProjectStatus.PLANNING)
-                    .visibility(visibility != null ? visibility : ProjectVisibility.PRIVATE)
-                    .startDate(startDate)
-                    .endDate(endDate)
-                    .creatorId(creatorId)
-                    .isDeleted(false)
-                    .build();
+            Project project = Project.builder().name(name).description(description).status(ProjectStatus.PLANNING).visibility(visibility != null ? visibility : ProjectVisibility.PRIVATE).startDate(startDate).endDate(endDate).creatorId(creatorId).isDeleted(false).build();
 
             // 显式设置审计创建人，避免约束问题
             project.setCreatedBy(creatorId);
 
             // 保存项目信息
             project = projectRepository.save(project);
-            
+
             // 创建者作为项目拥有者加入成员表
             projectMemberService.addMemberInternal(project.getId(), creatorId, ProjectMemberRole.OWNER);
 
             // 发送项目创建消息（通知创建者）
             try {
-                inboxMessageService.sendPersonalMessage(
-                        MessageScene.PROJECT_CREATED,
-                        creatorId,
-                        creatorId,
-                        "项目创建成功",
-                        String.format("您已成功创建项目「%s」", project.getName()),
-                        project.getId(),
-                        "PROJECT",
-                        null
-                );
+                inboxMessageService.sendPersonalMessage(MessageScene.PROJECT_CREATED, creatorId, creatorId, "项目创建成功", String.format("您已成功创建项目「%s」", project.getName()), project.getId(), "PROJECT", null);
             } catch (Exception e) {
                 log.warn("发送项目创建消息失败: projectId={}, creatorId={}", project.getId(), creatorId, e);
             }
@@ -217,26 +194,20 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 更新项目信息
-     * @param projectId 项目ID
-     * @param name 项目名称
+     *
+     * @param projectId   项目ID
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param status 项目状态
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
+     * @param visibility  项目可见性
+     * @param status      项目状态
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
      * @return 更新结果，包含更新后的项目信息
      */
     @Override
     @Transactional
-    public R<Project> updateProject(Long projectId,
-                                    String name,
-                                    String description,
-                                    ProjectVisibility visibility,
-                                    ProjectStatus status,
-                                    LocalDate startDate,
-                                    LocalDate endDate,
-                                    String imageUrl) {
+    public R<Project> updateProject(Long projectId, String name, String description, ProjectVisibility visibility, ProjectStatus status, LocalDate startDate, LocalDate endDate, String imageUrl) {
         try {
             // 查找项目
             Project project = projectRepository.findById(projectId).orElse(null);
@@ -280,29 +251,19 @@ public class ProjectServiceImpl implements ProjectService {
 
             // 保存更新后的项目信息
             project = projectRepository.save(project);
-            
+
             // 如果项目状态发生变更，发送状态变更消息给所有项目成员
             if (status != null && status != oldStatus) {
                 try {
                     List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
                     if (!memberIds.isEmpty()) {
-                        inboxMessageService.sendBatchPersonalMessage(
-                                MessageScene.PROJECT_STATUS_CHANGED,
-                                project.getCreatedBy(),
-                                memberIds,
-                                "项目状态已变更",
-                                String.format("项目「%s」的状态已从「%s」变更为「%s」", 
-                                        project.getName(), oldStatus, status),
-                                project.getId(),
-                                "PROJECT",
-                                null
-                        );
+                        inboxMessageService.sendBatchPersonalMessage(MessageScene.PROJECT_STATUS_CHANGED, project.getCreatedBy(), memberIds, "项目状态已变更", String.format("项目「%s」的状态已从「%s」变更为「%s」", project.getName(), oldStatus, status), project.getId(), "PROJECT", null);
                     }
                 } catch (Exception e) {
                     log.warn("发送项目状态变更消息失败: projectId={}", projectId, e);
                 }
             }
-            
+
             log.info("更新项目成功: id={}, name={}", projectId, project.getName());
             return R.ok(project, "项目更新成功");
         } catch (Exception e) {
@@ -313,8 +274,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 删除项目
+     *
      * @param projectId 项目ID
-     * @param userId 用户ID
+     * @param userId    用户ID
      * @return 删除结果
      */
     @Override
@@ -339,21 +301,12 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setIsDeleted(true);
             projectRepository.save(project);
-            
+
             // 发送项目删除消息给所有项目成员
             try {
                 List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
                 if (!memberIds.isEmpty()) {
-                    inboxMessageService.sendBatchPersonalMessage(
-                            MessageScene.PROJECT_DELETED,
-                            userId,
-                            memberIds,
-                            "项目已删除",
-                            String.format("项目「%s」已被删除", project.getName()),
-                            project.getId(),
-                            "PROJECT",
-                            null
-                    );
+                    inboxMessageService.sendBatchPersonalMessage(MessageScene.PROJECT_DELETED, userId, memberIds, "项目已删除", String.format("项目「%s」已被删除", project.getName()), project.getId(), "PROJECT", null);
                 }
             } catch (Exception e) {
                 log.warn("发送项目删除消息失败: projectId={}", projectId, e);
@@ -500,29 +453,19 @@ public class ProjectServiceImpl implements ProjectService {
             ProjectStatus oldStatus = project.getStatus();
             project.setStatus(status);
             project = projectRepository.save(project);
-            
+
             // 发送项目状态变更消息给所有项目成员
             if (status != oldStatus) {
                 try {
                     List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
                     if (!memberIds.isEmpty()) {
-                        inboxMessageService.sendBatchPersonalMessage(
-                                MessageScene.PROJECT_STATUS_CHANGED,
-                                project.getCreatedBy(),
-                                memberIds,
-                                "项目状态已变更",
-                                String.format("项目「%s」的状态已从「%s」变更为「%s」", 
-                                        project.getName(), oldStatus, status),
-                                project.getId(),
-                                "PROJECT",
-                                null
-                        );
+                        inboxMessageService.sendBatchPersonalMessage(MessageScene.PROJECT_STATUS_CHANGED, project.getCreatedBy(), memberIds, "项目状态已变更", String.format("项目「%s」的状态已从「%s」变更为「%s」", project.getName(), oldStatus, status), project.getId(), "PROJECT", null);
                     }
                 } catch (Exception e) {
                     log.warn("发送项目状态变更消息失败: projectId={}", projectId, e);
                 }
             }
-            
+
             log.info("更新项目状态成功: id={}, status={}", projectId, status);
             return R.ok(project, "项目状态更新成功");
         } catch (Exception e) {
@@ -546,21 +489,12 @@ public class ProjectServiceImpl implements ProjectService {
 
             project.setStatus(ProjectStatus.ARCHIVED);
             projectRepository.save(project);
-            
+
             // 发送项目归档消息给所有项目成员
             try {
                 List<Long> memberIds = projectMemberService.getProjectMemberUserIds(projectId);
                 if (!memberIds.isEmpty()) {
-                    inboxMessageService.sendBatchPersonalMessage(
-                            MessageScene.PROJECT_ARCHIVED,
-                            userId,
-                            memberIds,
-                            "项目已归档",
-                            String.format("项目「%s」已被归档", project.getName()),
-                            project.getId(),
-                            "PROJECT",
-                            null
-                    );
+                    inboxMessageService.sendBatchPersonalMessage(MessageScene.PROJECT_ARCHIVED, userId, memberIds, "项目已归档", String.format("项目「%s」已被归档", project.getName()), project.getId(), "PROJECT", null);
                 }
             } catch (Exception e) {
                 log.warn("发送项目归档消息失败: projectId={}", projectId, e);
@@ -615,9 +549,10 @@ public class ProjectServiceImpl implements ProjectService {
             return R.fail("统计失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 获取公开且活跃的项目（返回DTO，包含创建者名称）
+     *
      * @param pageable 分页参数
      * @return 项目DTO分页列表
      */
@@ -636,7 +571,8 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 将Project实体转换为ProjectDTO，并填充创建者名称
-     * @param project 项目实体
+     *
+     * @param project       项目实体
      * @param currentUserId 当前登录用户ID
      * @return ProjectDTO
      */
@@ -644,7 +580,7 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null) {
             return null;
         }
-        
+
         // 查询创建者名称
         String creatorName = "未知用户";
         if (project.getCreatorId() != null) {
@@ -670,39 +606,24 @@ public class ProjectServiceImpl implements ProjectService {
 
         // 查询任务数量
         int taskCount = 0;
-        try{
+        try {
             taskCount = (int) taskRepository.countByProjectIdAndIsDeletedFalse(projectId);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.warn("查询项目任务数量失败: projectId={}", project.getId(), e);
         }
-        
+
         String accessibleUserId = null;
         if (project.getVisibility() == ProjectVisibility.PRIVATE && currentUserId != null) {
             accessibleUserId = String.valueOf(currentUserId);
         }
 
-        return ProjectDTO.builder()
-                .id(String.valueOf(project.getId()))
-                .name(project.getName())
-                .description(project.getDescription())
-                .status(project.getStatus())
-                .visibility(project.getVisibility())
-                .startDate(project.getStartDate())
-                .endDate(project.getEndDate())
-                .imageUrl(project.getImageUrl())
-                .creatorId(String.valueOf(project.getCreatorId()))
-                .creatorName(creatorName)
-                .memberCount(memberCount)
-                .taskCount(taskCount)
-                .createdAt(project.getCreatedAt())
-                .updatedAt(project.getUpdatedAt())
-                .accessibleUserId(accessibleUserId)
-                .build();
+        return ProjectDTO.builder().id(String.valueOf(project.getId())).name(project.getName()).description(project.getDescription()).status(project.getStatus()).visibility(project.getVisibility()).startDate(project.getStartDate()).endDate(project.getEndDate()).imageUrl(project.getImageUrl()).creatorId(String.valueOf(project.getCreatorId())).creatorName(creatorName).memberCount(memberCount).taskCount(taskCount).createdAt(project.getCreatedAt()).updatedAt(project.getUpdatedAt()).accessibleUserId(accessibleUserId).build();
     }
-    
+
     /**
      * 批量转换Project列表为ProjectDTO列表
-     * @param projects 项目列表
+     *
+     * @param projects      项目列表
      * @param currentUserId 当前登录用户ID
      * @return ProjectDTO列表
      */
@@ -710,31 +631,24 @@ public class ProjectServiceImpl implements ProjectService {
         if (projects == null || projects.isEmpty()) {
             return List.of();
         }
-        return projects.stream()
-                .map(project -> convertToDTO(project, currentUserId))
-                .toList();
+        return projects.stream().map(project -> convertToDTO(project, currentUserId)).toList();
     }
 
     /**
      * 保存项目草稿
-     * @param name 项目名称
+     *
+     * @param name        项目名称
      * @param description 项目描述
-     * @param visibility 项目可见性
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param imageUrl 项目图片URL
-     * @param creatorId 创建者ID
+     * @param visibility  项目可见性
+     * @param startDate   开始日期
+     * @param endDate     结束日期
+     * @param imageUrl    项目图片URL
+     * @param creatorId   创建者ID
      * @return 保存结果，包含草稿项目信息
      */
     @Override
     @Transactional
-    public R<Project> saveDraft(String name,
-                                String description,
-                                ProjectVisibility visibility,
-                                LocalDate startDate,
-                                LocalDate endDate,
-                                String imageUrl,
-                                Long creatorId) {
+    public R<Project> saveDraft(String name, String description, ProjectVisibility visibility, LocalDate startDate, LocalDate endDate, String imageUrl, Long creatorId) {
         try {
             // 验证创建者存在
             if (creatorId == null) {
@@ -773,18 +687,7 @@ public class ProjectServiceImpl implements ProjectService {
                 draft.setIsDraft(true);
             } else {
                 // 创建新草稿
-                draft = Project.builder()
-                        .name(StringUtils.hasText(name) ? name : "未命名项目")
-                        .description(description)
-                        .status(ProjectStatus.PLANNING)
-                        .visibility(visibility != null ? visibility : ProjectVisibility.PRIVATE)
-                        .startDate(startDate)
-                        .endDate(endDate)
-                        .imageUrl(imageUrl)
-                        .creatorId(creatorId)
-                        .isDeleted(false)
-                        .isDraft(true)
-                        .build();
+                draft = Project.builder().name(StringUtils.hasText(name) ? name : "未命名项目").description(description).status(ProjectStatus.PLANNING).visibility(visibility != null ? visibility : ProjectVisibility.PRIVATE).startDate(startDate).endDate(endDate).imageUrl(imageUrl).creatorId(creatorId).isDeleted(false).isDraft(true).build();
 
                 // 显式设置审计创建人
                 draft.setCreatedBy(creatorId);
@@ -841,8 +744,7 @@ public class ProjectServiceImpl implements ProjectService {
 
             if (newOwnerMember.getProjectRole() == ProjectMemberRole.OWNER) {
                 // 目标用户已经是OWNER，则视为成功
-                log.info("项目所有权移交请求，但目标用户已是OWNER: projectId={}, operatorId={}, newOwnerId={}",
-                        projectId, operatorId, newOwnerId);
+                log.info("项目所有权移交请求，但目标用户已是OWNER: projectId={}, operatorId={}, newOwnerId={}", projectId, operatorId, newOwnerId);
                 return R.ok();
             }
 
@@ -857,12 +759,10 @@ public class ProjectServiceImpl implements ProjectService {
             project.setCreatedBy(newOwnerId);
             projectRepository.save(project);
 
-            log.info("项目所有权移交成功: projectId={}, oldOwnerId={}, newOwnerId={}",
-                    projectId, operatorId, newOwnerId);
+            log.info("项目所有权移交成功: projectId={}, oldOwnerId={}, newOwnerId={}", projectId, operatorId, newOwnerId);
             return R.ok();
         } catch (Exception e) {
-            log.error("项目所有权移交失败: projectId={}, operatorId={}, newOwnerId={}",
-                    projectId, operatorId, newOwnerId, e);
+            log.error("项目所有权移交失败: projectId={}, operatorId={}, newOwnerId={}", projectId, operatorId, newOwnerId, e);
             return R.fail("项目所有权移交失败: " + e.getMessage());
         }
     }
@@ -899,6 +799,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 获取用户的草稿项目
+     *
      * @param userId 用户ID
      * @return 返回草稿项目信息，如果不存在则返回空
      */
@@ -920,6 +821,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     /**
      * 删除用户的草稿项目
+     *
      * @param userId 用户ID
      * @return 返回操作结果
      */
@@ -932,7 +834,7 @@ public class ProjectServiceImpl implements ProjectService {
             }
 
             Optional<Project> draft = projectRepository.findByCreatorIdAndIsDraftTrueAndIsDeletedFalse(userId);
-            
+
             if (draft.isPresent()) {
                 // 软删除草稿
                 Project project = draft.get();
