@@ -308,7 +308,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (uri.startsWith("/zhiyan/projects/get-image")
-                || uri.startsWith("/zhiyan/auth/user-avatar")
                 || uri.startsWith("/zhiyan/users/avatar")) {
             return true;
         }
