@@ -21,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -155,6 +156,29 @@ public class TaskController {
         Pageable pageable = PageRequest.of(page, size);
         return taskService.getMyAssignedTasks(userId, pageable);
     }
+
+     @GetMapping("/my-assigned/by-due-date")
+     @Operation(summary = "按截止日期区间分页获取我参与的任务", description = "用于日历按月份查询，仅返回dueDate在[startDate,endDate]区间内的任务")
+     public R<Page<Task>> getMyAssignedTasksByDueDateRange(
+             @RequestParam("startDate") String startDate,
+             @RequestParam("endDate") String endDate,
+             @RequestParam(defaultValue = "0") int page,
+             @RequestParam(defaultValue = "100") int size) {
+         Long userId = SecurityUtils.getUserId();
+         if (userId == null) {
+             return R.fail("未登录或Token无效，无法获取我的任务");
+         }
+         LocalDate start;
+         LocalDate end;
+         try {
+             start = LocalDate.parse(startDate);
+             end = LocalDate.parse(endDate);
+         } catch (Exception e) {
+             return R.fail("日期格式错误，必须为yyyy-MM-dd");
+         }
+         Pageable pageable = PageRequest.of(page, size);
+         return taskService.getMyAssignedTasksByDueDateRange(userId, start, end, pageable);
+     }
 
     @GetMapping("/my-created")
     @Operation(summary = "分页获取我创建的任务（包含项目名称和执行者信息）")

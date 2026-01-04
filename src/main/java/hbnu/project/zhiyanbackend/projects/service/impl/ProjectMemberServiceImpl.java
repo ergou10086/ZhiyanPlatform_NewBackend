@@ -14,6 +14,7 @@ import hbnu.project.zhiyanbackend.message.service.InboxMessageService;
 import hbnu.project.zhiyanbackend.message.model.enums.MessageScene;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -22,8 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -58,6 +63,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
         // 检查用户是否存在
         if(!userRepository.existsById(userId)) {
@@ -102,6 +108,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role) {
         try {
             // 检查用户是否存在
@@ -176,6 +183,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> removeMember(Long projectId, Long userId) {
         try {
             // 查找要移除的成员
@@ -230,6 +238,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> removeMember(Long projectId, Long userId, Long operatorId) {
         try {
             // 检查项目是否存在
@@ -307,6 +316,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole) {
         try {
             // 1. 查询成员
@@ -355,6 +365,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole, Long operatorId) {
         try {
             Project project = projectRepository.findById(projectId)
@@ -474,9 +485,46 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     public Page<ProjectMemberDetailDTO> getProjectMembersWithDetails(Long projectId, Pageable pageable) {
         Page<ProjectMember> memberPage = projectMemberRepository.findByProjectId(projectId, pageable);
-        List<ProjectMemberDetailDTO> detailList = memberPage.getContent().stream()
-                .map(this::convertToDetailDTO)
+
+        List<ProjectMember> members = memberPage.getContent();
+        if (members == null || members.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, memberPage.getTotalElements());
+        }
+
+        // 一次性查询项目名称（避免每个成员都查一次项目）
+        String projectName = "";
+        try {
+            Project project = projectRepository.findById(projectId).orElse(null);
+            if (project != null && project.getName() != null) {
+                projectName = project.getName();
+            }
+        } catch (Exception e) {
+            log.warn("查询项目名称失败: projectId={}", projectId, e);
+        }
+
+        // 批量查询用户信息（避免 N+1）
+        Set<Long> userIds = members.stream()
+                .map(ProjectMember::getUserId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                List<User> users = userRepository.findByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
+                userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+            } catch (Exception e) {
+                log.warn("批量查询用户信息失败: projectId={}", projectId, e);
+            }
+        }
+
+        final String finalProjectName = projectName;
+        final Map<Long, User> finalUserMap = userMap;
+
+        List<ProjectMemberDetailDTO> detailList = members.stream()
+                .map(member -> convertToDetailDTO(member, finalProjectName, finalUserMap))
                 .collect(Collectors.toList());
+
         return new PageImpl<>(detailList, pageable, memberPage.getTotalElements());
     }
     
@@ -485,7 +533,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      * @param member 项目成员实体
      * @return 成员详细信息DTO
      */
-    private ProjectMemberDetailDTO convertToDetailDTO(ProjectMember member) {
+    private ProjectMemberDetailDTO convertToDetailDTO(ProjectMember member, String projectName, Map<Long, User> userMap) {
         if (member == null) {
             return null;
         }
@@ -494,43 +542,24 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         String username = "未知用户";
         String email = "";
         String avatar = null;
-        if (member.getUserId() != null) {
-            try {
-                // 直接从 UserRepository 获取用户信息，避免调用服务层（服务层会忽略头像）
-                Optional<User> userOpt = userRepository.findByIdAndIsDeletedFalse(member.getUserId());
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    username = user.getName() != null ? user.getName() : "未知用户";
-                    email = user.getEmail() != null ? user.getEmail() : "";
-                    
-                    // 处理头像：将二进制数据转换为 Base64 Data URL
-                    if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
-                        try {
-                            String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
-                            String contentType = user.getAvatarContentType() != null 
-                                ? user.getAvatarContentType() 
+        if (member.getUserId() != null && userMap != null) {
+            User user = userMap.get(member.getUserId());
+            if (user != null) {
+                username = user.getName() != null ? user.getName() : "未知用户";
+                email = user.getEmail() != null ? user.getEmail() : "";
+
+                // 头像转 Base64 成本高（且会显著放大响应体），这里保留兼容：有数据才转换
+                if (user.getAvatarData() != null && user.getAvatarData().length > 0) {
+                    try {
+                        String base64 = Base64.getEncoder().encodeToString(user.getAvatarData());
+                        String contentType = user.getAvatarContentType() != null
+                                ? user.getAvatarContentType()
                                 : "image/jpeg";
-                            avatar = "data:" + contentType + ";base64," + base64;
-                        } catch (Exception e) {
-                            log.warn("转换头像数据失败: userId={}", member.getUserId(), e);
-                        }
+                        avatar = "data:" + contentType + ";base64," + base64;
+                    } catch (Exception e) {
+                        log.warn("转换头像数据失败: userId={}", member.getUserId(), e);
                     }
                 }
-            } catch (Exception e) {
-                log.warn("查询用户信息失败: userId={}", member.getUserId(), e);
-            }
-        }
-        
-        // 查询项目名称
-        String projectName = "";
-        if (member.getProjectId() != null) {
-            try {
-                Project project = projectRepository.findById(member.getProjectId()).orElse(null);
-                if (project != null) {
-                    projectName = project.getName();
-                }
-            } catch (Exception e) {
-                log.warn("查询项目名称失败: projectId={}", member.getProjectId(), e);
             }
         }
         

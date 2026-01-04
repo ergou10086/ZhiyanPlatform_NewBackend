@@ -72,6 +72,7 @@ public class User extends BaseAuditEntity {
      * 头像二进制数据（PostgreSQL BYTEA类型）
      * 直接存储在数据库中，不使用对象存储
      */
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "avatar_data", columnDefinition = "BYTEA")
     @JsonIgnore
     private byte[] avatarData;

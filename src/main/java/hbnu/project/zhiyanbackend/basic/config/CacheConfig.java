@@ -35,7 +35,8 @@ public class CacheConfig {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
                 "achievementTasks",    // 成果关联任务缓存
                 "achievementList",     // 成果列表缓存
-                "taskUserMap"          // 任务负责人缓存
+                "taskUserMap",         // 任务负责人缓存
+                "projectSquare"        // 项目广场项目列表缓存
         );
 
         cacheManager.setCaffeine(caffeineCacheBuilder());

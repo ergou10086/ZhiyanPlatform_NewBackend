@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 /**
  * 任务提交控制器
@@ -123,6 +124,27 @@ public class TaskSubmissionController {
         return R.ok(result);
     }
 
+     @PostMapping("/tasks/batch")
+     @Operation(summary = "批量获取多个任务的提交记录", description = "根据任务ID列表批量查询提交记录，返回按taskId分组的Map")
+     public R<Map<String, List<TaskSubmissionDTO>>> batchGetTaskSubmissions(
+             @RequestBody @Parameter(description = "任务ID列表") List<Long> taskIds) {
+         if (taskIds == null || taskIds.isEmpty()) {
+             return R.fail("任务ID列表不能为空");
+         }
+         List<Long> sanitized = taskIds.stream()
+                 .filter(id -> id != null && id > 0)
+                 .distinct()
+                 .collect(Collectors.toList());
+         if (sanitized.isEmpty()) {
+             return R.fail("任务ID列表不能为空");
+         }
+         if (sanitized.size() > 100) {
+             return R.fail("单次查询任务数量不能超过100个");
+         }
+         Map<String, List<TaskSubmissionDTO>> result = submissionService.batchGetTaskSubmissions(sanitized);
+         return R.ok(result, "查询成功");
+     }
+
     @GetMapping("/pending")
     @Operation(summary = "获取待审核提交列表（用户相关）")
     public R<Page<TaskSubmissionDTO>> getPendingSubmissions(
@@ -191,13 +213,13 @@ public class TaskSubmissionController {
     }
 
     @GetMapping("/by-reviewer")
-    @Operation(summary = "按审核人查询已批准的提交记录（分页）", description = "根据 reviewerId 查询该用户审核通过(APPROVED)的提交记录，按审核时间降序")
+    @Operation(summary = "获取我审核通过的提交记录（分页）", description = "获取当前用户审核通过(APPROVED)的提交记录，按审核时间降序")
     public R<Page<TaskSubmissionDTO>> getSubmissionsByReviewer(
-            @RequestParam("reviewerId") @Parameter(description = "审核人ID") Long reviewerId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
             @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+        Long reviewerId = SecurityUtils.getUserId();
         if (reviewerId == null) {
-            return R.fail("reviewerId 不能为空");
+            return R.fail("未登录或Token无效，无法获取审核记录");
         }
         Pageable pageable = PageRequest.of(page, size);
         Page<TaskSubmissionDTO> results = submissionService.getSubmissionsByReviewer(reviewerId, pageable);

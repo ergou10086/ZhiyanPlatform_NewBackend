@@ -67,24 +67,24 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
 
         User user = optionalUser.get();
 
-        // 2. 从数据库加载用户角色和权限
-        Set<String> permissions = loadUserPermissionsFromDatabase(user.getId());
+        // 2. 从数据库加载用户角色，并在内存中基于 SysRole 枚举推导权限，避免重复查询
         List<String> roles = loadUserRolesFromDatabase(user.getId());
+        Set<String> permissions = calculatePermissionsFromRoles(user.getId(), roles);
 
         log.debug("用户[{}]加载完成 - 角色数: {}, 权限数: {}",
                 email, roles.size(), permissions.size());
 
-        // 3. 构建头像URL（从avatarData转换为Base64 Data URL）
-        String avatarUrl = buildAvatarUrl(user);
+        // 3. 认证阶段不再主动加载头像数据，减少对 BYTEA 字段的访问
+        String avatarUrl = null;
 
-        // 4. 使用父类方法构建LoginUserBody对象
+        // 4. 使用父类方法构建LoginUserBody对象（不传递头像二进制数据）
         return buildLoginUserBody(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 avatarUrl,
-                user.getAvatarData(), // 添加头像二进制数据
-                user.getAvatarContentType(), // 添加头像内容类型
+                null,
+                null,
                 user.getTitle(),
                 user.getInstitution(),
                 roles,
@@ -111,20 +111,20 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
 
         User user = optionalUser.get();
 
-        // 从数据库加载角色和权限
-        Set<String> permissions = loadUserPermissionsFromDatabase(userId);
+        // 从数据库加载角色，并在内存中推导权限
         List<String> roles = loadUserRolesFromDatabase(userId);
+        Set<String> permissions = calculatePermissionsFromRoles(userId, roles);
 
-        // 构建头像URL
-        String avatarUrl = buildAvatarUrl(user);
+        // 业务场景下按需加载头像，这里不主动访问 avatarData
+        String avatarUrl = null;
 
         return buildLoginUserBody(
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
                 avatarUrl,
-                user.getAvatarData(), // 添加头像二进制数据
-                user.getAvatarContentType(), // 添加头像内容类型
+                null,
+                null,
                 user.getTitle(),
                 user.getInstitution(),
                 roles,
@@ -150,29 +150,40 @@ public class AuthUserDetailsServiceImpl extends UserDetailsService {
             // 1. 先根据用户ID加载其系统角色名称列表（例如 USER、DEVELOPER 等）
             List<String> roleNames = loadUserRolesFromDatabase(userId);
 
-            // 2. 将角色名称映射到 SysRole 枚举，并汇总各角色对应的 SystemPermission
-            Set<String> permissionCodes = roleNames.stream()
-                    .map(roleName -> {
-                        try {
-                            return SysRole.valueOf(roleName);
-                        } catch (IllegalArgumentException ex) {
-                            // 数据库中的角色名在 SysRole 中没有对应枚举时，跳过并记录日志
-                            log.warn("加载用户权限时发现未知系统角色: roleName={}, userId={}", roleName, userId);
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .flatMap(sysRole -> sysRole.getPermissions().stream())
-                    .map(SystemPermission::getCode)
-                    .collect(Collectors.toSet());
-
-            log.info("用户[ID: {}]权限加载完成（基于SysRole枚举），共{}个权限", userId, permissionCodes.size());
-            return permissionCodes;
+            // 2. 基于角色名称在内存中推导权限
+            return calculatePermissionsFromRoles(userId, roleNames);
 
         } catch (Exception e) {
             log.error("加载用户权限异常 - userId: {}, 错误: {}", userId, e.getMessage(), e);
             return Collections.emptySet();
         }
+    }
+
+    /**
+     * 基于角色名称列表在内存中推导权限集合
+     */
+    private Set<String> calculatePermissionsFromRoles(Long userId, List<String> roleNames) {
+        if (roleNames == null || roleNames.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Set<String> permissionCodes = roleNames.stream()
+                .map(roleName -> {
+                    try {
+                        return SysRole.valueOf(roleName);
+                    } catch (IllegalArgumentException ex) {
+                        // 数据库中的角色名在 SysRole 中没有对应枚举时，跳过并记录日志
+                        log.warn("加载用户权限时发现未知系统角色: roleName={}, userId={}", roleName, userId);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .flatMap(sysRole -> sysRole.getPermissions().stream())
+                .map(SystemPermission::getCode)
+                .collect(Collectors.toSet());
+
+        log.info("用户[ID: {}]权限加载完成（基于SysRole枚举），共{}个权限", userId, permissionCodes.size());
+        return permissionCodes;
     }
 
     /**

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -119,6 +120,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u.name FROM User u WHERE u.id = :userId AND u.isDeleted = false")
     Optional<String> findNameById(@Param("userId") Long userId);
+
+    @Query("SELECT u FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
+    List<User> findByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
+
+    /**
+     * 批量查询用户的 id 和 name，用于只需要展示创建者姓名的场景
+     */
+    @Query("SELECT u.id, u.name FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
+    List<Object[]> findIdAndNameByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
 
 
     /**

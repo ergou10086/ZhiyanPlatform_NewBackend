@@ -296,4 +296,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return token.substring(0, 10) + "..." + token.substring(token.length() - 10);
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+
+        // 放行项目封面和头像等纯静态图片请求，避免每次走完整的 JWT / RememberMe 认证链
+        if (!"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+
+        if (uri.startsWith("/zhiyan/projects/get-image")
+                || uri.startsWith("/zhiyan/auth/user-avatar")
+                || uri.startsWith("/zhiyan/users/avatar")) {
+            return true;
+        }
+
+        return false;
+    }
 }

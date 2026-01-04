@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import hbnu.project.zhiyanbackend.basic.annotation.LongToString;
@@ -84,6 +85,7 @@ public class Project extends BaseAuditEntity {
     /**
      * 项目封面图片二进制数据
      */
+    @JsonIgnore
     @Column(name = "image_data", columnDefinition = "BYTEA")
     private byte[] imageData;
 

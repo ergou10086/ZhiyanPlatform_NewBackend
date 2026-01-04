@@ -97,6 +97,38 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Page<Task> searchByKeyword(@Param("projectId") Long projectId, @Param("keyword") String keyword, Pageable pageable);
 
     /**
+     * 分页查询当前用户参与的任务（基于 TaskUser 分配记录，按分配时间倒序）
+     * 用于 /tasks/my-assigned
+     */
+    @Query(
+            value = "SELECT t FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "ORDER BY tu.assignedAt DESC",
+            countQuery = "SELECT COUNT(t) FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false"
+    )
+    Page<Task> findMyAssignedTasks(@Param("userId") Long userId, Pageable pageable);
+
+    /**
+     * 分页查询当前用户参与的任务（基于 TaskUser 分配记录，按分配时间倒序），并按截止日期过滤
+     * 用于 /tasks/my-assigned
+     */
+    @Query(
+            value = "SELECT t FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "AND t.dueDate IS NOT NULL AND t.dueDate >= :startDate AND t.dueDate <= :endDate " +
+                    "ORDER BY t.dueDate ASC",
+            countQuery = "SELECT COUNT(t) FROM Task t JOIN TaskUser tu ON t.id = tu.taskId " +
+                    "WHERE tu.userId = :userId AND tu.isActive = true AND t.isDeleted = false " +
+                    "AND t.dueDate IS NOT NULL AND t.dueDate >= :startDate AND t.dueDate <= :endDate"
+    )
+    Page<Task> findMyAssignedTasksByDueDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable);
+
+    /**
      * 查询指定项目中在指定日期范围内即将到期（但未完成）的任务。
      *
      * @param projectId    项目ID
@@ -285,4 +317,18 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      * @return 有效任务数量
      */
     long countByProjectIdAndIsDeletedFalse(Long projectId);
+
+    /**
+     * 批量统计多个项目中未被软删除的任务数量，按项目ID分组返回。
+     *
+     * @param projectIds 项目ID集合
+     * @return 每个项目对应的任务数量（Object[0]=projectId, Object[1]=count）
+     */
+    @Query("""
+        SELECT t.projectId, COUNT(t) FROM Task t
+        WHERE t.projectId IN (:projectIds)
+          AND t.isDeleted = false
+        GROUP BY t.projectId
+        """)
+    List<Object[]> countTasksByProjectIds(@Param("projectIds") Collection<Long> projectIds);
 }

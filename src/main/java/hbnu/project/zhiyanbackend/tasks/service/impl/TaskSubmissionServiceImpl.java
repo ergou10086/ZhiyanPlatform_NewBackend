@@ -26,6 +26,7 @@ import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +37,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -287,30 +290,30 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
         return convertToDTO(submission, task);
     }
 
-/**
- * 根据提交记录ID获取提交详情
- * 此方法为只读事务方法
- * @param submissionId 提交记录ID
- * @return TaskSubmissionDTO 提交详情的数据传输对象
- * @throws IllegalArgumentException 当提交记录不存在或已删除或关联任务不存在时抛出
- */
+    /**
+     * 根据提交记录ID获取提交详情
+     * 此方法为只读事务方法
+     * @param submissionId 提交记录ID
+     * @return TaskSubmissionDTO 提交详情的数据传输对象
+     * @throws IllegalArgumentException 当提交记录不存在或已删除或关联任务不存在时抛出
+     */
     @Override
     @Transactional(readOnly = true)  // 声明这是一个只读事务方法
     public TaskSubmissionDTO getSubmissionDetail(Long submissionId) {
-    // 根据ID查找提交记录，如果不存在则抛出异常
+        // 根据ID查找提交记录，如果不存在则抛出异常
         TaskSubmission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("提交记录不存在"));
 
-    // 检查提交记录是否已被删除
+        // 检查提交记录是否已被删除
         if (Boolean.TRUE.equals(submission.getIsDeleted())) {
             throw new IllegalArgumentException("提交记录已删除");
         }
 
-    // 根据提交记录中的任务ID查找关联任务，如果不存在则抛出异常
+        // 根据提交记录中的任务ID查找关联任务，如果不存在则抛出异常
         Task task = taskRepository.findById(submission.getTaskId())
                 .orElseThrow(() -> new IllegalArgumentException("关联任务不存在"));
 
-    // 将提交记录和任务信息转换为数据传输对象并返回
+        // 将提交记录和任务信息转换为数据传输对象并返回
         return convertToDTO(submission, task);
     }
 
@@ -327,6 +330,42 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
                 .map(s -> convertToDTO(s, task))
                 .collect(Collectors.toList());
     }
+
+     @Override
+     @Transactional(readOnly = true)
+     public Map<String, List<TaskSubmissionDTO>> batchGetTaskSubmissions(List<Long> taskIds) {
+         if (taskIds == null || taskIds.isEmpty()) {
+             return Collections.emptyMap();
+         }
+
+         List<Long> sanitized = taskIds.stream()
+                 .filter(id -> id != null && id > 0)
+                 .distinct()
+                 .collect(Collectors.toList());
+         if (sanitized.isEmpty()) {
+             return Collections.emptyMap();
+         }
+
+         List<TaskSubmission> submissions = submissionRepository
+                 .findByTaskIdInAndIsDeletedFalseOrderByTaskIdAscVersionDesc(sanitized);
+
+         Map<Long, Task> taskMap = taskRepository.findAllById(sanitized).stream()
+                 .collect(Collectors.toMap(Task::getId, t -> t));
+
+         Map<String, List<TaskSubmissionDTO>> result = new LinkedHashMap<>();
+         for (Long taskId : sanitized) {
+             result.put(String.valueOf(taskId), new ArrayList<>());
+         }
+
+         for (TaskSubmission submission : submissions) {
+             Long taskId = submission.getTaskId();
+             Task task = taskMap.get(taskId);
+             TaskSubmissionDTO dto = convertToDTO(submission, task);
+             result.computeIfAbsent(String.valueOf(taskId), k -> new ArrayList<>()).add(dto);
+         }
+
+         return result;
+     }
 
     @Override
     @Transactional(readOnly = true)
@@ -348,42 +387,42 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getPendingSubmissions(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findPendingSubmissionsForUser(userId, ReviewStatus.PENDING, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findPendingSubmissionsForUser(userId, ReviewStatus.PENDING, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getSubmissionsByReviewer(Long reviewerId, Pageable pageable) {
-        return submissionRepository
-                .findByReviewerIdAndReviewStatusAndIsDeletedFalseOrderByReviewTimeDesc(reviewerId, ReviewStatus.APPROVED, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findByReviewerIdAndReviewStatusAndIsDeletedFalseOrderByReviewTimeDesc(reviewerId, ReviewStatus.APPROVED, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getReviewedSubmissionsForMyCreatedTasks(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findReviewedSubmissionsForMyCreatedTasks(userId, ReviewStatus.APPROVED, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findReviewedSubmissionsForMyCreatedTasks(userId, ReviewStatus.APPROVED, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getProjectPendingSubmissions(Long projectId, Pageable pageable) {
-        return submissionRepository
+        Page<TaskSubmission> submissionPage = submissionRepository
                 .findByProjectIdAndReviewStatusAndIsDeletedFalseOrderBySubmissionTimeDesc(
-                        projectId, ReviewStatus.PENDING, pageable)
-                .map(this::convertToDTO);
+                        projectId, ReviewStatus.PENDING, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getUserSubmissions(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findBySubmitterIdAndIsDeletedFalseOrderBySubmissionTimeDesc(userId, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findBySubmitterIdAndIsDeletedFalseOrderBySubmissionTimeDesc(userId, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
@@ -400,9 +439,9 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getMyCreatedTasksPendingSubmissions(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findPendingSubmissionsForMyCreatedTasks(userId, ReviewStatus.PENDING, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findPendingSubmissionsForMyCreatedTasks(userId, ReviewStatus.PENDING, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
@@ -413,17 +452,125 @@ public class TaskSubmissionServiceImpl implements TaskSubmissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getMyPendingSubmissions(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findMyPendingSubmissions(userId, ReviewStatus.PENDING, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findMyPendingSubmissions(userId, ReviewStatus.PENDING, pageable);
+        return convertToDTOPage(submissionPage);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<TaskSubmissionDTO> getPendingSubmissionsForReview(Long userId, Pageable pageable) {
-        return submissionRepository
-                .findPendingSubmissionsForReviewer(userId, ReviewStatus.PENDING, pageable)
-                .map(this::convertToDTO);
+        Page<TaskSubmission> submissionPage = submissionRepository
+                .findPendingSubmissionsForReviewer(userId, ReviewStatus.PENDING, pageable);
+        return convertToDTOPage(submissionPage);
+    }
+
+    private Page<TaskSubmissionDTO> convertToDTOPage(Page<TaskSubmission> submissionPage) {
+        List<TaskSubmission> submissions = submissionPage.getContent();
+        if (submissions == null || submissions.isEmpty()) {
+            return Page.empty(submissionPage.getPageable());
+        }
+
+        List<Long> taskIds = submissions.stream()
+                .map(TaskSubmission::getTaskId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, Task> taskMap = new HashMap<>();
+        if (!taskIds.isEmpty()) {
+            List<Task> tasks = taskRepository.findAllById(taskIds);
+            tasks.forEach(t -> taskMap.put(t.getId(), t));
+        }
+
+        List<Long> projectIds = submissions.stream()
+                .map(TaskSubmission::getProjectId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, Project> projectMap = new HashMap<>();
+        if (!projectIds.isEmpty()) {
+            List<Project> projects = projectRepository.findAllById(projectIds);
+            projects.forEach(p -> projectMap.put(p.getId(), p));
+        }
+
+        List<Long> userIds = new ArrayList<>();
+        for (TaskSubmission submission : submissions) {
+            if (submission.getSubmitterId() != null) {
+                userIds.add(submission.getSubmitterId());
+            }
+            if (submission.getReviewerId() != null) {
+                userIds.add(submission.getReviewerId());
+            }
+        }
+        userIds = userIds.stream().distinct().toList();
+
+        Map<Long, User> userMap = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                List<User> users = userRepository.findByIdInAndIsDeletedFalse(userIds);
+                users.forEach(u -> userMap.put(u.getId(), u));
+            } catch (Exception e) {
+                log.warn("批量查询用户信息失败: userIds={}", userIds, e);
+            }
+        }
+
+        List<TaskSubmissionDTO> dtoList = submissions.stream()
+                .map(submission -> {
+                    List<String> attachmentUrls = new ArrayList<>();
+                    if (submission.getAttachmentUrls() != null) {
+                        try {
+                            attachmentUrls = objectMapper.readValue(
+                                    submission.getAttachmentUrls(),
+                                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+                        } catch (JsonProcessingException e) {
+                            log.warn("附件URL反序列化失败", e);
+                        }
+                    }
+
+                    Project project = projectMap.get(submission.getProjectId());
+                    String projectName = project != null ? project.getName() : null;
+
+                    User submitterUser = submission.getSubmitterId() != null ? userMap.get(submission.getSubmitterId()) : null;
+                    UserDTO submitterDTO = submitterUser != null ? userConverter.toDTO(submitterUser) : null;
+
+                    User reviewerUser = submission.getReviewerId() != null ? userMap.get(submission.getReviewerId()) : null;
+                    UserDTO reviewerDTO = reviewerUser != null ? userConverter.toDTO(reviewerUser) : null;
+
+                    Task task = taskMap.get(submission.getTaskId());
+                    String taskTitle = task != null ? task.getTitle() : null;
+                    String taskCreatorId = task != null && task.getCreatorId() != null
+                            ? String.valueOf(task.getCreatorId())
+                            : null;
+
+                    return TaskSubmissionDTO.builder()
+                            .id(String.valueOf(submission.getId()))
+                            .taskId(String.valueOf(submission.getTaskId()))
+                            .taskTitle(taskTitle)
+                            .taskCreatorId(taskCreatorId)
+                            .projectId(String.valueOf(submission.getProjectId()))
+                            .projectName(projectName)
+                            .submitterId(String.valueOf(submission.getSubmitterId()))
+                            .submitter(submitterDTO)
+                            .submissionContent(submission.getSubmissionContent())
+                            .attachmentUrls(attachmentUrls)
+                            .submissionTime(instantToLocalDateTime(submission.getSubmissionTime()))
+                            .reviewStatus(submission.getReviewStatus())
+                            .reviewerId(submission.getReviewerId() != null ? String.valueOf(submission.getReviewerId()) : null)
+                            .reviewer(reviewerDTO)
+                            .reviewComment(submission.getReviewComment())
+                            .reviewTime(instantToLocalDateTime(submission.getReviewTime()))
+                            .actualWorktime(submission.getActualWorktime())
+                            .version(submission.getVersion())
+                            .createdAt(instantToLocalDateTime(submission.getCreatedAt()))
+                            .updatedAt(instantToLocalDateTime(submission.getUpdatedAt()))
+                            .dueDate(task != null ? task.getDueDate() : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtoList, submissionPage.getPageable(), submissionPage.getTotalElements());
     }
 
     @Override
