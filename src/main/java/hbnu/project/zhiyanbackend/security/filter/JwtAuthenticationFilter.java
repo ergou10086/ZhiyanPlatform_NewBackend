@@ -307,7 +307,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return false;
         }
 
+        // 当前用户头像接口需要认证，不应跳过过滤器
+        if (uri.startsWith("/zhiyan/auth/user-avatar/me_avatar")) {
+            return false;
+        }
+
         if (uri.startsWith("/zhiyan/projects/get-image")
+                || uri.startsWith("/zhiyan/auth/user-avatar")
                 || uri.startsWith("/zhiyan/users/avatar")) {
             return true;
         }
