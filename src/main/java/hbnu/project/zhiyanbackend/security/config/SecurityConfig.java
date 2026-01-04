@@ -223,6 +223,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                                 "/zhiyan/projects/get-image",
                                 "/zhiyan/projects/get-image/**",
                                 "/zhiyan/auth/user-avatar/**",
+                                "/zhiyan/auth/users/avatar/**",
                                 "/zhiyan/users/avatar/**"
                         ).permitAll()
 

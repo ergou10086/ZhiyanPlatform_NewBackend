@@ -1,10 +1,12 @@
 package hbnu.project.zhiyanbackend.auth.controller;
 
 import hbnu.project.zhiyanbackend.auth.model.converter.UserConverter;
+import hbnu.project.zhiyanbackend.auth.model.dto.AvatarDTO;
 import hbnu.project.zhiyanbackend.auth.model.dto.UserDTO;
 import hbnu.project.zhiyanbackend.auth.model.dto.UserInfoResponseDTO;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
+import hbnu.project.zhiyanbackend.auth.service.UserInformationService;
 import hbnu.project.zhiyanbackend.auth.service.UserService;
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.basic.exception.ControllerException;
@@ -16,15 +18,23 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户管理相关控制器
@@ -47,6 +57,8 @@ public class UserController {
     private final UserRepository userRepository;
 
     private final UserConverter userConverter;
+
+    private final UserInformationService userInformationService;
 
     /**
      * 获取当前登录用户信息
@@ -73,6 +85,14 @@ public class UserController {
             // 转换为Response对象(不包含用户权限)
             UserDTO userDTO = result.getData();
             UserInfoResponseDTO response = userConverter.toUserInfoResponse(userDTO);
+
+            if (response != null && userDTO != null && userDTO.getId() != null) {
+                if (userDTO.getAvatarSize() != null && userDTO.getAvatarSize() > 0) {
+                    response.setAvatarUrl(buildAvatarUrl(userDTO.getId()));
+                } else {
+                    response.setAvatarUrl(null);
+                }
+            }
             
             // 确保OAuth2绑定信息被正确映射（MapStruct应该自动映射，但为了确保，我们显式设置）
             if (response != null && userDTO != null) {
@@ -113,11 +133,68 @@ public class UserController {
             UserDTO userDTO = result.getData();
             UserInfoResponseDTO response = userConverter.toUserInfoResponseDTOwithRoles(userDTO);
 
+            if (response != null && userDTO != null && userDTO.getId() != null) {
+                if (userDTO.getAvatarSize() != null && userDTO.getAvatarSize() > 0) {
+                    response.setAvatarUrl(buildAvatarUrl(userDTO.getId()));
+                } else {
+                    response.setAvatarUrl(null);
+                }
+            }
+
             return R.ok(response);
         } catch (Exception e) {
             log.error("获取用户详情失败: userId={}", userId, e);
             return R.fail("获取用户详情失败");
         }
+    }
+
+    @GetMapping("/avatar/{userId}")
+    @Operation(summary = "获取用户头像", description = "返回指定用户头像的二进制数据，供 <img> 直接访问")
+    public ResponseEntity<byte[]> getUserAvatar(
+            @Parameter(description = "用户ID", required = true)
+            @PathVariable Long userId) {
+        Optional<User> optionalUser = userRepository.findByIdAndIsDeletedFalse(userId);
+        if (optionalUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        User user = optionalUser.get();
+        byte[] avatarData = user.getAvatarData();
+        if (avatarData == null || avatarData.length == 0) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        String contentType = user.getAvatarContentType();
+        if (contentType != null && !contentType.isBlank()) {
+            try {
+                headers.setContentType(MediaType.parseMediaType(contentType));
+            } catch (Exception e) {
+                log.warn("Invalid avatar content type: userId={}, contentType={}", userId, contentType);
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            }
+        } else {
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        }
+
+        headers.setCacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic());
+        headers.setPragma(null);
+        return new ResponseEntity<>(avatarData, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/avatar-info/{userId}")
+    @Operation(summary = "获取用户头像信息", description = "返回指定用户头像的Base64数据（兼容旧接口传输格式）")
+    public R<AvatarDTO> getUserAvatarInfo(
+            @Parameter(description = "用户ID", required = true)
+            @PathVariable Long userId) {
+        return userInformationService.getAvatarInfo(userId);
+    }
+
+    private String buildAvatarUrl(Long userId) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/zhiyan/auth/users/avatar/")
+                .path(String.valueOf(userId))
+                .toUriString();
     }
 
 
