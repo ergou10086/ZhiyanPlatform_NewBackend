@@ -2,6 +2,7 @@ package hbnu.project.zhiyanbackend.knowledge.controller;
 
 import hbnu.project.zhiyanbackend.basic.domain.R;
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementContributionDTO;
+import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementContributionDetailDTO;
 import hbnu.project.zhiyanbackend.knowledge.service.AchievementContributionService;
 import hbnu.project.zhiyanbackend.projects.utils.ProjectSecurityUtils;
 import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
@@ -65,6 +66,45 @@ public class AchievementContributionController {
         // 查询指定日期范围
         List<AchievementContributionDTO> contributions = contributionService.getContributions(projectId, startDate, endDate);
         return R.ok(contributions, "查询成功");
+    }
+
+    /**
+     * 获取指定日期的详细贡献数据
+     * 包括每个用户的贡献次数和具体成果信息
+     *
+     * @param projectId 项目ID
+     * @param date      日期（格式：yyyy-MM-dd，日视图使用）
+     * @param startDate 开始日期（格式：yyyy-MM-dd，周视图使用）
+     * @param endDate   结束日期（格式：yyyy-MM-dd，周视图使用）
+     * @return 详细贡献数据
+     */
+    @GetMapping("/{projectId}/details")
+    @Operation(summary = "获取指定日期的详细贡献数据", description = "获取指定日期或日期范围的详细贡献信息，包括每个贡献者的贡献次数和具体成果列表")
+    public R<AchievementContributionDetailDTO> getContributionDetails(
+            @Parameter(description = "项目ID") @PathVariable Long projectId,
+            @Parameter(description = "日期（格式：yyyy-MM-dd，日视图使用）") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "开始日期（格式：yyyy-MM-dd，周视图使用）") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "结束日期（格式：yyyy-MM-dd，周视图使用）") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        Long userId = SecurityUtils.getUserId();
+        log.info("获取项目成果详细贡献数据: projectId={}, userId={}, date={}, startDate={}, endDate={}", 
+                projectId, userId, date, startDate, endDate);
+
+        // 权限检查：必须是项目成员
+        projectSecurityUtils.isMember(projectId, userId);
+
+        AchievementContributionDetailDTO details;
+        if (startDate != null && endDate != null) {
+            // 周视图：使用日期范围
+            details = contributionService.getContributionDetails(projectId, startDate, endDate);
+        } else if (date != null) {
+            // 日视图：使用单个日期
+            details = contributionService.getContributionDetails(projectId, date);
+        } else {
+            return R.fail("请提供日期或日期范围参数");
+        }
+        
+        return R.ok(details, "查询成功");
     }
 }
 

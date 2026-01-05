@@ -39,6 +39,8 @@ public interface OperationLogService {
      * 适用场景：项目详情页的「全部操作日志」展示
      *
      * @param projectId 项目ID（必填，非空校验）
+     * @param startTime 操作开始时间（可选，>= 该时间）
+     * @param endTime   操作结束时间（可选，<= 该时间）
      * @param pageable  分页参数（包含页码、页大小、排序规则，必填）
      * @return Page<UnifiedOperationLogVO> 统一日志VO分页结果，包含：
      *         <ul>
@@ -48,7 +50,7 @@ public interface OperationLogService {
      *         </ul>
      * @throws ServiceException 当项目ID为空、分页参数为空或查询过程中出现异常时抛出
      */
-    Page<UnifiedOperationLogVO> getProjectAllLogs(Long projectId, Pageable pageable);
+    Page<UnifiedOperationLogVO> getProjectAllLogs(Long projectId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * 通用方法：查询项目内指定类型的日志（带筛选）

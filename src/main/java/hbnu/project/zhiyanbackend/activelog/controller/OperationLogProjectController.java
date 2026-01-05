@@ -42,14 +42,16 @@ public class OperationLogProjectController {
      */
     @GetMapping("/projects/{projectId}/all")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "查询项目内所有操作日志", description = "聚合查询项目内的项目、任务、Wiki、成果操作日志")
+    @Operation(summary = "查询项目内所有操作日志", description = "聚合查询项目内的项目、任务、Wiki、成果操作日志，支持按时间范围筛选")
     public R<Page<UnifiedOperationLogVO>> getProjectAllLogs(
             @PathVariable @Parameter(description = "项目ID") Long projectId,
             @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
-            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") @Parameter(description = "开始时间") LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") @Parameter(description = "结束时间") LocalDateTime endTime) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "time"));
-        Page<UnifiedOperationLogVO> result = operationLogService.getProjectAllLogs(projectId, pageable);
+        Page<UnifiedOperationLogVO> result = operationLogService.getProjectAllLogs(projectId, startTime, endTime, pageable);
         return R.ok(result);
     }
 

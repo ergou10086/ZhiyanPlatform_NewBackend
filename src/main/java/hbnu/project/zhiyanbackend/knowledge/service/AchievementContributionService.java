@@ -1,6 +1,7 @@
 package hbnu.project.zhiyanbackend.knowledge.service;
 
 import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementContributionDTO;
+import hbnu.project.zhiyanbackend.knowledge.model.dto.AchievementContributionDetailDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,5 +32,26 @@ public interface AchievementContributionService {
      * @return 贡献统计数据列表
      */
     List<AchievementContributionDTO> getContributionsLastYear(Long projectId);
+
+    /**
+     * 获取指定日期的详细贡献数据
+     * 包括每个用户的贡献次数和具体成果信息
+     *
+     * @param projectId 项目ID
+     * @param date      日期（格式：yyyy-MM-dd）
+     * @return 详细贡献数据
+     */
+    AchievementContributionDetailDTO getContributionDetails(Long projectId, LocalDate date);
+
+    /**
+     * 获取指定日期范围的详细贡献数据
+     * 包括每个用户的贡献次数和具体成果信息（用于周视图）
+     *
+     * @param projectId 项目ID
+     * @param startDate 开始日期（包含）
+     * @param endDate   结束日期（包含）
+     * @return 详细贡献数据
+     */
+    AchievementContributionDetailDTO getContributionDetails(Long projectId, LocalDate startDate, LocalDate endDate);
 }
 
