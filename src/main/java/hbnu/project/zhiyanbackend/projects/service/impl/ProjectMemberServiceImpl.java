@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -465,17 +466,9 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         Map<Long, UserBasicInfo> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
             try {
-                List<Object[]> userBasicInfos = userRepository.findBasicInfoByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
+                List<UserBasicInfo> userBasicInfos = userRepository.findBasicInfoByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
                 userMap = userBasicInfos.stream()
-                        .collect(Collectors.toMap(
-                                arr -> (Long) arr[0],
-                                arr -> new UserBasicInfo(
-                                        (Long) arr[0],
-                                        (String) arr[1],
-                                        (String) arr[2],
-                                        (String) arr[3]
-                                )
-                        ));
+                        .collect(Collectors.toMap(UserBasicInfo::getId, Function.identity()));
             } catch (Exception e) {
                 log.warn("批量查询用户信息失败: projectId={}", projectId, e);
             }
