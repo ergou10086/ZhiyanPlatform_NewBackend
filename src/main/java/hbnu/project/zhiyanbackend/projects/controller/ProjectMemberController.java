@@ -40,7 +40,8 @@ public class ProjectMemberController {
     private final OperationLogHelper operationLogHelper;
 
     /**
-     * 邀请/添加成员到项目（简化版：直接传 userId 和 role）
+     * 邀请/添加成员到项目
+     * 简化版：直接传 userId 和 role
      */
     @PostMapping("/{projectId}/members")
     @Operation(summary = "添加项目成员", description = "直接为项目添加成员，不做权限和外部用户校验")
@@ -68,6 +69,7 @@ public class ProjectMemberController {
 
         return result;
     }
+
 
     /**
      * 移除项目成员

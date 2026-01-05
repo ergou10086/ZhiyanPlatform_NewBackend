@@ -26,17 +26,18 @@ public interface ProjectMemberService {
     R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role);
 
     /**
-     * 移除项目成员
-     */
-    R<Void> removeMember(Long projectId, Long userId);
-
-    /**
      * 更新成员角色
      */
     R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole);
 
+    /**
+     * 移除项目成员
+     */
     R<Void> removeMember(Long projectId, Long userId, Long operatorId);
 
+    /**
+     * 更新成员的角色
+     */
     R<Void> updateMemberRole(Long projectId, Long userId, ProjectMemberRole newRole, Long operatorId);
 
     /**
@@ -59,16 +60,34 @@ public interface ProjectMemberService {
      */
     List<Long> getProjectAdminUserIds(Long projectId);
 
+    /**
+     * 是否是成员
+     */
     boolean isMember(Long projectId, Long userId);
 
+    /**
+     * 是否是拥有者
+     */
     boolean isOwner(Long projectId, Long userId);
 
+    /**
+     * 是否是管理员
+     */
     boolean isAdmin(Long projectId, Long userId);
 
+    /**
+     * 获取用户角色
+     */
     ProjectMemberRole getUserRole(Long projectId, Long userId);
 
+    /**
+     * 获取项目成员数量
+     */
     long getMemberCount(Long projectId);
 
+    /**
+     * 获取项目全体成员用户的id
+     */
     List<Long> getProjectMemberUserIds(Long projectId);
 }
 
