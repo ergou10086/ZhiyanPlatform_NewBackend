@@ -107,7 +107,7 @@ public class MessageSendServiceImpl implements MessageSendService {
                     uploaderId,
                     filteredReceiverIds,
                     "成果文件批量上传",
-                    String.format("成果「%s」有 %d 个文件被批量上传\n涉及文件：%s\n总大小：%s\n上传者：%s\n该成果已更新，请及时查看",
+                    String.format("成果「%s」有 %d 个文件被批量上传，涉及文件：%s，总大小：%s，上传者：%s，该成果已更新，请及时查看",
                             achievement.getTitle(),
                             files.size(),
                             fileNamesPreview,

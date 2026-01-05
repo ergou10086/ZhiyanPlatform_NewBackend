@@ -85,7 +85,7 @@ public class UserInformationController {
      * 权限: 所有已登录用户
      */
     @GetMapping("/user-avatar/me_avatar")
-    @PreAuthorize("isAuthenticated()")
+    //@PreAuthorize("isAuthenticated()")
     @Operation(summary = "获取头像信息", description = "获取当前用户的头像URL信息（包含所有尺寸）")
     public R<AvatarDTO> getMyAvatar() {
         log.info("获取当前用户头像信息");
