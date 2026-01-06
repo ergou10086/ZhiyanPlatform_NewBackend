@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.projects.service.impl;
 
+import hbnu.project.zhiyanbackend.auth.model.dto.UserBasicInfo;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import hbnu.project.zhiyanbackend.auth.repository.UserRepository;
 import hbnu.project.zhiyanbackend.basic.domain.R;
@@ -22,18 +23,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * 项目成员服务实现（精简版）
- *
+ * <p>
  * 本类实现了项目成员相关的业务逻辑，包括添加、移除、更新成员角色等功能，
  * 并提供了查询项目成员信息、判断成员权限等方法。
  *
@@ -54,18 +51,18 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      * 内部添加项目成员
      *
      * @param projectId 项目ID
-     * @param userId 用户ID
-     * @param role 成员角色
+     * @param userId    用户ID
+     * @param role      成员角色
      * @return 新建的项目成员实体
      * @throws IllegalArgumentException 当用户或项目不存在时抛出
-     * @throws IllegalStateException 当项目已归档时抛出
+     * @throws IllegalStateException    当项目已归档时抛出
      */
     @Override
     @Transactional
     @CacheEvict(value = "projectSquare", allEntries = true)
     public ProjectMember addMemberInternal(Long projectId, Long userId, ProjectMemberRole role) {
         // 检查用户是否存在
-        if(!userRepository.existsById(userId)) {
+        if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("用户不存在，不能被邀请");
         }
 
@@ -98,11 +95,11 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     }
 
     /**
-     * 添加项目成员对外接口
+     * 添加项目成员
      *
      * @param projectId 项目ID
-     * @param userId 用户ID
-     * @param role 成员角色
+     * @param userId    用户ID
+     * @param role      成员角色
      * @return 操作结果
      */
     @Override
@@ -111,7 +108,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     public R<Void> addMember(Long projectId, Long userId, ProjectMemberRole role) {
         try {
             // 检查用户是否存在
-            if(!userRepository.existsById(userId)) {
+            if (!userRepository.existsById(userId)) {
                 return R.fail("用户不存在，不能被邀请");
             }
 
@@ -159,79 +156,26 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      */
     @Override
     public List<Long> getProjectAdminUserIds(Long projectId) {
-        // 查找项目负责人
-        List<ProjectMember> owners = projectMemberRepository
-                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.OWNER);
-        // 查找项目管理员
-        List<ProjectMember> admins = projectMemberRepository
-                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.ADMIN);
-
-        // 合并并去重
-        return Stream.concat(owners.stream(), admins.stream())
-                .map(ProjectMember::getUserId)
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 移除项目成员
-     *
-     * @param projectId 项目ID
-     * @param userId 要移除的用户ID
-     * @return 操作结果
-     */
-    @Override
-    @Transactional
-    @CacheEvict(value = "projectSquare", allEntries = true)
-    public R<Void> removeMember(Long projectId, Long userId) {
-        try {
-            // 查找要移除的成员
-            ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
-                    .orElse(null);
-            if (member == null) {
-                return R.fail("该用户不是项目成员");
-            }
-
-            // TODO 后续接入认证/权限模块时，可在此增加删除成员的权限校验（如仅 OWNER/ADMIN 可移除他人）
-
-            // 在删除前获取所有成员ID（包括即将被移除的成员）
-            List<Long> allMemberIds = getProjectMemberUserIds(projectId);
-            
-            // 删除成员
-            projectMemberRepository.delete(member);
-            
-            // 向所有项目成员发送成员移除消息
-            try {
-                Project project = projectRepository.findById(projectId).orElse(null);
-                if (project != null && !allMemberIds.isEmpty()) {
-                    inboxMessageService.sendBatchPersonalMessage(
-                            MessageScene.PROJECT_MEMBER_REMOVED,
-                            null, // 系统消息
-                            allMemberIds,
-                            "成员离开项目",
-                            String.format("有成员已离开项目「%s」", project.getName()),
-                            projectId,
-                            "PROJECT",
-                            null
-                    );
-                }
-            } catch (Exception e) {
-                log.warn("发送项目成员移除消息失败: projectId={}, userId={}", projectId, userId, e);
-            }
-
-            log.info("移除项目成员成功: projectId={}, userId={}", projectId, userId);
-            return R.ok();
-        } catch (Exception e) {
-            log.error("移除项目成员失败: projectId={}, userId={}", projectId, userId, e);
-            return R.fail("移除成员失败: " + e.getMessage());
-        }
+//        // 查找项目负责人
+//        List<ProjectMember> owners = projectMemberRepository
+//                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.OWNER);
+//        // 查找项目管理员
+//        List<ProjectMember> admins = projectMemberRepository
+//                .findByProjectIdAndProjectRole(projectId, ProjectMemberRole.ADMIN);
+//
+//        // 合并并去重
+//        return Stream.concat(owners.stream(), admins.stream())
+//                .map(ProjectMember::getUserId)
+//                .distinct()
+//                .collect(Collectors.toList());
+        return projectMemberRepository.findAdminUserIdsByProjectId(projectId);
     }
 
     /**
      * 移除项目成员（带操作者信息）
      *
-     * @param projectId 项目ID
-     * @param userId 要移除的用户ID
+     * @param projectId  项目ID
+     * @param userId     要移除的用户ID
      * @param operatorId 操作者ID
      * @return 操作结果
      */
@@ -275,13 +219,13 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
             // 在删除前获取所有成员ID（包括即将被移除的成员）
             List<Long> allMemberIds = getProjectMemberUserIds(projectId);
-            
+
             // 删除成员
             projectMemberRepository.delete(member);
-            
+
             // 向所有项目成员发送成员移除消息
             try {
-                if (project != null && !allMemberIds.isEmpty()) {
+                if (!allMemberIds.isEmpty()) {
                     inboxMessageService.sendBatchPersonalMessage(
                             MessageScene.PROJECT_MEMBER_REMOVED,
                             operatorId,
@@ -309,8 +253,8 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
      * 更新成员角色
      *
      * @param projectId 项目ID
-     * @param userId 用户ID
-     * @param newRole 新角色
+     * @param userId    用户ID
+     * @param newRole   新角色
      * @return 操作结果
      */
     @Override
@@ -333,17 +277,17 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             ProjectMemberRole oldRole = member.getProjectRole();
             member.setProjectRole(newRole);
             projectMemberRepository.save(member);
-            
+
             // 发送项目角色变更消息
             try {
                 Project project = projectRepository.findById(projectId).orElse(null);
                 if (project != null && oldRole != newRole) {
                     inboxMessageService.sendPersonalMessage(
                             MessageScene.PROJECT_ROLE_CHANGED,
-                            null, // 系统消息
+                            null,
                             userId,
                             "项目角色变更",
-                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」", 
+                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」",
                                     project.getName(), oldRole.getDescription(), newRole.getDescription()),
                             projectId,
                             "PROJECT",
@@ -362,6 +306,15 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         }
     }
 
+    /**
+     * 修改项目成员角色
+     *
+     * @param projectId  项目id
+     * @param userId     用户id
+     * @param newRole    新角色
+     * @param operatorId 操作人
+     * @return Void
+     */
     @Override
     @Transactional
     @CacheEvict(value = "projectSquare", allEntries = true)
@@ -396,7 +349,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
             ProjectMemberRole oldRole = member.getProjectRole();
             member.setProjectRole(newRole);
             projectMemberRepository.save(member);
-            
+
             // 发送项目角色变更消息
             try {
                 if (oldRole != newRole) {
@@ -405,7 +358,7 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
                             operatorId,
                             userId,
                             "项目角色变更",
-                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」", 
+                            String.format("您在项目「%s」中的角色已从「%s」变更为「%s」",
                                     project.getName(), oldRole.getDescription(), newRole.getDescription()),
                             projectId,
                             "PROJECT",
@@ -444,26 +397,35 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
         return projectMemberRepository.existsByProjectIdAndUserId(projectId, userId);
     }
 
+    /**
+     * 判断指定用户是否为项目拥有者OWNER
+     *
+     * @param projectId 项目ID
+     * @param userId    用户ID
+     * @return 若用户存在且角色为 OWNER，返回 true；否则返回 false
+     */
     @Override
     public boolean isOwner(Long projectId, Long userId) {
-        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, userId);
-        return memberOpt.map(m -> m.getProjectRole() == ProjectMemberRole.OWNER).orElse(false);
+        Optional<ProjectMemberRole> roleOpt = projectMemberRepository.findUserRoleInProject(userId, projectId);
+        return roleOpt.map(r -> r == ProjectMemberRole.OWNER).orElse(false);
     }
 
+    /**
+     * 判断指定用户是否为项目管理员（包括 OWNER 或 ADMIN）
+     *
+     * @param projectId 项目ID
+     * @param userId    用户ID
+     * @return 若用户存在且角色为 OWNER 或 ADMIN，返回 true；否则返回 false
+     */
     @Override
     public boolean isAdmin(Long projectId, Long userId) {
-        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, userId);
-        return memberOpt.map(m -> {
-            ProjectMemberRole role = m.getProjectRole();
-            return role == ProjectMemberRole.OWNER || role == ProjectMemberRole.ADMIN;
-        }).orElse(false);
+        Optional<ProjectMemberRole> roleOpt = projectMemberRepository.findUserRoleInProject(userId, projectId);
+        return roleOpt.map(role -> role == ProjectMemberRole.OWNER || role == ProjectMemberRole.ADMIN).orElse(false);
     }
 
     @Override
     public ProjectMemberRole getUserRole(Long projectId, Long userId) {
-        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
-                .map(ProjectMember::getProjectRole)
-                .orElse(null);
+        return projectMemberRepository.findUserRoleInProject(userId, projectId).orElse(null);
     }
 
     @Override
@@ -475,50 +437,45 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
     public List<Long> getProjectMemberUserIds(Long projectId) {
         return projectMemberRepository.findUserIdsByProjectId(projectId);
     }
-    
+
     /**
      * 获取项目成员详细信息列表（包含用户名称）
+     * 该方法不处理当前登录用户标识（isCurrentUser），需在 Controller 层根据 SecurityUtils 补充。
+     *
      * @param projectId 项目ID
-     * @param pageable 分页参数
+     * @param pageable  分页参数
      * @return 成员详细信息分页列表
      */
     public Page<ProjectMemberDetailDTO> getProjectMembersWithDetails(Long projectId, Pageable pageable) {
+        // 先查成员的分页
         Page<ProjectMember> memberPage = projectMemberRepository.findByProjectId(projectId, pageable);
-
         List<ProjectMember> members = memberPage.getContent();
         if (members == null || members.isEmpty()) {
             return new PageImpl<>(List.of(), pageable, memberPage.getTotalElements());
         }
 
-        // 一次性查询项目名称（避免每个成员都查一次项目）
-        String projectName = "";
-        try {
-            Project project = projectRepository.findById(projectId).orElse(null);
-            if (project != null && project.getName() != null) {
-                projectName = project.getName();
-            }
-        } catch (Exception e) {
-            log.warn("查询项目名称失败: projectId={}", projectId, e);
-        }
+        // 只查项目名称，投影
+        String projectName = projectRepository.findProjectNameById(projectId).orElse("");
 
-        // 批量查询用户信息（避免 N+1）
+        // 批量查询用户信息
         Set<Long> userIds = members.stream()
                 .map(ProjectMember::getUserId)
-                .filter(id -> id != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, User> userMap = new HashMap<>();
+        Map<Long, UserBasicInfo> userMap = new HashMap<>();
         if (!userIds.isEmpty()) {
             try {
-                List<User> users = userRepository.findByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
-                userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+                List<UserBasicInfo> userBasicInfos = userRepository.findBasicInfoByIdInAndIsDeletedFalse(new ArrayList<>(userIds));
+                userMap = userBasicInfos.stream()
+                        .collect(Collectors.toMap(UserBasicInfo::getId, Function.identity()));
             } catch (Exception e) {
                 log.warn("批量查询用户信息失败: projectId={}", projectId, e);
             }
         }
 
         final String finalProjectName = projectName;
-        final Map<Long, User> finalUserMap = userMap;
+        final Map<Long, UserBasicInfo> finalUserMap = userMap;
 
         List<ProjectMemberDetailDTO> detailList = members.stream()
                 .map(member -> convertToDetailDTO(member, finalProjectName, finalUserMap))
@@ -526,32 +483,31 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
         return new PageImpl<>(detailList, pageable, memberPage.getTotalElements());
     }
-    
+
     /**
      * 将ProjectMember转换为ProjectMemberDetailDTO
+     *
      * @param member 项目成员实体
      * @return 成员详细信息DTO
      */
-    private ProjectMemberDetailDTO convertToDetailDTO(ProjectMember member, String projectName, Map<Long, User> userMap) {
+    private ProjectMemberDetailDTO convertToDetailDTO(ProjectMember member, String projectName, Map<Long, UserBasicInfo> userMap) {
         if (member == null) {
             return null;
         }
-        
+
         // 查询用户信息
         String username = "未知用户";
         String email = "";
         String avatar = null;
         if (member.getUserId() != null && userMap != null) {
-            User user = userMap.get(member.getUserId());
-            if (user != null) {
-                username = user.getName() != null ? user.getName() : "未知用户";
-                email = user.getEmail() != null ? user.getEmail() : "";
-
-                // 使用 COS 头像 URL，不再从 avatarData 生成 Base64
-                avatar = user.getAvatarUrl();
+            UserBasicInfo userInfo = userMap.get(member.getUserId());
+            if (userInfo != null) {
+                username = userInfo.getName() != null ? userInfo.getName() : "未知用户";
+                email = userInfo.getEmail() != null ? userInfo.getEmail() : "";
+                avatar = userInfo.getAvatarUrl();
             }
         }
-        
+
         return ProjectMemberDetailDTO.builder()
                 .id(member.getId())
                 .projectId(member.getProjectId())

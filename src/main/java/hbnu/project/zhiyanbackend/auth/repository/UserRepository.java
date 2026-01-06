@@ -1,5 +1,6 @@
 package hbnu.project.zhiyanbackend.auth.repository;
 
+import hbnu.project.zhiyanbackend.auth.model.dto.UserBasicInfo;
 import hbnu.project.zhiyanbackend.auth.model.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,9 +94,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * 根据关键词搜索用户（姓名或邮箱包含关键词）
      *
-     * @param nameKeyword 姓名关键词
+     * @param nameKeyword  姓名关键词
      * @param emailKeyword 邮箱关键词
-     * @param pageable 分页参数
+     * @param pageable     分页参数
      * @return 用户分页结果
      */
     @Query("SELECT u FROM User u WHERE u.isDeleted = false AND (u.name LIKE %:nameKeyword% OR u.email LIKE %:emailKeyword%)")
@@ -121,11 +122,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u.name FROM User u WHERE u.id = :userId AND u.isDeleted = false")
     Optional<String> findNameById(@Param("userId") Long userId);
 
+    /**
+     * 查user整体靠用户ids
+     *
+     * @param userIds 用户ids
+     * @return List<User>
+     */
     @Query("SELECT u FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
     List<User> findByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
 
     /**
-     * 批量查询用户的 id 和 name，用于只需要展示创建者姓名的场景
+     * 批量查询用户的 id 和 name，用 于只需要展示创建者姓名的场景
      */
     @Query("SELECT u.id, u.name FROM User u WHERE u.id IN :userIds AND u.isDeleted = false")
     List<Object[]> findIdAndNameByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
@@ -134,12 +141,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * 修改用户个人简介
      *
-     * @param userId 用户id
+     * @param userId      用户id
      * @param description 个人简介
      * @return 修改状态
      */
     @Modifying
     @Query("UPDATE User u SET u.description = :description WHERE u.id = :userId AND u.isDeleted = false")
     int updateDescription(@Param("userId") Long userId, @Param("description") String description);
+
+
+    /**
+     * 批量查询用户的基本信息，用于项目成员列表等场景
+     * 避免查询完整的User实体，提高性能
+     *
+     * @param userIds 用户ids
+     * @return 一个组装的特殊dto,UserBasicInfo
+     */
+    @Query("SELECT new hbnu.project.zhiyanbackend.auth.model.dto.UserBasicInfo(" +
+            "u.id, u.name, u.email, u.avatarUrl) " +
+            "FROM User u " +
+            "WHERE u.id IN :userIds AND u.isDeleted = false")
+    List<UserBasicInfo> findBasicInfoByIdInAndIsDeletedFalse(@Param("userIds") List<Long> userIds);
 }
 

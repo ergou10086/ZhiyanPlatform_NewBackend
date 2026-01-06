@@ -330,13 +330,20 @@ public class TaskSubmissionController {
 
     @PostMapping("/files/upload")
     @Operation(summary = "上传任务附件（单个）")
-    public R<TaskSubmissionFileResponse> uploadSubmissionFile(@RequestPart("file") MultipartFile file) {
+    public R<TaskSubmissionFileResponse> uploadSubmissionFile(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(value = "clientSize", required = false) String clientSize,
+            @RequestParam(value = "clientFilename", required = false) String clientFilename) {
         Long userId = SecurityUtils.getUserId();
         if (userId == null) {
             return R.fail("未登录或Token无效，无法上传附件");
         }
         log.info("用户[{}]上传任务附件: filename={}, size={}, contentType={}",
                 userId, file.getOriginalFilename(), file.getSize(), file.getContentType());
+        if (clientSize != null || clientFilename != null) {
+            log.info("任务附件上传 clientMeta: userId={}, clientFilename={}, clientSize={}",
+                    userId, clientFilename, clientSize);
+        }
         TaskSubmissionFileResponse response = fileService.store(file);
         log.info("任务附件上传成功: userId={}, fileUrl={}, filename={}",
                 userId, response.getUrl(), response.getFilename());

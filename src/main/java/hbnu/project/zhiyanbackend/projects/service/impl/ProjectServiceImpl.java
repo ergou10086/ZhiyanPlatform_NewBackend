@@ -61,78 +61,24 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
 
-    /**
-     * 项目数据访问层
-     */
+    // 项目数据访问层
     private final ProjectRepository projectRepository;
-    /**
-     * 项目成员数据访问层
-     */
+
+    // 项目成员数据访问层
     private final ProjectMemberRepository projectMemberRepository;
-    /**
-     * 项目成员服务层
-     */
+
+    // 项目成员服务层
     private final ProjectMemberService projectMemberService;
-    /**
-     * 消息服务层
-     */
+
+    // 消息服务层
     private final InboxMessageService inboxMessageService;
-    /**
-     * 用户服务层
-     */
-    private final UserService userService;
-    /**
-     * 用户数据访问层
-     */
+
+    // 用户数据访问层
     private final UserRepository userRepository;
-    /**
-     * 任务数据访问层
-     */
+
+    // 任务数据访问层
     private final TaskRepository taskRepository;
-    /**
-     * 维基页面服务层
-     */
-    private final WikiPageService wikiPageService;
-    /**
-     * 维基页面数据访问层
-     */
-    private final WikiPageRepository wikiPageRepository;
-    /**
-     * 维基版本历史数据访问层
-     */
-    private final WikiVersionHistoryRepository wikiPageHistoryRepository;
-    /**
-     * 维基附件数据访问层
-     */
-    private final WikiAttachmentRepository wikiAttachmentRepository;
-    /**
-     * 维基内容版本服务层
-     */
-    private final WikiContentVersionService wikiContentVersionService;
-    /**
-     * 维基OSS服务层
-     */
-    private final WikiOssService wikiOssService;
-    /**
-     * 成就数据访问层
-     */
-    private final AchievementRepository achievementRepository;
-    /**
-     * 成就详情数据访问层
-     */
-    private final AchievementDetailRepository achievementDetailRepository;
-    /**
-     * 成就文件数据访问层
-     */
-    private final AchievementFileRepository achievementFileRepository;
-    /**
-     * 成就文件服务层
-     */
-    private final AchievementFileService achievementFileService;
-    /**
-     * 成就详情服务层
-     */
-    private final AchievementDetailsService achievementDetailsService;
+
 
     /**
      * 创建新项目

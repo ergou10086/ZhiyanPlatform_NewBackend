@@ -77,7 +77,7 @@ public class OperationLogServiceImpl implements OperationLogService {
      * 实现接口核心方法，具体逻辑见接口注释
      */
     @Override
-    public Page<UnifiedOperationLogVO> getProjectAllLogs(Long projectId, Pageable pageable) {
+    public Page<UnifiedOperationLogVO> getProjectAllLogs(Long projectId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
         // 参数校验
         ValidationUtils.requireNonNull(projectId, "项目ID不能为空");
         ValidationUtils.requireNonNull(pageable, "分页参数不能为空");
@@ -111,10 +111,10 @@ public class OperationLogServiceImpl implements OperationLogService {
                     )
             );
 
-            // 第一步：轻量查询 - 只查询各表的id和时间
+            // 第一步：轻量查询 - 只查询各表的id和时间（带日期筛选）
             List<LogIdTimeInfo> allIdTimeInfos = new ArrayList<>();
             for (LogQueryTask<?> task : queryTasks) {
-                List<LogIdTimeInfo> idTimeInfos = queryIdAndTimeByProject(task, projectId);
+                List<LogIdTimeInfo> idTimeInfos = queryIdAndTimeByProject(task, projectId, startTime, endTime);
                 allIdTimeInfos.addAll(idTimeInfos);
             }
 
@@ -412,7 +412,24 @@ public class OperationLogServiceImpl implements OperationLogService {
      * 用于多表合并分页的场景
      */
     private <T> List<LogIdTimeInfo> queryIdAndTimeByProject(LogQueryTask<T> task, Long projectId) {
-        Specification<T> spec = (root, query, cb) -> cb.equal(root.get("projectId"), projectId);
+        return queryIdAndTimeByProject(task, projectId, null, null);
+    }
+
+    private <T> List<LogIdTimeInfo> queryIdAndTimeByProject(LogQueryTask<T> task, Long projectId, LocalDateTime startTime, LocalDateTime endTime) {
+        Specification<T> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("projectId"), projectId));
+            
+            // 添加时间范围筛选
+            if (startTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get(task.timeField), startTime));
+            }
+            if (endTime != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get(task.timeField), endTime));
+            }
+            
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
 
         // 只查询id和时间字段，减少数据传输
         // 注意：虽然JPA Specification默认查询所有字段，但这里我们只提取id和时间。

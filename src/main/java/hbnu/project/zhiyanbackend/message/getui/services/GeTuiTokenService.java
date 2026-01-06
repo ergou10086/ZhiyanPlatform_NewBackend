@@ -35,9 +35,6 @@ public class GeTuiTokenService {
     @Resource
     private RedisService redisService;
 
-    @Resource
-    private ObjectMapper objectMapper;
-
     private static final String TOKEN_CACHE_KEY = "getui:token";
 
     private static final String TOKEN_EXPIRE_KEY = "getui:token:expire";

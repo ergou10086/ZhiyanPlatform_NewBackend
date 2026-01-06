@@ -52,54 +52,20 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
     List<ProjectMember> findByUserId(Long userId);
 
     Page<ProjectMember> findByUserId(Long userId, Pageable pageable);
-    /**
-     * 分页查询用户参与的所有项目
-     * @param userId 用户ID
-     * @param pageable 分页参数
-     * @return 分页的用户项目列表
-     */
+
 
     List<ProjectMember> findByProjectIdAndProjectRole(Long projectId, ProjectMemberRole projectRole);
-    /**
-     * 查询指定项目中特定角色的所有成员
-     * @param projectId 项目ID
-     * @param projectRole 项目成员角色
-     * @return 符合条件的成员列表
-     */
+
 
     List<ProjectMember> findByProjectRole(ProjectMemberRole projectRole);
-    /**
-     * 查询所有具有特定角色的项目成员
-     * @param projectRole 项目成员角色
-     * @return 具有特定角色的成员列表
-     */
 
     boolean existsByProjectIdAndUserId(Long projectId, Long userId);
-    /**
-     * 检查指定项目中是否存在特定用户
-     * @param projectId 项目ID
-     * @param userId 用户ID
-     * @return 如果存在则返回true，否则返回false
-     */
 
     long countByProjectId(Long projectId);
-    /**
-     * 统计指定项目的成员数量
-     * @param projectId 项目ID
-     * @return 项目成员数量
-     */
 
     long countByUserId(Long userId);
 
-    long countByProjectRole(ProjectMemberRole projectRole);
-
-    long countByProjectIdAndProjectRole(Long projectId, ProjectMemberRole projectRole);
-
-    int deleteByProjectId(Long projectId);
-
     int deleteByUserId(Long userId);
-
-    int deleteByProjectIdAndUserId(Long projectId, Long userId);
 
     @Query("SELECT pm.projectRole FROM ProjectMember pm WHERE pm.userId = :userId AND pm.projectId = :projectId")
     Optional<ProjectMemberRole> findUserRoleInProject(@Param("userId") Long userId,
@@ -113,5 +79,18 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
 
     @Query("SELECT pm FROM ProjectMember pm WHERE pm.projectId IN :projectIds")
     List<ProjectMember> findByProjectIdIn(@Param("projectIds") List<Long> projectIds);
+
+    @Query("SELECT p.name FROM Project p WHERE p.id = :projectId AND p.isDeleted = false")
+    Optional<String> findNameById(@Param("projectId") Long projectId);
+
+    /**
+     * 查询项目中管理员（OWNER和ADMIN）的用户ID列表
+     * 一次性查询
+     */
+    @Query("SELECT DISTINCT pm.userId FROM ProjectMember pm " +
+            "WHERE pm.projectId = :projectId " +
+            "AND pm.projectRole IN (hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole.OWNER, " +
+            "hbnu.project.zhiyanbackend.projects.model.enums.ProjectMemberRole.ADMIN)")
+    List<Long> findAdminUserIdsByProjectId(@Param("projectId") Long projectId);
 }
 
