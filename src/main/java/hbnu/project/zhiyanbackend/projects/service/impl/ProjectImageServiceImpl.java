@@ -61,7 +61,7 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
             // 更新项目信息，仅保存 COS 相关字段，不再使用 imageData(BYTEA)
             project.setImageObjectKey(uploadResult.getObjectKey());
             project.setImageUrl(uploadResult.getUrl());
-            project.setImageData(null);
+            //project.setImageData(null);
 
             // 保存更新后的项目信息到数据库
             projectRepository.save(project);
