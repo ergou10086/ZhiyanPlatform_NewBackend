@@ -15,9 +15,11 @@ import java.util.*;
 /**
  * 个推消息推送服务
  * 提供各种推送方式的实现
+ * unipush1.0
  *
  * @author ErgouTree
  */
+@Deprecated
 @Slf4j
 @Service
 public class GeTuiPushService {
