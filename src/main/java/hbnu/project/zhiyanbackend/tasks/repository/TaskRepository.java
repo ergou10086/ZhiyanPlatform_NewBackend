@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 任务（Task）实体的数据访问层（Repository）
@@ -331,4 +332,18 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         GROUP BY t.projectId
         """)
     List<Object[]> countTasksByProjectIds(@Param("projectIds") Collection<Long> projectIds);
+
+    /**
+     * 批量查询任务的基本信息（id, title, creatorId, dueDate），用于任务提交列表等场景
+     * 避免查询完整的Task实体，提高性能
+     */
+    @Query("SELECT t.id, t.title, t.creatorId, t.dueDate FROM Task t WHERE t.id IN :taskIds AND t.isDeleted = false")
+    List<Object[]> findBasicInfoByIdInAndIsDeletedFalse(@Param("taskIds") List<Long> taskIds);
+
+    /**
+     * 查询任务的基本信息（title, creatorId, dueDate），用于单个任务查询
+     * 避免查询完整的Task实体，提高性能
+     */
+    @Query("SELECT t.title, t.creatorId, t.dueDate FROM Task t WHERE t.id = :taskId AND t.isDeleted = false")
+    Optional<Object[]> findBasicInfoById(@Param("taskId") Long taskId);
 }

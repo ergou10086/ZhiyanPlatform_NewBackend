@@ -43,14 +43,16 @@ public class OperationLogMyActiveController {
      */
     @GetMapping("/myself/all")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "查询我的所有操作日志", description = "聚合查询当前用户在所有项目中的操作日志")
+    @Operation(summary = "查询我的所有操作日志", description = "聚合查询当前用户在所有项目中的操作日志，支持按时间范围筛选")
     public R<Page<UnifiedOperationLogVO>> getMyAllLogs(
             @RequestParam(defaultValue = "0") @Parameter(description = "页码") int page,
-            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size) {
+            @RequestParam(defaultValue = "20") @Parameter(description = "每页大小") int size,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") @Parameter(description = "开始时间") LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") @Parameter(description = "结束时间") LocalDateTime endTime) {
 
         Long userId = SecurityUtils.getUserId();
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "time"));
-        Page<UnifiedOperationLogVO> result = myselfActionService.getProjectAllLogsByMyself(userId, pageable);
+        Page<UnifiedOperationLogVO> result = myselfActionService.getProjectAllLogsByMyself(userId, startTime, endTime, pageable);
         return R.ok(result);
     }
 

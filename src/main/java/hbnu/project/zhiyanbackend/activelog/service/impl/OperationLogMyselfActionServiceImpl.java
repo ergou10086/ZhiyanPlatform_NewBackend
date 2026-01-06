@@ -78,15 +78,21 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
      * 查询用户在所有项目的所有操作日志（分页）
      */
     @Override
-    public Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long userId, Pageable pageable) {
-        return getProjectAllLogsByMyself(null, userId, pageable);
+    public Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
+        return getProjectAllLogsByMyself(null, userId, startTime, endTime, pageable);
     }
 
     /**
      * 查询用户在指定项目的所有操作日志（分页）
      */
-    @Override
     public Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long projectId, Long userId, Pageable pageable) {
+        return getProjectAllLogsByMyself(projectId, userId, null, null, pageable);
+    }
+
+    /**
+     * 查询用户在指定项目的所有操作日志（分页，带日期筛选）
+     */
+    public Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
         // 参数校验
         ValidationUtils.requireNonNull(userId, "用户ID不能为空");
         ValidationUtils.requireNonNull(pageable, "分页参数不能为空");
@@ -98,10 +104,10 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
             // 定义所有需要查询的日志类型
             List<LogQueryTask<?>> queryTasks = buildAllLogQueryTasks();
 
-            // 第一步：轻量查询 - 只查询各表的id和时间
+            // 第一步：轻量查询 - 只查询各表的id和时间（带日期筛选）
             List<LogIdTimeInfo> allIdTimeInfos = new ArrayList<>();
             for (LogQueryTask<?> task : queryTasks) {
-                List<LogIdTimeInfo> idTimeInfos = queryIdAndTime(task, projectId, userId);
+                List<LogIdTimeInfo> idTimeInfos = queryIdAndTime(task, projectId, userId, startTime, endTime);
                 allIdTimeInfos.addAll(idTimeInfos);
             }
 
@@ -321,7 +327,14 @@ public class OperationLogMyselfActionServiceImpl implements OperationLogMyselfAc
      * 轻量查询：根据项目ID（可选）和用户ID查询id和时间字段
      */
     private <T> List<LogIdTimeInfo> queryIdAndTime(LogQueryTask<T> task, Long projectId, Long userId) {
-        Specification<T> spec = buildQuerySpecification(projectId, userId, null, null, task.timeField());
+        return queryIdAndTime(task, projectId, userId, null, null);
+    }
+
+    /**
+     * 轻量查询：根据项目ID（可选）、用户ID和时间范围查询id和时间字段
+     */
+    private <T> List<LogIdTimeInfo> queryIdAndTime(LogQueryTask<T> task, Long projectId, Long userId, LocalDateTime startTime, LocalDateTime endTime) {
+        Specification<T> spec = buildQuerySpecification(projectId, userId, startTime, endTime, task.timeField());
         List<T> entities = task.repository().findAll(spec, buildDefaultSort(task.timeField()));
 
         String source = getSourceByTask(task);

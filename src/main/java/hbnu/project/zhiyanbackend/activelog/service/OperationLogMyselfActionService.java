@@ -35,8 +35,10 @@ public interface OperationLogMyselfActionService {
      * 4. 批量查询：根据ID列表批量查询日志详情，避免N+1查询
      * 5. 统一转换：转换为UnifiedOperationLogVO返回
      *
-     * @param userId   用户ID（必填，操作人ID，非空校验）
-     * @param pageable 分页参数（包含页码、页大小，排序规则会被覆盖为按时间倒序）
+     * @param userId    用户ID（必填，操作人ID，非空校验）
+     * @param startTime 操作开始时间（可选，>= 该时间）
+     * @param endTime   操作结束时间（可选，<= 该时间）
+     * @param pageable  分页参数（包含页码、页大小，排序规则会被覆盖为按时间倒序）
      * @return Page<UnifiedOperationLogVO> 统一日志VO分页结果，包含：
      *         <ul>
      *             <li>content：日志列表（按操作时间倒序）</li>
@@ -45,7 +47,7 @@ public interface OperationLogMyselfActionService {
      *         </ul>
      * @throws ServiceException 当用户ID/分页参数为空，或查询过程中出现异常时抛出
      */
-    Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long userId, Pageable pageable);
+    Page<UnifiedOperationLogVO> getProjectAllLogsByMyself(Long userId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable);
 
     /**
      * 查询用户在所有项目的「项目模块」操作日志（带时间筛选）
