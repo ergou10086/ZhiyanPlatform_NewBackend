@@ -27,8 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -61,6 +65,8 @@ public class AchievementFileServiceImpl implements AchievementFileService {
      */
     private static final long MAX_FILE_SIZE = 500 * 1024 * 1024; // 200MB
 
+     private static final DateTimeFormatter FILENAME_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+
     /**
      * 上传成果文件
      * 调用 COS 的高级接口上传文件，自动处理分片
@@ -81,16 +87,25 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
         // 2.获取文件信息
         String originalFilename = file.getOriginalFilename();
-        if(StringUtils.isEmpty(originalFilename)){
+        if (StringUtils.isEmpty(originalFilename)) {
             throw new ServiceException("文件名不能为空");
         }
         // 获取扩展名
         String fileExtension = FileUtils.getExtension(file);
         long fileSize = file.getSize();
 
+        // 统一标准化文件名：achievement-file-{timestamp}.{ext}
+        String timeSuffix = LocalDateTime.now().format(FILENAME_TIME_FORMATTER);
+        String standardFilename;
+        if (!StringUtils.isEmpty(fileExtension)) {
+            standardFilename = "achievement-file-" + timeSuffix + "." + fileExtension.toLowerCase(Locale.ROOT);
+        } else {
+            standardFilename = "achievement-file-" + timeSuffix;
+        }
+
         // 3. 检查是否存在同名文件，如果存在则删除旧文件（覆盖模式）
         Optional<AchievementFile> existingFile = achievementFileRepository
-                .findByAchievementIdAndFileName(uploadDTO.getAchievementId(), originalFilename);
+                .findByAchievementIdAndFileName(uploadDTO.getAchievementId(), standardFilename);
 
         if (existingFile.isPresent()) {
             AchievementFile oldFile = existingFile.get();
@@ -116,7 +131,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
                 throw new ServiceException("文件大小超过限制（最大500MB）");
             }
 
-            uploadResult = cosService.uploadFileSenior(file, "achievement", null);
+            uploadResult = cosService.uploadFileSenior(file, "achievement", standardFilename);
         } catch (Exception e) {
             log.error("文件上传COS失败", e);
             throw new ServiceException("文件上传失败: " + e.getMessage());
@@ -125,7 +140,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
         // 5. 保存文件记录到数据库
         AchievementFile achievementFile = AchievementFile.builder()
                 .achievementId(uploadDTO.getAchievementId())
-                .fileName(originalFilename)
+                .fileName(standardFilename)
                 .fileSize(fileSize)
                 .fileType(fileExtension)
                 .bucketName(cosProperties.getBucketName())
@@ -177,9 +192,27 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
         // 3. 使用 COS SDK 批量上传文件
         String businessType = "achievement";
+
+        // 批量上传统一使用同一时间戳，并追加编号：achievement-file-{timestamp}-{01..}.{ext}
+        String baseTimeSuffix = LocalDateTime.now().format(FILENAME_TIME_FORMATTER);
+
+        MultipartFile[] renamedFiles = new MultipartFile[files.length];
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile f = files[i];
+            String ext = FileUtils.getExtension(f);
+            String seq = String.format("%02d", i + 1);
+            String stdName;
+            if (!StringUtils.isEmpty(ext)) {
+                stdName = "achievement-file-" + baseTimeSuffix + "-" + seq + "." + ext.toLowerCase(Locale.ROOT);
+            } else {
+                stdName = "achievement-file-" + baseTimeSuffix + "-" + seq;
+            }
+            renamedFiles[i] = new NamedMultipartFile(f, stdName);
+        }
+
         List<UploadFileResponseDTO> uploadResults;
         try {
-            uploadResults = cosService.uploadBatch(files, businessType);
+            uploadResults = cosService.uploadBatch(renamedFiles, businessType);
             log.info("COS批量上传完成: 成功上传 {} 个文件", uploadResults.size());
         } catch (Exception e) {
             log.error("COS批量上传失败", e);
@@ -196,9 +229,9 @@ public class AchievementFileServiceImpl implements AchievementFileService {
         List<AchievementFileDTO> results = new ArrayList<>();
         LocalDateTime uploadTime = LocalDateTime.now();
 
-        for (int i = 0; i < uploadResults.size() && i < files.length; i++) {
+        for (int i = 0; i < uploadResults.size() && i < renamedFiles.length; i++) {
             UploadFileResponseDTO uploadResult = uploadResults.get(i);
-            MultipartFile file = files[i];
+            MultipartFile file = renamedFiles[i];
 
             try {
                 // 检查是否存在同名文件，如果存在则删除旧文件（覆盖模式）
@@ -265,6 +298,56 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
         return results;
     }
+
+     private static final class NamedMultipartFile implements MultipartFile {
+         private final MultipartFile delegate;
+         private final String filename;
+
+         private NamedMultipartFile(MultipartFile delegate, String filename) {
+             this.delegate = delegate;
+             this.filename = filename;
+         }
+
+         @Override
+         public String getName() {
+             return delegate.getName();
+         }
+
+         @Override
+         public String getOriginalFilename() {
+             return filename;
+         }
+
+         @Override
+         public String getContentType() {
+             return delegate.getContentType();
+         }
+
+         @Override
+         public boolean isEmpty() {
+             return delegate.isEmpty();
+         }
+
+         @Override
+         public long getSize() {
+             return delegate.getSize();
+         }
+
+         @Override
+         public byte[] getBytes() throws IOException {
+             return delegate.getBytes();
+         }
+
+         @Override
+         public InputStream getInputStream() throws IOException {
+             return delegate.getInputStream();
+         }
+
+         @Override
+         public void transferTo(File dest) throws IOException, IllegalStateException {
+             delegate.transferTo(dest);
+         }
+     }
 
     /**
      * 获取文件预签名URL

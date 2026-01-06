@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -63,14 +64,30 @@ public class COSServiceImpl implements COSService {
         ObjectMetadata metadata = buildMetadataFromMultipartFile(file, filename);
 
         // 上传流类型
-        try (InputStream inputStream = file.getInputStream()) {
-            PutObjectRequest request = new PutObjectRequest(cosProperties.getBucketName(), objectKey, inputStream, metadata);
+        try {
+            long declaredSize = file.getSize();
+            InputStream inputStream;
+            if (declaredSize <= 0) {
+                // 部分客户端上传会导致 MultipartFile.getSize() 异常为 0，从而 metadata.contentLength=0 导致 COS 对象 0B
+                byte[] bytes = file.getBytes();
+                if (bytes == null || bytes.length == 0) {
+                    throw new OssException("文件读取失败：文件内容为空");
+                }
+                metadata.setContentLength(bytes.length);
+                inputStream = new ByteArrayInputStream(bytes);
+            } else {
+                inputStream = file.getInputStream();
+            }
+
+            try (InputStream is = inputStream) {
+                PutObjectRequest request = new PutObjectRequest(cosProperties.getBucketName(), objectKey, is, metadata);
             PutObjectResult result = cosClient.putObject(request);
 
             log.info("COS 文件上传成功: bucket={}, key={}, size={}", cosProperties.getBucketName(), objectKey, file.getSize());
 
             return buildUploadResponse(objectKey, result, file.getOriginalFilename(),
                     file.getSize(), metadata.getContentType());
+            }
         } catch (CosClientException e) {
             log.error("COS 文件上传失败（服务端）: {}", e.getMessage(), e);
             throw new OssException("腾讯云COS上传失败: " + e.getMessage(), e);
@@ -145,34 +162,46 @@ public class COSServiceImpl implements COSService {
                 cosProperties.getBucketName(),
                 secretIdPrefix);
 
-        try (InputStream inputStream = file.getInputStream()) {
-            // 构建元数据
+        try {
             ObjectMetadata metadata = buildMetadataFromMultipartFile(file);
 
-            // 创建上传请求
-            PutObjectRequest request = new PutObjectRequest(cosProperties.getBucketName(), objectKey, inputStream, metadata);
-
-            // 设置存储类型（低频存储）
-            request.setStorageClass(StorageClass.Standard_IA);
-
-            // 启用断点续传
-            if (cosProperties.getTransfer().isEnableResumable()) {
-                request.setEnableResumableUpload(true);
+            long declaredSize = file.getSize();
+            InputStream inputStream;
+            if (declaredSize <= 0) {
+                byte[] bytes = file.getBytes();
+                if (bytes == null || bytes.length == 0) {
+                    throw new OssException("文件读取失败：文件内容为空");
+                }
+                metadata.setContentLength(bytes.length);
+                inputStream = new ByteArrayInputStream(bytes);
+            } else {
+                inputStream = file.getInputStream();
             }
 
-            // 使用 TransferManager 上传
-            Upload upload = transferManager.upload(request);
-            monitorTransferProgress(upload, objectKey);
+            try (InputStream is = inputStream) {
+                PutObjectRequest request = new PutObjectRequest(cosProperties.getBucketName(), objectKey, is, metadata);
 
-            // 等待上传返回结果
-            UploadResult result = upload.waitForUploadResult();
+                // 设置存储类型（低频存储）
+                request.setStorageClass(StorageClass.Standard_IA);
 
-            log.info("文件上传成功: bucket={}, key={}, size={} bytes, businessType={}",
-                    cosProperties.getBucketName(), objectKey, file.getSize(), businessType);
+                // 启用断点续传
+                if (cosProperties.getTransfer().isEnableResumable()) {
+                    request.setEnableResumableUpload(true);
+                }
 
-            // 构建高级接口用的结果
-            return buildUploadResponseSenior(objectKey, result, file.getOriginalFilename(),
-                    file.getSize(), metadata.getContentType());
+                // 使用 TransferManager 上传
+                Upload upload = transferManager.upload(request);
+                monitorTransferProgress(upload, objectKey);
+
+                // 等待上传返回结果
+                UploadResult result = upload.waitForUploadResult();
+
+                log.info("文件上传成功: bucket={}, key={}, size={} bytes, businessType={}",
+                        cosProperties.getBucketName(), objectKey, file.getSize(), businessType);
+
+                return buildUploadResponseSenior(objectKey, result, file.getOriginalFilename(),
+                        file.getSize(), metadata.getContentType());
+            }
         } catch (CosServiceException e) {
             log.error("COS 上传失败(服务端): statusCode={}, errorCode={}, key={}",
                     e.getStatusCode(), e.getErrorCode(), objectKey, e);
@@ -692,7 +721,9 @@ public class COSServiceImpl implements COSService {
      */
     private ObjectMetadata buildMetadataFromMultipartFile(MultipartFile file) {
         ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(file.getSize());
+        if (file.getSize() > 0) {
+            metadata.setContentLength(file.getSize());
+        }
         metadata.setContentType(cosUtils.resolveContentType(file.getContentType(), file.getOriginalFilename()));
         metadata.setContentDisposition(cosUtils.buildContentDisposition(file.getOriginalFilename()));
         return metadata;
@@ -700,7 +731,9 @@ public class COSServiceImpl implements COSService {
 
     private ObjectMetadata buildMetadataFromMultipartFile(MultipartFile file, String overrideFilename) {
         ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(file.getSize());
+        if (file.getSize() > 0) {
+            metadata.setContentLength(file.getSize());
+        }
         String filenameForType = org.apache.commons.lang3.StringUtils.isNotBlank(overrideFilename)
                 ? overrideFilename
                 : file.getOriginalFilename();
