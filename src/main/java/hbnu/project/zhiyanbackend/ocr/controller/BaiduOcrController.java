@@ -1,6 +1,10 @@
 package hbnu.project.zhiyanbackend.ocr.controller;
 
+import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
+import hbnu.project.zhiyanbackend.ocr.model.enums.OcrType;
 import hbnu.project.zhiyanbackend.ocr.service.BaiduOcrService;
+import hbnu.project.zhiyanbackend.ocr.service.OcrLimitService;
+import hbnu.project.zhiyanbackend.security.utils.SecurityUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +22,7 @@ import java.util.Map;
 
 /**
  * 百度OCR控制器
+ * 带免费试用次数限制
  *
  * @author ErgouTree
  */
@@ -34,6 +39,7 @@ import java.util.Map;
 public class BaiduOcrController {
 
     private final BaiduOcrService baiduOcrService;
+    private final OcrLimitService ocrLimitService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -162,27 +168,56 @@ public class BaiduOcrController {
                 return ResponseEntity.badRequest().body(result);
             }
 
+            // 获取当前用户ID并检查使用限制
+            Long userId = SecurityUtils.getUserId();
+            OcrType ocrType = OcrType.fromCode(type);
+            
+            // 检查使用限制
+            try {
+                ocrLimitService.checkUsageLimit(userId, ocrType);
+            } catch (ServiceException e) {
+                result.put("success", false);
+                result.put("message", e.getMessage());
+                result.put("error_code", "USAGE_LIMIT_EXCEEDED");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
+            }
+
             // 调用OCR服务
             String ocrResult;
-            switch (type) {
-                case "standard":
-                    ocrResult = baiduOcrService.recognizeTextFileStandard(file);
-                    break;
-                case "standard-pos":
-                    ocrResult = baiduOcrService.recognizeTextFileStandardWithPos(file);
-                    break;
-                case "high-accuracy":
-                    ocrResult = baiduOcrService.recognizeTextFileHighAccuracy(file);
-                    break;
-                case "high-accuracy-pos":
-                    ocrResult = baiduOcrService.recognizeTextFileHighAccuracyWithPos(file);
-                    break;
-                default:
-                    ocrResult = baiduOcrService.recognizeTextFileStandard(file);
+            try {
+                switch (type) {
+                    case "standard":
+                        ocrResult = baiduOcrService.recognizeTextFileStandard(file);
+                        break;
+                    case "standard-pos":
+                        ocrResult = baiduOcrService.recognizeTextFileStandardWithPos(file);
+                        break;
+                    case "high-accuracy":
+                        ocrResult = baiduOcrService.recognizeTextFileHighAccuracy(file);
+                        break;
+                    case "high-accuracy-pos":
+                        ocrResult = baiduOcrService.recognizeTextFileHighAccuracyWithPos(file);
+                        break;
+                    default:
+                        ocrResult = baiduOcrService.recognizeTextFileStandard(file);
+                }
+                
+                // OCR调用成功，记录使用次数
+                ocrLimitService.recordUsage(userId, ocrType);
+                
+            } catch (Exception e) {
+                // OCR调用失败，不记录使用次数
+                log.error("OCR服务调用失败", e);
+                throw e;
             }
 
             return buildSuccessResponse(ocrResult, type);
 
+        } catch (ServiceException e) {
+            log.error("图片识别业务异常", e);
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
         } catch (Exception e) {
             log.error("图片识别异常", e);
             result.put("success", false);
@@ -209,27 +244,57 @@ public class BaiduOcrController {
                 return ResponseEntity.badRequest().body(result);
             }
 
+            // 获取当前用户ID并检查使用限制
+            Long userId = SecurityUtils.getUserId();
+            OcrType ocrType = OcrType.fromCode(type);
+            
+            // 检查使用限制
+            try {
+                ocrLimitService.checkUsageLimit(userId, ocrType);
+            } catch (ServiceException e) {
+                result.put("success", false);
+                result.put("message", e.getMessage());
+                result.put("error_code", "USAGE_LIMIT_EXCEEDED");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
+            }
+
             // 调用OCR服务
             String ocrResult;
-            switch (type) {
-                case "standard":
-                    ocrResult = baiduOcrService.recognizeTextUrlStandard(url);
-                    break;
-                case "standard-pos":
-                    ocrResult = baiduOcrService.recognizeTextUrlStandardWithPos(url);
-                    break;
-                case "high-accuracy":
-                    ocrResult = baiduOcrService.recognizeTextUrlHighAccuracy(url);
-                    break;
-                case "high-accuracy-pos":
-                    ocrResult = baiduOcrService.recognizeTextUrlHighAccuracyWithPos(url);
-                    break;
-                default:
-                    ocrResult = baiduOcrService.recognizeTextUrlStandard(url);
+            try {
+                switch (type) {
+                    case "standard":
+                        ocrResult = baiduOcrService.recognizeTextUrlStandard(url);
+                        break;
+                    case "standard-pos":
+                        ocrResult = baiduOcrService.recognizeTextUrlStandardWithPos(url);
+                        break;
+                    case "high-accuracy":
+                        ocrResult = baiduOcrService.recognizeTextUrlHighAccuracy(url);
+                        break;
+                    case "high-accuracy-pos":
+                        ocrResult = baiduOcrService.recognizeTextUrlHighAccuracyWithPos(url);
+                        break;
+                    default:
+                        ocrResult = baiduOcrService.recognizeTextUrlStandard(url);
+                }
+                
+                // OCR调用成功，记录使用次数
+                // 注意：你已经消耗了一次免费使用次数
+                ocrLimitService.recordUsage(userId, ocrType);
+                
+            } catch (Exception e) {
+                // OCR调用失败，不记录使用次数
+                log.error("OCR服务调用失败", e);
+                throw e;
             }
 
             return buildSuccessResponse(ocrResult, type);
 
+        } catch (ServiceException e) {
+            log.error("URL图片识别业务异常", e);
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
         } catch (Exception e) {
             log.error("URL图片识别异常", e);
             result.put("success", false);
@@ -303,6 +368,53 @@ public class BaiduOcrController {
 
         log.info("图片识别成功，类型: {}, 识别到 {} 行文字", type, words.size());
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 查询用户今日OCR使用情况
+     *
+     * @return 使用情况
+     */
+    @GetMapping("/usage/today")
+    public ResponseEntity<Map<String, Object>> getTodayUsage() {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            Long userId = SecurityUtils.getUserId();
+            if (userId == null || userId <= 0) {
+                result.put("success", false);
+                result.put("message", "用户未登录");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
+            }
+
+            List<Map<String, Object>> usageList = new ArrayList<>();
+            for (OcrType ocrType : OcrType.values()) {
+                int todayUsage = ocrLimitService.getTodayUsageCount(userId, ocrType);
+                int remaining = ocrLimitService.getRemainingUsageCount(userId, ocrType);
+                int dailyLimit = ocrType.getDailyLimit();
+
+                Map<String, Object> usageInfo = new HashMap<>();
+                usageInfo.put("type", ocrType.getCode());
+                usageInfo.put("description", ocrType.getDescription());
+                usageInfo.put("today_usage", todayUsage);
+                usageInfo.put("daily_limit", dailyLimit);
+                usageInfo.put("remaining", remaining);
+                usageInfo.put("is_exceeded", todayUsage >= dailyLimit);
+
+                usageList.add(usageInfo);
+            }
+
+            result.put("success", true);
+            result.put("message", "查询成功");
+            result.put("usage_list", usageList);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("查询OCR使用情况异常", e);
+            result.put("success", false);
+            result.put("message", "查询异常: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
     }
 
     /**

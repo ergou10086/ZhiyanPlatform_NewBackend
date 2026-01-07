@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.ocr.config.BaiduOCRConfig;
-import hbnu.project.zhiyanbackend.ocr.dto.TokenCache;
+import hbnu.project.zhiyanbackend.ocr.model.dto.TokenCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,4 +1,4 @@
-package hbnu.project.zhiyanbackend.ocr.dto;
+package hbnu.project.zhiyanbackend.ocr.model.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
