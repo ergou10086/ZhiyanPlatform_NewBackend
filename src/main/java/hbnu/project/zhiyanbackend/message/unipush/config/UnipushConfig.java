@@ -30,12 +30,7 @@ public class UnipushConfig {
     private String appSecret;
 
     /**
-     * 推送频率限制(次/分钟)
+     * 推送消息的DCloud云url函数
      */
-    private Integer rateLimit = 5;
-
-    /**
-     * 最大推送设备数
-     */
-    private Integer maxDevices = 500;
+    private String pushUrl = "https://env-00jxugmemh8a.dev-hz.cloudbasefunction.cn/unipush";
 }
