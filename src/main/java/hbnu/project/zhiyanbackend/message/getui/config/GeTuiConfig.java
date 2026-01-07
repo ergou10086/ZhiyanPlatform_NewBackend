@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author ErgouTree
  */
+@Deprecated
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "getui")

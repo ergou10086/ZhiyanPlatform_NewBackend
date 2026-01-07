@@ -19,9 +19,11 @@ import java.util.List;
 
 /**
  * 推送消息控制器
+ * unipush1.0
  *
  * @author ErgouTree
  */
+@Deprecated
 @Slf4j
 @RestController
 @RequestMapping("/zhiyan/message/getui/push")

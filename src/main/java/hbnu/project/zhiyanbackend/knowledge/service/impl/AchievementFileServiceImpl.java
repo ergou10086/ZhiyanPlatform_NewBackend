@@ -109,8 +109,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
         if (existingFile.isPresent()) {
             AchievementFile oldFile = existingFile.get();
-            log.info("检测到同名文件，执行覆盖删除: fileId={}, objectKey={}",
-                    oldFile.getId(), oldFile.getObjectKey());
+            log.info("检测到同名文件，执行覆盖删除: fileId={}, objectKey={}", oldFile.getId(), oldFile.getObjectKey());
 
             try {
                 cosService.deleteObject(cosProperties.getBucketName(), oldFile.getObjectKey());
@@ -240,8 +239,7 @@ public class AchievementFileServiceImpl implements AchievementFileService {
 
                 if (existingFile.isPresent()) {
                     AchievementFile oldFile = existingFile.get();
-                    log.info("检测到同名文件，执行覆盖删除: fileId={}, objectKey={}",
-                            oldFile.getId(), oldFile.getObjectKey());
+                    log.info("检测到同名文件，执行覆盖删除: fileId={}, objectKey={}", oldFile.getId(), oldFile.getObjectKey());
 
                     try {
                         cosService.deleteObject(cosProperties.getBucketName(), oldFile.getObjectKey());

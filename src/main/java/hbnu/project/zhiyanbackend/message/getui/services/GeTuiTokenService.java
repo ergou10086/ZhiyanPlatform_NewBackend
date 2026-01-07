@@ -19,9 +19,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * 个推Token管理服务
  * 负责token的获取、刷新和缓存管理
+ * unipush1.0
  *
  * @author ErgouTree
  */
+@Deprecated
 @Slf4j
 @Service
 public class GeTuiTokenService {
