@@ -33,8 +33,9 @@ public class PushMessageRequest {
     private Map<String, Object> payload;
 
     /**
-     * 个推客户端ID列表
+     * 客户端ID列表
      * 该平台使用基于 clientId 的形式进行消息推送
+     * 支持数组推送
      */
     @JsonProperty("push_clientid")
     private List<String> pushClientId;
@@ -46,16 +47,4 @@ public class PushMessageRequest {
      */
     @JsonProperty("request_id")
     private String requestId;
-
-    /**
-     * 任务组名
-     * 多个消息任务可以用同一个任务组名，后续可根据任务组名查询推送情况
-     * 基于 push_clientid 可以配置
-     */
-    private String group_name;
-
-//    /**
-//     * 推送通道设置
-//     */
-//    private ChannelSettings settings;
 }
