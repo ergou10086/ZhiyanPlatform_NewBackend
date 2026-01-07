@@ -8,6 +8,7 @@ import hbnu.project.zhiyanbackend.projects.repository.ProjectRepository;
 import hbnu.project.zhiyanbackend.projects.service.ProjectImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +40,7 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
     // TODO COS_IMAGE_MIGRATE: 使用 COS 对象存储项目封面，Project 仅保存 imageObjectKey 和 imageUrl，不再写入 imageData(BYTEA)
     @Override  // 标识为重写父类方法
     @Transactional  // 开启事务，确保方法执行的数据一致性
+    @CacheEvict(value = "projectSquare", allEntries = true)
     public R<String> updateProjectImage(Long projectId, MultipartFile file) {
         try {
             // 根据项目ID查询项目信息，如果不存在则返回失败
@@ -61,7 +63,7 @@ public class ProjectImageServiceImpl implements ProjectImageService {  // 实现
             // 更新项目信息，仅保存 COS 相关字段，不再使用 imageData(BYTEA)
             project.setImageObjectKey(uploadResult.getObjectKey());
             project.setImageUrl(uploadResult.getUrl());
-            project.setImageData(null);
+            //project.setImageData(null);
 
             // 保存更新后的项目信息到数据库
             projectRepository.save(project);

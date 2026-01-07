@@ -82,12 +82,6 @@ public class Project extends BaseAuditEntity {
     @Column(name = "end_date", columnDefinition = "DATE")
     private LocalDate endDate;
 
-    /**
-     * 项目封面图片二进制数据
-     */
-    @JsonIgnore
-    @Column(name = "image_data", columnDefinition = "BYTEA")
-    private byte[] imageData;
 
     /**
      * 项目封面图片在对象存储中的对象键

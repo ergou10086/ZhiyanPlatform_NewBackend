@@ -330,10 +330,21 @@
         </dependency>
 
         <!--baidu-->
+        <!-- baidu aip sdk，排除自带的 slf4j-simple 和 slf4j-api，使用 Spring Boot 自己的日志体系 -->
         <dependency>
             <groupId>com.baidu.aip</groupId>
             <artifactId>java-sdk</artifactId>
             <version>4.16.23</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
