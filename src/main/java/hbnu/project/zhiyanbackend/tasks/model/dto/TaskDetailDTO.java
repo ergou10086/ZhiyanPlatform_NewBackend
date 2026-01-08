@@ -51,6 +51,8 @@ public class TaskDetailDTO {
      */
     private String creatorName;
 
+    private String creatorEmail;
+
     /**
      * 任务标题
      */

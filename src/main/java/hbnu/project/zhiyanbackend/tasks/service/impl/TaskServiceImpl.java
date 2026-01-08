@@ -951,9 +951,13 @@ public class TaskServiceImpl implements TaskService {
                                 UserBasicInfo userBasicInfo = finalUserBasicInfoMap.get(tu.getUserId());
                                 String userName = (userBasicInfo != null && userBasicInfo.getName() != null)
                                         ? userBasicInfo.getName() : "未知用户";
+                                String email = (userBasicInfo != null) ? userBasicInfo.getEmail() : null;
+                                String avatarUrl = (userBasicInfo != null) ? userBasicInfo.getAvatarUrl() : null;
                                 return TaskDetailDTO.AssigneeDTO.builder()
                                         .userId(tu.getUserId())
                                         .userName(userName)
+                                        .email(email)
+                                        .avatarUrl(avatarUrl)
                                         .build();
                             })
                             .collect(Collectors.toList());
@@ -961,6 +965,7 @@ public class TaskServiceImpl implements TaskService {
                     UserBasicInfo creatorBasicInfo = finalUserBasicInfoMap.get(task.getCreatorId());
                     String creatorName = (creatorBasicInfo != null && creatorBasicInfo.getName() != null)
                             ? creatorBasicInfo.getName() : "未知用户";
+                    String creatorEmail = (creatorBasicInfo != null) ? creatorBasicInfo.getEmail() : null;
 
                     return TaskDetailDTO.builder()
                             .id(task.getId())
@@ -968,6 +973,7 @@ public class TaskServiceImpl implements TaskService {
                             .projectName(finalProjectName)
                             .creatorId(task.getCreatorId())
                             .creatorName(creatorName)
+                            .creatorEmail(creatorEmail)
                             .title(task.getTitle())
                             .description(task.getDescription())
                             .worktime(task.getWorktime())
@@ -1027,9 +1033,13 @@ public class TaskServiceImpl implements TaskService {
                     UserBasicInfo userBasicInfo = finalUserBasicInfoMap.get(tu.getUserId());
                     String userName = (userBasicInfo != null && userBasicInfo.getName() != null)
                             ? userBasicInfo.getName() : "未知用户";
+                    String email = (userBasicInfo != null) ? userBasicInfo.getEmail() : null;
+                    String avatarUrl = (userBasicInfo != null) ? userBasicInfo.getAvatarUrl() : null;
                     return TaskDetailDTO.AssigneeDTO.builder()
                             .userId(tu.getUserId())
                             .userName(userName)
+                            .email(email)
+                            .avatarUrl(avatarUrl)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -1038,6 +1048,7 @@ public class TaskServiceImpl implements TaskService {
         UserBasicInfo creatorBasicInfo = userBasicInfoMap.get(task.getCreatorId());
         String creatorName = (creatorBasicInfo != null && creatorBasicInfo.getName() != null)
                 ? creatorBasicInfo.getName() : "未知用户";
+        String creatorEmail = (creatorBasicInfo != null) ? creatorBasicInfo.getEmail() : null;
 
         // 使用投影查询只查询项目名称
         String projectName = null;
@@ -1055,6 +1066,7 @@ public class TaskServiceImpl implements TaskService {
                 .projectName(projectName)
                 .creatorId(task.getCreatorId())
                 .creatorName(creatorName)
+                .creatorEmail(creatorEmail)
                 .title(task.getTitle())
                 .description(task.getDescription())
                 .worktime(task.getWorktime())
