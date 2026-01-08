@@ -17,16 +17,19 @@ public class UnipushConfig {
     /**
      * DCloud AppID
      */
+    @Deprecated
     private String appId;
 
     /**
      * DCloud AppKey
      */
+    @Deprecated
     private String appKey;
 
     /**
      * DCloud MasterSecret
      */
+    @Deprecated
     private String appSecret;
 
     /**

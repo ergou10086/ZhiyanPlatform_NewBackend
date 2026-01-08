@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hbnu.project.zhiyanbackend.basic.exception.ServiceException;
 import hbnu.project.zhiyanbackend.ocr.config.BaiduOCRConfig;
-import hbnu.project.zhiyanbackend.ocr.dto.TokenCache;
+import hbnu.project.zhiyanbackend.ocr.model.dto.TokenCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,58 +40,115 @@ public class BaiduOcrService {
 
     /**
      * 识别图片中的文字
+     * 上传文件
      * 通用文字识别-标准版
      *
      * @param file 图片文件
      * @return 识别结果JSON字符串
      */
-    public String recognizeText(MultipartFile file) throws IOException {
-        // 获取 AccessToken
+    public String recognizeTextFileStandard(MultipartFile file) throws IOException {
         String accessToken = getAccessToken();
-
-        // 将图片转换为Base64
         byte[] imageBytes = file.getBytes();
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-
-        // 调用百度OCR API
-        return callOcrApi(accessToken, base64Image);
+        return callOcrApi(accessToken, base64Image, null, "general_basic");
     }
 
-
     /**
-     * 识别Base64编码的图片
+     * 识别图片中的文字
+     * 上传文件
+     * 通用文字识别-标准版含位置
      *
-     * @param base64Image Base64编码的图片,可能包含data URI前缀，如data:image/jpg;base64
+     * @param file 图片文件
      * @return 识别结果JSON字符串
      */
-    public String recognizeTextFromBase64(String base64Image) throws IOException {
+    public String recognizeTextFileStandardWithPos(MultipartFile file) throws IOException {
         String accessToken = getAccessToken();
-        // 移除data URI前缀（如果存在）
-        String cleanBase64 = removeDataUriPrefix(base64Image);
-        return callOcrApi(accessToken, cleanBase64);
+        byte[] imageBytes = file.getBytes();
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+        return callOcrApi(accessToken, base64Image, null, "general");
     }
 
     /**
-     * 移除Base64字符串中的data URI前缀
-     * 百度OCR要求base64编码不包含图片头，如data:image/jpg;base64,
+     * 识别图片中的文字
+     * 上传文件
+     * 通用文字识别-高精度版
      *
-     * @param base64Image 可能包含data URI前缀的Base64字符串
-     * @return 清理后的Base64字符串
+     * @param file 图片文件
+     * @return 识别结果JSON字符串
      */
-    private String removeDataUriPrefix(String base64Image) {
-        if (base64Image == null) {
-            return null;
-        }
-        // 移除data URI前缀（如 data:image/jpg;base64, 或 data:image/png;base64, 等）
-        if (base64Image.contains(",")) {
-            int commaIndex = base64Image.lastIndexOf(",");
-            if (commaIndex >= 0 && commaIndex < base64Image.length() - 1) {
-                return base64Image.substring(commaIndex + 1);
-            }
-        }
-        return base64Image;
+    public String recognizeTextFileHighAccuracy(MultipartFile file) throws IOException {
+        String accessToken = getAccessToken();
+        byte[] imageBytes = file.getBytes();
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+        return callOcrApi(accessToken, base64Image, null, "accurate_basic");
     }
 
+    /**
+     * 识别图片中的文字
+     * 上传文件
+     * 通用文字识别-高精度含位置版
+     *
+     * @param file 图片文件
+     * @return 识别结果JSON字符串
+     */
+    public String recognizeTextFileHighAccuracyWithPos(MultipartFile file) throws IOException {
+        String accessToken = getAccessToken();
+        byte[] imageBytes = file.getBytes();
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+        return callOcrApi(accessToken, base64Image, null, "accurate");
+    }
+
+    /**
+     * 识别图片中的文字
+     * 使用url，用于在知识库等已经上传了图片的地方提供ocr识别
+     * 通用文字识别——标准版
+     *
+     * @param url 图片文件url，对于本项目就是COS图片访问的url
+     * @return 识别结果JSON字符串
+     */
+    public String recognizeTextUrlStandard(String url) throws IOException {
+        String accessToken = getAccessToken();
+        return callOcrApi(accessToken, null, url, "general_basic");
+    }
+
+    /**
+     * 识别图片中的文字
+     * 使用url，用于在知识库等已经上传了图片的地方提供ocr识别
+     * 通用文字识别——标准版含位置
+     *
+     * @param url 图片文件url，对于本项目就是COS图片访问的url
+     * @return 识别结果JSON字符串
+     */
+    public String recognizeTextUrlStandardWithPos(String url) throws IOException {
+        String accessToken = getAccessToken();
+        return callOcrApi(accessToken, null, url, "general");
+    }
+
+    /**
+     * 识别图片中的文字
+     * 使用url，用于在知识库等已经上传了图片的地方提供ocr识别
+     * 通用文字识别——高精度版
+     *
+     * @param url 图片文件url，对于本项目就是COS图片访问的url
+     * @return 识别结果JSON字符串
+     */
+    public String recognizeTextUrlHighAccuracy(String url) throws IOException {
+        String accessToken = getAccessToken();
+        return callOcrApi(accessToken, null, url, "accurate_basic");
+    }
+
+    /**
+     * 识别图片中的文字
+     * 使用url，用于在知识库等已经上传了图片的地方提供ocr识别
+     * 通用文字识别——高精度版含位置
+     *
+     * @param url 图片文件url，对于本项目就是COS图片访问的url
+     * @return 识别结果JSON字符串
+     */
+    public String recognizeTextUrlHighAccuracyWithPos(String url) throws IOException {
+        String accessToken = getAccessToken();
+        return callOcrApi(accessToken, null, url, "accurate");
+    }
 
     /**
      * 获取Access Token
@@ -118,7 +175,7 @@ public class BaiduOcrService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        try{
+        try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
@@ -127,40 +184,48 @@ public class BaiduOcrService {
                 long expiresIn = jsonNode.get("expires_in").asLong();
 
                 // 缓存Token（提前2分钟过期）
-                TOKEN_CACHE.put(cacheKey, new TokenCache(accessToken, expiresIn - 120));
+                TOKEN_CACHE.put(cacheKey, new TokenCache(accessToken, System.currentTimeMillis() + (expiresIn - 120) * 1000));
 
                 log.info("成功获取百度OCR Access Token");
                 return accessToken;
-            }else {
+            } else {
                 throw new IOException("获取Access Token失败: " + response.getBody());
             }
-        }catch (ServiceException e){
+        } catch (ServiceException e) {
             log.error("获取Access Token异常", e);
             throw new IOException("获取Access Token异常: " + e.getMessage());
         }
     }
 
-
     /**
      * 调用百度OCR API进行文字识别
-     * https://cloud.baidu.com/doc/OCR/s/zk3h7xz52
-     * 通用文字识别——标准版
-     * 
-     * 注意：根据百度OCR文档，图片的base64编码不包含图片头（如data:image/jpg;base64,）
-     * 图片需要经过base64编码及urlencode后传入
+     * 统一的调用方法，支持四种识别类型
+     *
+     * @param accessToken 访问令牌
+     * @param base64Image base64编码的图片（与url二选一）
+     * @param imageUrl    图片URL（与base64Image二选一）
+     * @param apiType     API类型: general_basic, general, accurate_basic, accurate
+     * @return 识别结果JSON字符串
      */
-    private String callOcrApi(String accessToken, String base64Image) throws IOException {
-        // 确保base64字符串不包含data URI前缀
-        String cleanBase64 = removeDataUriPrefix(base64Image);
-        
-        // 构建请求URL
-        String url = baiduOCRConfig.getGeneralBasicUrl() + "?access_token=" + accessToken;
+    private String callOcrApi(String accessToken, String base64Image, String imageUrl, String apiType) throws IOException {
+        // 根据apiType构建URL
+        String apiUrl = getApiUrl(apiType);
+        String url = apiUrl + "?access_token=" + accessToken;
 
-        // 构建请求体，必须 application/x-www-form-urlencoded 格式
-        // 根据百度文档，需要对base64字符串进行URL编码
-        // 注意：直接构建字符串，避免Spring的MultiValueMap自动编码导致的问题
-        String encodedImage = URLEncoder.encode(cleanBase64, StandardCharsets.UTF_8);
-        String requestBody = "image=" + encodedImage;
+        // 构建请求体
+        String requestBody;
+        if (base64Image != null) {
+            // 使用base64图片
+            String cleanBase64 = removeDataUriPrefix(base64Image);
+            String encodedImage = URLEncoder.encode(cleanBase64, StandardCharsets.UTF_8);
+            requestBody = "image=" + encodedImage;
+        } else if (imageUrl != null) {
+            // 使用图片URL
+            String encodedUrl = URLEncoder.encode(imageUrl, StandardCharsets.UTF_8);
+            requestBody = "url=" + encodedUrl;
+        } else {
+            throw new IOException("必须提供base64Image或imageUrl其中之一");
+        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -168,12 +233,13 @@ public class BaiduOcrService {
 
         HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
-        try{
+        try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                // 检查响应中是否包含错误
                 String responseBody = response.getBody();
+
+                // 检查响应中是否包含错误
                 try {
                     JsonNode jsonNode = objectMapper.readTree(responseBody);
                     if (jsonNode.has("error_code")) {
@@ -182,24 +248,63 @@ public class BaiduOcrService {
                         log.error("OCR识别失败，错误码: {}, 错误信息: {}", errorCode, errorMsg);
                         throw new IOException("OCR识别失败: " + errorMsg);
                     }
+                } catch (IOException e) {
+                    throw e;
                 } catch (Exception e) {
-                    // 如果解析失败，可能是响应格式异常，记录日志但继续返回原始响应
                     log.warn("解析OCR响应失败，返回原始响应: {}", responseBody);
                 }
-                
-                log.info("OCR识别成功");
+
+                log.info("OCR识别成功，使用API: {}", apiType);
                 return responseBody;
             } else {
                 throw new IOException("OCR识别失败: " + response.getBody());
             }
-        }catch (ServiceException e){
+        } catch (ServiceException e) {
             log.error("OCR识别异常", e);
             throw new IOException("OCR识别异常: " + e.getMessage());
         }
     }
 
+    /**
+     * 根据API类型获取对应的URL
+     *
+     * @param apiType API类型
+     * @return API URL
+     */
+    private String getApiUrl(String apiType) {
+        String baseUrl = "https://aip.baidubce.com/rest/2.0/ocr/v1/";
+        switch (apiType) {
+            case "general_basic":
+                return baseUrl + "general_basic";
+            case "general":
+                return baseUrl + "general";
+            case "accurate_basic":
+                return baseUrl + "accurate_basic";
+            case "accurate":
+                return baseUrl + "accurate";
+            default:
+                return baseUrl + "general_basic";
+        }
+    }
 
     /**
-     * TODO：明天把通用文字识别，高精度版，标准含位置版，高精度含位置版本加上，而且添加对应的传入图片url识别，并且对用户限制使用
+     * 移除Base64字符串中的data URI前缀
+     * 百度OCR要求base64编码不包含图片头，如data:image/jpg;base64,
+     *
+     * @param base64Image 可能包含data URI前缀的Base64字符串
+     * @return 清理后的Base64字符串
      */
+    private String removeDataUriPrefix(String base64Image) {
+        if (base64Image == null) {
+            return null;
+        }
+        // 移除data URI前缀（如 data:image/jpg;base64, 或 data:image/png;base64, 等）
+        if (base64Image.contains(",")) {
+            int commaIndex = base64Image.indexOf(",");
+            if (commaIndex >= 0 && commaIndex < base64Image.length() - 1) {
+                return base64Image.substring(commaIndex + 1);
+            }
+        }
+        return base64Image;
+    }
 }

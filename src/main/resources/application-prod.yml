@@ -294,3 +294,14 @@ zhiyan:
     orcid_tokenUri: https://orcid.org/oauth/token
     orcid_userInfoUri: https://pub.orcid.org/v3.0
     orcid_apiVersion: v3.0
+
+baidu:
+  ocr:
+    app-id: 7387606
+    api-key: ${BAIDU_OCR_APIKEY}
+    secret-key: ${BAIDU_OCR_SECRETKEY}
+
+ocr:
+  limit:
+    enabled: true  # 是否启用使用限制
+    default-daily-limit: 5  # 默认每日限制次数
