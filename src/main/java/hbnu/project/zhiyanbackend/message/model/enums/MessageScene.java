@@ -1,10 +1,13 @@
 package hbnu.project.zhiyanbackend.message.model.enums;
 
+import lombok.Getter;
+
 /**
  * 通知类型(消息场景)枚举
  *
  * @author ErgouTree
  */
+@Getter
 public enum MessageScene {
 
     TASK_ASSIGN("TASK", "任务分配"),
@@ -39,7 +42,15 @@ public enum MessageScene {
     USER_EMAIL_CHANGED("USER", "邮箱修改通知"),
     SYSTEM_BROADCAST("SYSTEM", "平台广播");
 
+    /**
+     * -- GETTER --
+     *  获取模块名称
+     */
     private final String module;
+    /**
+     * -- GETTER --
+     *  获取描述信息
+     */
     private final String desc;
 
     MessageScene(String module, String desc) {
@@ -47,17 +58,4 @@ public enum MessageScene {
         this.desc = desc;
     }
 
-    /**
-     * 获取模块名称
-     */
-    public String getModule() {
-        return module;
-    }
-
-    /**
-     * 获取描述信息
-     */
-    public String getDesc() {
-        return desc;
-    }
 }

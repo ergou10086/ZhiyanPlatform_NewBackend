@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 百度OCR服务类
+ * 四个OCR接口，每个接口对应两种调用方式
+ * 带限额
  *
  * @author ErgouTree
  */

@@ -54,6 +54,7 @@ public class UnipushService {
 
     /**
      * 发送推送消息
+     *
      * @param request 推送请求对象
      * @return 推送结果
      */
@@ -68,7 +69,7 @@ public class UnipushService {
                 request.setRequestId(generateRequestId());
             }
 
-            // 构建请求体(匹配云函数的格式)
+            // 构建请求体,匹配云函数的格式
             Map<String, Object> requestBody = buildCloudFunctionRequest(request);
 
             log.info("开始发送推送消息, clientIds: {}, title: {}", request.getPushClientId(), request.getTitle());
@@ -180,7 +181,7 @@ public class UnipushService {
 
         // 消息有效期设置(默认2小时)
         Map<String, Object> settings = new HashMap<>();
-        settings.put("ttl", 72000000); // 20小时,单位毫秒
+        settings.put("ttl", 72000000);   // 20小时,单位毫秒
         body.put("settings", settings);
 
         return body;
