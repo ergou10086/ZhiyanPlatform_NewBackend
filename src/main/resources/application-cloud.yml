@@ -13,7 +13,7 @@ spring:
     # 在searchPath中包含所有schema，按优先级排序
     url: jdbc:postgresql://152.136.245.180:5432/zhiyanplatform?searchPath=zhiyanauth,zhiyanproject,zhiyantasks,zhiyanmessage
     username: postgres
-    password: ${POSTGRESQL_PASSWORD}
+    password: zjm10086
     driver-class-name: org.postgresql.Driver
     # HikariCP连接池配置
     hikari:
@@ -56,7 +56,7 @@ spring:
     host: smtp.163.com
     port: 465
     username: zhiyan163verif@163.com
-    password: ${MAIL163_SMTPCODE}
+    password: UJrssfvfNrMJKvD4
     properties:
       mail:
         smtp:
@@ -90,7 +90,7 @@ spring:
       port: 6379
       # Redis 服务器连账密
       username: default
-      password: ${REDIS_PASSWORD}
+      password: zjm10086
       # 连接超时时间（毫秒）
       timeout: 30000
       # 命令超时时间
