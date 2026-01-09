@@ -315,6 +315,14 @@ public class InboxMessageServiceImpl implements InboxMessageService {
             // 检查该消息体是否还有其他收件人，如果没有则删除消息体
             long remainingRecipients = messageRecipientRepository.countByMessageBodyId(messageBodyId);
             if (remainingRecipients == 0) {
+                // 先删除相关的发送记录，避免外键约束违反
+                List<MessageSendRecord> sendRecords = messageSendRecordRepository.findByMessageBodyId(messageBodyId);
+                if (!sendRecords.isEmpty()) {
+                    messageSendRecordRepository.deleteAll(sendRecords);
+                    log.debug("删除消息体相关的发送记录: messageBodyId={}, recordCount={}", 
+                            messageBodyId, sendRecords.size());
+                }
+                
                 messageBodyRepository.deleteById(messageBodyId);
                 log.info("消息体已无收件人，删除消息体: messageBodyId={}", messageBodyId);
             }
@@ -354,6 +362,14 @@ public class InboxMessageServiceImpl implements InboxMessageService {
         for (Long messageBodyId : messageBodyIds) {
             long remainingRecipients = messageRecipientRepository.countByMessageBodyId(messageBodyId);
             if (remainingRecipients == 0) {
+                // 先删除相关的发送记录，避免外键约束违反
+                List<MessageSendRecord> sendRecords = messageSendRecordRepository.findByMessageBodyId(messageBodyId);
+                if (!sendRecords.isEmpty()) {
+                    messageSendRecordRepository.deleteAll(sendRecords);
+                    log.debug("删除消息体相关的发送记录: messageBodyId={}, recordCount={}", 
+                            messageBodyId, sendRecords.size());
+                }
+                
                 messageBodyRepository.deleteById(messageBodyId);
                 log.debug("消息体已无收件人，删除消息体: messageBodyId={}", messageBodyId);
             }
