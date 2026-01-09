@@ -133,8 +133,6 @@ public class MailServiceImpl implements MailService {
                 break;
         }
 
-        String logoBase64 = getLogoPngBase64();
-
         return String.format("""
             <!DOCTYPE html>
             <html lang="zh-CN">
@@ -225,7 +223,7 @@ public class MailServiceImpl implements MailService {
             </html>
             """,
                 appName,
-                logoBase64,
+                "public/zylogo.png",
                 appName,
                 action,
                 action,
@@ -294,28 +292,5 @@ public class MailServiceImpl implements MailService {
                 %s团队""",
                 appName, action, code, CODE_EXPIRE_MINUTES, appName
         );
-    }
-
-
-    /**
-     * 读取 zylogo.png 并转换为 Base64 Data URI
-     * 要求：zylogo.png 必须位于 classpath 下的 /logo/ 目录中
-     */
-    private String getLogoPngBase64() {
-        try {
-            ClassPathResource resource = new ClassPathResource("logo/zylogo.png");
-            if (!resource.exists()) {
-                throw new IOException("Logo file not found in classpath: logo/zylogo.png");
-            }
-            byte[] imageBytes = resource.getInputStream().readAllBytes();
-            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-            return "data:image/png;base64," + base64Image;
-        } catch (IOException e) {
-            log.warn("Failed to load PNG logo, falling back to simplified SVG", e);
-            // Fallback to SVG if PNG is missing
-            String simplifiedSvg = buildSimplifiedLogoSvg();
-            String base64Svg = Base64.getEncoder().encodeToString(simplifiedSvg.getBytes(StandardCharsets.UTF_8));
-            return "data:image/svg+xml;base64," + base64Svg;
-        }
     }
 }

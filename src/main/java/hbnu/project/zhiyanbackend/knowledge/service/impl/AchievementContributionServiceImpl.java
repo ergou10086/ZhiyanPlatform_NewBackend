@@ -203,6 +203,9 @@ public class AchievementContributionServiceImpl implements AchievementContributi
         return result;
     }
 
+    /**
+     * 用于周视图的成果贡献方法
+     */
     @Override
     public AchievementContributionDetailDTO getContributionDetails(Long projectId, LocalDate startDate, LocalDate endDate) {
         log.info("获取项目成果详细贡献数据（日期范围）: projectId={}, startDate={}, endDate={}", projectId, startDate, endDate);
