@@ -57,6 +57,7 @@ spring:
     port: 465
     username: zhiyan163verif@163.com
     password: UJrssfvfNrMJKvD4
+    protocol: smtp
     properties:
       mail:
         smtp:
